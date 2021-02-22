@@ -1,18 +1,26 @@
 #!/usr/bin/env bash
-source build-linaro-7.5.env
+ENVFILE=build-linaro-7.5.env;
 
-JOBS=$(nproc --all) # used in make -jN
+source $ENVFILE;
+
+JOBS=$(nproc --all); # used in make -jN
 
 error() {
-    echo -e "\033[0;31m==>\033[0m ERROR: $1";
+    echo -e "\033[0;31m==>\033[0m ERROR: $@" >&2;
 }
 
 warning() {
-    echo -e "\033[0;36m==>\033[0m $1";
+    echo -e "\033[0;36m==>\033[0m $@" >&2;
 }
 
 info() {
-    echo -e "\033[0;32m==>\033[0m $1";
+    echo -e "\033[0;32m==>\033[0m $@";
+}
+
+debug() {
+    if [[ ! $DEBUG -eq 0 ]]; then
+        echo -e "\033[0;34m==>\033[0m $@" >&2;
+    fi
 }
 
 is_sourced() {
@@ -26,16 +34,37 @@ is_sourced() {
 export ARCH=$KERNEL_ARCH;
 
 if ! is_sourced; then
+    [[ -z "${DEVICE+x}" ]] && { error "You should set DEVICE variable in the $ENVFILE"; exit 1; }
+    [[ -z "${KERNEL_DEFCONFIG+x}" ]] && { error "You should set KERNEL_DEFCONFIG variable in the $ENVFILE"; exit 1; }
+    [[ -z "${ANYKERNEL_DIR+x}" ]] && { error "You should set ANYKERNEL_DIR variable in the $ENVFILE"; exit 1; }
+    [[ -z "${CROSS_COMPILE+x}" ]] && { error "You should set CROSS_COMPILE variable in the $ENVFILE"; exit 1; }
+
+    [[ -z "${DEBUG+x}" ]] && export DEBUG=0;
+    [[ -z "${KERNEL+x}" ]] && export KERNEL=$(dirname $(realpath "$0"));
+    [[ -z "${KERNEL_ARCH+x}" ]] && { 
+        for arch in arm64 arm; do
+            if [[ -d "$KERNEL"/arch/"$arch"/configs/"$KERNEL_DEFCONFIG" ]]; then
+                export KERNEL_ARCH="$arch";
+            fi
+        done
+    }
+
+    [[ -z "${KERNEL_IMAGE+x}" ]] && export KERNEL_IMAGE=zImage-dtb;
+    [[ -z "${KERNEL_OUTPUT+x}" ]] && export KERNEL_OUTPUT=$KERNEL/out;
+    [[ -z "${RUN_MENUCONFIG+x}" ]] && export RUN_MENUCONFIG=0;
 
     DEFCONFIG="$KERNEL"/arch/"$KERNEL_ARCH"/configs/"$KERNEL_DEFCONFIG";
     if [[ ! -f $DEFCONFIG ]]; then
-        error "Config $KERNEL_DEFCONFIG doesn't exists! ($DEFCONFIG)";
-        exit 1;
+        error "Config \"$KERNEL_DEFCONFIG\" doesn't exists! ($DEFCONFIG)";
+        error "      (Wrong KERNEL_ARCH? [$KERNEL_ARCH])";
+        error "      (Wrong path to kernel? [$KERNEL])";
+        error "      (Wrong defconfig? [$KERNEL_DEFCONFIG])";
+        exit 2;
     fi
 
     if [[ ! -f ${CROSS_COMPILE}as ]]; then
-        error "Check your CROSS_COMPILE variable at the top of $0";
-        exit 2;
+        error "Check your CROSS_COMPILE variable in the $ENVFILE";
+        exit 3;
     fi
 
 fi
@@ -91,7 +120,7 @@ package() {
     IMAGE="$KERNEL_OUTPUT"/arch/"$KERNEL_ARCH"/boot/"$KERNEL_IMAGE";
     if [[ ! -f $IMAGE ]]; then
         error "Kernel image doesn't exists! ($IMAGE)";
-        exit 3;
+        exit 4;
     fi
 
     if [[ -d $ANYKERNEL_DIR ]]; then
@@ -123,6 +152,13 @@ package() {
 
 
 if ! is_sourced; then
+
+for dir in arch block crypto Documentation drivers firmware fs include init ipc kernel lib mm net scripts security sound tools usr virt Kbuild Kconfig Makefile; do
+    if [[ ! -d "$KERNEL"/"$dir" && ! -f "$KERNEL"/"$dir" ]]; then
+        error "Script $0 must be places in the root of kernel source.";
+        exit 5;
+    fi
+done
 
 case "$1" in
     cleanup)
