@@ -1,17 +1,7 @@
 #!/usr/bin/env bash
+source build-linaro-7.5.env
 
-DEVICE=cactus
-JOBS=$(nproc --all) # make -j$JOBS
-RUN_MENUCONFIG=0
-KERNEL_DEFCONFIG=cactus_defconfig
-
-
-ANYKERNEL_DIR=${HOME}/xiaomi-mt6765/AnyKernel3-cactus
-CROSS_COMPILE=${HOME}/xiaomi-mt6765/gcc-linaro-7.5.0-2019.12-x86_64_arm-linux-gnueabihf/bin/arm-linux-gnueabihf-
-KERNEL=$(dirname $(realpath "$0"))
-KERNEL_ARCH=arm
-KERNEL_IMAGE=zImage-dtb
-KERNEL_OUTPUT=${KERNEL}/out
+JOBS=$(nproc --all) # used in make -jN
 
 error() {
     echo -e "\033[0;31m==>\033[0m ERROR: $1";
@@ -25,30 +15,41 @@ info() {
     echo -e "\033[0;32m==>\033[0m $1";
 }
 
+is_sourced() {
+    if [ "${BASH_SOURCE[0]}" -ef "$0" ]; then
+        return 1;
+    else
+        return 0;
+    fi
+}
+
 export ARCH=$KERNEL_ARCH;
-export CROSS_COMPILE;
 
-TIME='00s';
+if ! is_sourced; then
 
-DEFCONFIG="$KERNEL"/arch/"$KERNEL_ARCH"/configs/"$KERNEL_DEFCONFIG";
-if [[ ! -f $DEFCONFIG ]]; then
-    error "Config $KERNEL_DEFCONFIG doesn't exists! ($DEFCONFIG)";
-    exit 1;
+    DEFCONFIG="$KERNEL"/arch/"$KERNEL_ARCH"/configs/"$KERNEL_DEFCONFIG";
+    if [[ ! -f $DEFCONFIG ]]; then
+        error "Config $KERNEL_DEFCONFIG doesn't exists! ($DEFCONFIG)";
+        exit 1;
+    fi
+
+    if [[ ! -f ${CROSS_COMPILE}as ]]; then
+        error "Check your CROSS_COMPILE variable at the top of $0";
+        exit 2;
+    fi
+
 fi
 
-if [[ ! -f ${CROSS_COMPILE}as ]]; then
-    error "Check your CROSS_COMPILE variable at the top of $0";
-    exit 2;
-fi
+cleanup() {
+    if [[ -d $KERNEL_OUTPUT ]]; then
+        make O=$KERNEL_OUTPUT mrproper;
+    fi
+}
 
 prepare() {
     info "Prepare environment before compilation...";
 
-    if [[ -d $KERNEL_OUTPUT ]]; then
-        make O=$KERNEL_OUTPUT mrproper;
-    else
-        mkdir $KERNEL_OUTPUT;
-    fi
+    cleanup;
 
     make O=$KERNEL_OUTPUT $KERNEL_DEFCONFIG;
 
@@ -57,27 +58,36 @@ prepare() {
     fi
 }
 
+prepare_modules() {
+    info "Prepare environment for Linux modules...";
+
+    cleanup;
+
+    make O=$KERNEL_OUTPUT $KERNEL_DEFCONFIG;
+    make O=$KERNEL_OUTPUT scripts prepare modules_prepare;
+}
+
 build() {
     info "Build kernel...";
 
-    START_TIME=$(date +%s);
+    local START_TIME=$(date +%s);
     make O=$KERNEL_OUTPUT -j$JOBS;
-    END_TIME=$(date +%s);
+    local END_TIME=$(date +%s);
 
-    DIFF_TIME=$(($END_TIME - $START_TIME));
+    local DIFF_TIME=$(( $END_TIME - $START_TIME ));
 
-    if [[ ( $DIFF_TIME < 60 ) ]]; then
-        TIME=$(date +'%Ss' --date @$DIFF_TIME --utc);
-    elif [[ ( $DIFF_TIME < 3600 ) ]]; then
+    local TIME="00s";
+
+    if [[ ( $DIFF_TIME < 3600 ) ]]; then
         TIME=$(date +'%Mm %Ss' --date @$DIFF_TIME --utc);
     else
         TIME=$(date +'%Hh %Mm %Ss' --date @$DIFF_TIME --utc);
     fi
+
+    info "Compilation finished in the $TIME";
 }
 
 package() {
-    info "Compilation finished in the $TIME";
-
     IMAGE="$KERNEL_OUTPUT"/arch/"$KERNEL_ARCH"/boot/"$KERNEL_IMAGE";
     if [[ ! -f $IMAGE ]]; then
         error "Kernel image doesn't exists! ($IMAGE)";
@@ -104,15 +114,55 @@ package() {
         cd $ANYKERNEL_DIR;
         zip -r $ARCHIVE META-INF/ modules/ tools/ LICENSE anykernel.sh $KERNEL_IMAGE;
         cp $ARCHIVE $KERNEL/;
-        rm -rf modules/ $KERNEL_IMAGE;
+        #rm -rf modules/ $KERNEL_IMAGE;
         cd $_PWD;
 
         info "$ARCHIVE saved to $KERNEL/$ARCHIVE"; 
     fi
-
-    info "Done!";
 }
 
-prepare;
-build;
-package;
+
+if ! is_sourced; then
+
+case "$1" in
+    cleanup)
+        info "Cleanup...";
+        cleanup;
+        ;;
+    prepare)
+        prepare;
+        ;;
+    prepare_modules)
+        prepare_modules;
+        ;;
+    build)
+        build;
+        ;;
+    package)
+        package;
+        ;;
+    help|-h|--help)
+        echo "";
+        echo "$0 - simple script to build Linux kernel";
+        echo "";
+        echo "Usage: $0 [|prepare|build|package|help]";
+        echo "       cleanup - run `make mrproper`";
+        echo "       prepare - build defconfig and call menuconfig, if RUN_MENUCONFIG=1";
+        echo "       prepare_modules - prepare for building kernel modules";
+        echo "       build - build kernel";
+        echo "       package - pack kernel to .zip";
+        echo "       help - print this message";
+        echo "If no one command specified, then run \"prepare\", \"build\" and \"package\"";
+        echo "";
+        exit 0;
+        ;;
+    *)
+        prepare;
+        build;
+        package;
+        ;;
+esac
+
+info "Done!";
+
+fi
