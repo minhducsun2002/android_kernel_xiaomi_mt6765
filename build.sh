@@ -134,10 +134,10 @@ package() {
             rm -rf $ANYKERNEL_DIR/modules;
         fi
 
-        mkdir -p $ANYKERNEL_DIR/modules/vendor/system/lib/modules;
+        mkdir -p $ANYKERNEL_DIR/modules/system/vendor/lib/modules;
 
         find $KERNEL_OUTPUT/ -name "*.ko" -exec ${CROSS_COMPILE}strip --strip-unneeded '{}' \;
-        find $KERNEL_OUTPUT/ -name "*.ko" -exec cp '{}' $ANYKERNEL_DIR/modules/vendor/system/lib/modules;
+        find $KERNEL_OUTPUT/ -name "*.ko" -exec cp '{}' $ANYKERNEL_DIR/modules/system/vendor/lib/modules \;
 
         _PWD=$PWD;
         cd $ANYKERNEL_DIR;
