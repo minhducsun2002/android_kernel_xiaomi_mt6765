@@ -152,6 +152,14 @@ endif
 obj-y += timer/
 obj-$(CONFIG_NFC_CHIP_SUPPORT) += nfc/
 obj-$(CONFIG_MTK_DRAMC) += dramc/
+
+# always build fpsgo.ko as module
+ifeq ($(CONFIG_MTK_FPSGO), y)
+  obj-m += fpsgo_cus/
+else
+  obj-$(CONFIG_MTK_FPSGO) += fpsgo_cus/
+endif
+
 obj-y += performance/
 obj-$(CONFIG_MTK_FIQ_CACHE) += fiq_cache/
 obj-$(CONFIG_MTK_DEBUG_LATCH) += debug_latch/
