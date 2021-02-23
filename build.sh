@@ -36,12 +36,12 @@ export ARCH=$KERNEL_ARCH;
 if ! is_sourced; then
     [[ -z "${DEVICE+x}" ]] && { error "You should set DEVICE variable in the $ENVFILE"; exit 1; }
     [[ -z "${KERNEL_DEFCONFIG+x}" ]] && { error "You should set KERNEL_DEFCONFIG variable in the $ENVFILE"; exit 1; }
-    [[ -z "${ANYKERNEL_DIR+x}" ]] && { error "You should set ANYKERNEL_DIR variable in the $ENVFILE"; exit 1; }
+    # [[ -z "${ANYKERNEL_DIR+x}" ]] && { error "You should set ANYKERNEL_DIR variable in the $ENVFILE"; exit 1; }
     [[ -z "${CROSS_COMPILE+x}" ]] && { error "You should set CROSS_COMPILE variable in the $ENVFILE"; exit 1; }
 
     [[ -z "${DEBUG+x}" ]] && export DEBUG=0;
     [[ -z "${KERNEL+x}" ]] && export KERNEL=$(dirname $(realpath "$0"));
-    [[ -z "${KERNEL_ARCH+x}" ]] && { 
+    [[ -z "${KERNEL_ARCH+x}" ]] && {
         for arch in arm64 arm; do
             if [[ -d "$KERNEL"/arch/"$arch"/configs/"$KERNEL_DEFCONFIG" ]]; then
                 export KERNEL_ARCH="$arch";
@@ -49,9 +49,13 @@ if ! is_sourced; then
         done
     }
 
+    [[ -z "${KERNEL_ARCH+x}" ]] && export KERNEL_ARCH=arm;
     [[ -z "${KERNEL_IMAGE+x}" ]] && export KERNEL_IMAGE=zImage-dtb;
     [[ -z "${KERNEL_OUTPUT+x}" ]] && export KERNEL_OUTPUT=$KERNEL/out;
     [[ -z "${RUN_MENUCONFIG+x}" ]] && export RUN_MENUCONFIG=0;
+    [[ -z "${PACK_MODULES+x}" ]] && export PACK_MODULES=0;
+    [[ -z "${MODULES_DIR+x}" ]] && export MODULES_DIR=vendor/lib/modules;
+    [[ -z "${DO_MODULES_STRIP+x}" ]] && export DO_MODULES_STRIP=1;
 
     DEFCONFIG="$KERNEL"/arch/"$KERNEL_ARCH"/configs/"$KERNEL_DEFCONFIG";
     if [[ ! -f $DEFCONFIG ]]; then
@@ -127,6 +131,9 @@ package() {
         info "AnyKernel3 found at $ANYKERNEL_DIR";
 
         ARCHIVE=AnyKernel3-"$DEVICE"-$(date +'%d_%m_%Y-%H_%M_%S').zip;
+        if [[ -z "$CUSTOM_ARCHIVE_FORMAT" ]]; then
+            ARCHIVE=$CUSTOM_ARCHIVE_FORMAT;
+        fi
 
         cp $IMAGE $ANYKERNEL_DIR/;
 
@@ -134,19 +141,25 @@ package() {
             rm -rf $ANYKERNEL_DIR/modules;
         fi
 
-        mkdir -p $ANYKERNEL_DIR/modules/system/vendor/lib/modules;
+        mkdir -p $ANYKERNEL_DIR/modules/$MODULES_DIR;
+        touch $ANYKERNEL_DIR/modules/$MODULES_DIR/placeholder;
 
-        find $KERNEL_OUTPUT/ -name "*.ko" -exec ${CROSS_COMPILE}strip --strip-unneeded '{}' \;
-        find $KERNEL_OUTPUT/ -name "*.ko" -exec cp '{}' $ANYKERNEL_DIR/modules/system/vendor/lib/modules \;
+        if [[ ! $PACK_MODULES -eq 0 ]]; then
+            find $KERNEL_OUTPUT/ -name "*.ko" -exec cp '{}' $ANYKERNEL_DIR/modules/$MODULES_DIR \;
+
+            if [[ ! $DO_MODULES_STRIP -eq 0 ]]; then
+                find $ANYKERNEL_DIR/modules -name "*.ko" -exec ${CROSS_COMPILE}strip --strip-unneeded '{}' \;
+            fi
+        fi
 
         _PWD=$PWD;
         cd $ANYKERNEL_DIR;
         zip -r $ARCHIVE META-INF/ modules/ tools/ LICENSE anykernel.sh $KERNEL_IMAGE;
         cp $ARCHIVE $KERNEL/;
-        #rm -rf modules/ $KERNEL_IMAGE;
+        rm -rf modules/ $KERNEL_IMAGE;
         cd $_PWD;
 
-        info "$ARCHIVE saved to $KERNEL/$ARCHIVE"; 
+        info "$ARCHIVE saved to $KERNEL/$ARCHIVE";
     fi
 }
 
@@ -159,6 +172,22 @@ for dir in arch block crypto Documentation drivers firmware fs include init ipc 
         exit 5;
     fi
 done
+
+usage() {
+    echo "";
+    echo "$0 - simple script to build Linux kernel";
+    echo "";
+    echo "Usage: $0 [cleanup|prepare|prepare_modules|build|package|help]";
+    echo "       cleanup - do \`make mrproper\` in the kernel root"
+    echo "       prepare - build defconfig and call menuconfig, if RUN_MENUCONFIG=1";
+    echo "       prepare_modules - prepare for building kernel modules";
+    echo "       build - build kernel";
+    echo "       package - pack kernel to .zip";
+    echo "       help - print this message";
+    echo "If no one command specified, then run \"prepare\", \"build\" and \"package\"";
+    echo "";
+    exit 0;
+}
 
 case "$1" in
     cleanup)
@@ -177,25 +206,18 @@ case "$1" in
     package)
         package;
         ;;
-    help|-h|--help)
-        echo "";
-        echo "$0 - simple script to build Linux kernel";
-        echo "";
-        echo "Usage: $0 [|prepare|build|package|help]";
-        echo "       cleanup - run `make mrproper`";
-        echo "       prepare - build defconfig and call menuconfig, if RUN_MENUCONFIG=1";
-        echo "       prepare_modules - prepare for building kernel modules";
-        echo "       build - build kernel";
-        echo "       package - pack kernel to .zip";
-        echo "       help - print this message";
-        echo "If no one command specified, then run \"prepare\", \"build\" and \"package\"";
-        echo "";
-        exit 0;
-        ;;
-    *)
+    "")
         prepare;
         build;
         package;
+        ;;
+    usage|help|-h|--help)
+        usage;
+        ;;
+    *)
+        echo "";
+        error "Unknown command: $1";
+        usage;
         ;;
 esac
 
