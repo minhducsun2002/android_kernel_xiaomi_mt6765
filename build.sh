@@ -47,7 +47,7 @@ if ! is_sourced; then
     [[ -z "${CROSS_COMPILE+x}" ]] && missing_var "CROSS_COMPILE";
 
     DEBUG=${DEBUG:-0}
-    KERNEL=${KERNEL:-'$(dirname $(realpath "$0"))'};
+    KERNEL=${KERNEL:-$(dirname $(realpath "$0"))};
     [[ -z "${KERNEL_ARCH+x}" ]] && {
         for arch in arm64 arm; do
             if [[ -d "$KERNEL"/arch/"$arch"/configs/"$KERNEL_DEFCONFIG" ]]; then
@@ -59,7 +59,7 @@ if ! is_sourced; then
 
     KERNEL_ARCH=${KERNEL_ARCH:-'arm'};
     KERNEL_IMAGE=${KERNEL_IMAGE:-'zImage-dtb'};
-    KERNEL_OUTPUT=${KERNEL_OUTPUT:-'$KERNEL/out'};
+    KERNEL_OUTPUT=${KERNEL_OUTPUT:-$KERNEL/out};
     RUN_MENUCONFIG=${RUN_MENUCONFIG:-0};
     PACK_MODULES=${PACK_MODULES:-0};
     MODULES_DIR=${MODULES_DIR:-'vendor/lib/modules'};
