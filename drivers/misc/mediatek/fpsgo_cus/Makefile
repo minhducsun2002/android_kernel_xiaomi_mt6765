@@ -41,11 +41,12 @@ ccflags-y += \
 	     -I$(MTK_TOP)/include/ \
 	     -I$(FBT_TOP)/include/ \
 
-obj-m += fpsgo.o
-fpsgo-y += src/fpsgo_main.o
+ifeq ($(CONFIG_MTK_COMBO_FORCE_BUILD),y)
+    obj-m += fpsgo.o
+    fpsgo-y += src/fpsgo_main.o
 
-ifeq (y,$(CONFIG_MTK_FPSGO))
-fpsgo-$(CONFIG_ARM) += src/xgf_ko_arm32.o
-fpsgo-$(CONFIG_ARM64) += src/xgf_ko_arm64.o
+    ifeq (y,$(CONFIG_MTK_FPSGO))
+    fpsgo-$(CONFIG_ARM) += src/xgf_ko_arm32.o
+    fpsgo-$(CONFIG_ARM64) += src/xgf_ko_arm64.o
+    endif
 endif
-

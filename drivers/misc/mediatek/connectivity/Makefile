@@ -43,15 +43,17 @@ endif
     export WLAN_CHIP_ID=6765
     export MTK_ANDROID_WMT=y
 
-    # Do build-in for xxx.c checking
-    subdir-ccflags-y += -D MTK_WCN_REMOVE_KERNEL_MODULE
-    subdir-ccflags-y += -D MTK_WCN_BUILT_IN_DRIVER
-    obj-y += common/
-    obj-y += wlan/adaptor/
-    obj-y += wlan/core/gen4m/
-    obj-y += bt/mt66xx/
-    obj-y += fmradio/
-    obj-y += gps/
+    ifeq ($(CONFIG_MTK_COMBO_FORCE_BUILD),y)
+        # Do build-in for xxx.c checking
+        subdir-ccflags-y += -D MTK_WCN_REMOVE_KERNEL_MODULE
+        subdir-ccflags-y += -D MTK_WCN_BUILT_IN_DRIVER
+        obj-y += common/
+        obj-y += wlan/adaptor/
+        obj-y += wlan/core/gen4m/
+        obj-y += bt/mt66xx/
+        obj-y += fmradio/
+        obj-y += gps/
+    endif
 
 # Otherwise we were called directly from the command line;
 # invoke the kernel build system.
