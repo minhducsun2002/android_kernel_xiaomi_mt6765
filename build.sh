@@ -57,7 +57,7 @@ if ! is_sourced; then
     [[ -z "${MODULES_DIR+x}" ]] && export MODULES_DIR=vendor/lib/modules;
     [[ -z "${DO_MODULES_STRIP+x}" ]] && export DO_MODULES_STRIP=1;
 
-    DEFCONFIG="$KERNEL"/arch/"$KERNEL_ARCH"/configs/"$KERNEL_DEFCONFIG";
+    local DEFCONFIG="$KERNEL"/arch/"$KERNEL_ARCH"/configs/"$KERNEL_DEFCONFIG";
     if [[ ! -f $DEFCONFIG ]]; then
         error "Config \"$KERNEL_DEFCONFIG\" doesn't exists! ($DEFCONFIG)";
         error "      (Wrong KERNEL_ARCH? [$KERNEL_ARCH])";
@@ -130,9 +130,9 @@ package() {
     if [[ -d $ANYKERNEL_DIR ]]; then
         info "AnyKernel3 found at $ANYKERNEL_DIR";
 
-        ARCHIVE=AnyKernel3-"$DEVICE"-$(date +'%d_%m_%Y-%H_%M_%S').zip;
-        if [[ -z "$CUSTOM_ARCHIVE_FORMAT" ]]; then
-            ARCHIVE=$CUSTOM_ARCHIVE_FORMAT;
+        local ARCHIVE=AnyKernel3-"$DEVICE"-$(date +'%d_%m_%Y-%H_%M_%S').zip;
+        if [[ -z "$ARCHIVE_FORMAT" ]]; then
+            ARCHIVE=$ARCHIVE_FORMAT;
         fi
 
         cp $IMAGE $ANYKERNEL_DIR/;
@@ -152,12 +152,12 @@ package() {
             fi
         fi
 
-        _PWD=$PWD;
+        local old_pwd=$PWD;
         cd $ANYKERNEL_DIR;
         zip -r $ARCHIVE META-INF/ modules/ tools/ LICENSE anykernel.sh $KERNEL_IMAGE;
         cp $ARCHIVE $KERNEL/;
         rm -rf modules/ $KERNEL_IMAGE;
-        cd $_PWD;
+        cd $old_pwd;
 
         info "$ARCHIVE saved to $KERNEL/$ARCHIVE";
     fi
