@@ -5,6 +5,10 @@ source $ENVFILE;
 
 JOBS=$(nproc --all); # used in make -jN
 
+function format_archive() {
+    echo AnyKernel3-"$DEVICE"-$(date +'%Y%m%d-%H%M%S' --utc).zip
+}
+
 error() {
     echo -e "\033[0;31m==>\033[0m ERROR: $@" >&2;
 }
@@ -57,9 +61,8 @@ if ! is_sourced; then
     [[ -z "${MODULES_DIR+x}" ]] && export MODULES_DIR=vendor/lib/modules;
     [[ -z "${DO_MODULES_STRIP+x}" ]] && export DO_MODULES_STRIP=1;
 
-    local DEFCONFIG="$KERNEL"/arch/"$KERNEL_ARCH"/configs/"$KERNEL_DEFCONFIG";
-    if [[ ! -f $DEFCONFIG ]]; then
-        error "Config \"$KERNEL_DEFCONFIG\" doesn't exists! ($DEFCONFIG)";
+    if [[ ! -f "$KERNEL"/arch/"$KERNEL_ARCH"/configs/"$KERNEL_DEFCONFIG" ]]; then
+        error "Config \"$KERNEL_DEFCONFIG\" doesn't exists! ($KERNEL/arch/$KERNEL_ARCH/configs/$KERNEL_DEFCONFIG)";
         error "      (Wrong KERNEL_ARCH? [$KERNEL_ARCH])";
         error "      (Wrong path to kernel? [$KERNEL])";
         error "      (Wrong defconfig? [$KERNEL_DEFCONFIG])";
@@ -121,7 +124,7 @@ build() {
 }
 
 package() {
-    IMAGE="$KERNEL_OUTPUT"/arch/"$KERNEL_ARCH"/boot/"$KERNEL_IMAGE";
+    local IMAGE="$KERNEL_OUTPUT"/arch/"$KERNEL_ARCH"/boot/"$KERNEL_IMAGE";
     if [[ ! -f $IMAGE ]]; then
         error "Kernel image doesn't exists! ($IMAGE)";
         exit 4;
@@ -130,9 +133,9 @@ package() {
     if [[ -d $ANYKERNEL_DIR ]]; then
         info "AnyKernel3 found at $ANYKERNEL_DIR";
 
-        local ARCHIVE=AnyKernel3-"$DEVICE"-$(date +'%d_%m_%Y-%H_%M_%S').zip;
-        if [[ -z "$ARCHIVE_FORMAT" ]]; then
-            ARCHIVE=$ARCHIVE_FORMAT;
+        local ARCHIVE=`format_archive`;
+        if [[ -z "$ARCHIVE" ]]; then
+            ARCHIVE=AnyKernel3-"$DEVICE"-$(date +'%Y%m%d-%H%M%S' --utc).zip;
         fi
 
         cp $IMAGE $ANYKERNEL_DIR/;
