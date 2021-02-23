@@ -35,46 +35,53 @@ is_sourced() {
     fi
 }
 
-export ARCH=$KERNEL_ARCH;
-
 if ! is_sourced; then
-    [[ -z "${DEVICE+x}" ]] && { error "You should set DEVICE variable in the $ENVFILE"; exit 1; }
-    [[ -z "${KERNEL_DEFCONFIG+x}" ]] && { error "You should set KERNEL_DEFCONFIG variable in the $ENVFILE"; exit 1; }
-    # [[ -z "${ANYKERNEL_DIR+x}" ]] && { error "You should set ANYKERNEL_DIR variable in the $ENVFILE"; exit 1; }
-    [[ -z "${CROSS_COMPILE+x}" ]] && { error "You should set CROSS_COMPILE variable in the $ENVFILE"; exit 1; }
+    missing_var() {
+        error "You should set $1 variable in the $ENVFILE";
+        exit 1;
+    }
 
-    [[ -z "${DEBUG+x}" ]] && export DEBUG=0;
-    [[ -z "${KERNEL+x}" ]] && export KERNEL=$(dirname $(realpath "$0"));
+    [[ -z "${DEVICE+x}" ]] && missing_var "DEVICE";
+    [[ -z "${KERNEL_DEFCONFIG+x}" ]] && missing_var "KERNEL_DEFCONFIG";
+    # [[ -z "${ANYKERNEL_DIR+x}" ]] && missing_var "ANYKERNEL_DIR";
+    [[ -z "${CROSS_COMPILE+x}" ]] && missing_var "CROSS_COMPILE";
+
+    DEBUG=${DEBUG:-0}
+    KERNEL=${KERNEL:-'$(dirname $(realpath "$0"))'};
     [[ -z "${KERNEL_ARCH+x}" ]] && {
         for arch in arm64 arm; do
             if [[ -d "$KERNEL"/arch/"$arch"/configs/"$KERNEL_DEFCONFIG" ]]; then
-                export KERNEL_ARCH="$arch";
+                KERNEL_ARCH="$arch";
+                break;
             fi
         done
     }
 
-    [[ -z "${KERNEL_ARCH+x}" ]] && export KERNEL_ARCH=arm;
-    [[ -z "${KERNEL_IMAGE+x}" ]] && export KERNEL_IMAGE=zImage-dtb;
-    [[ -z "${KERNEL_OUTPUT+x}" ]] && export KERNEL_OUTPUT=$KERNEL/out;
-    [[ -z "${RUN_MENUCONFIG+x}" ]] && export RUN_MENUCONFIG=0;
-    [[ -z "${PACK_MODULES+x}" ]] && export PACK_MODULES=0;
-    [[ -z "${MODULES_DIR+x}" ]] && export MODULES_DIR=vendor/lib/modules;
-    [[ -z "${DO_MODULES_STRIP+x}" ]] && export DO_MODULES_STRIP=1;
+    KERNEL_ARCH=${KERNEL_ARCH:-'arm'};
+    KERNEL_IMAGE=${KERNEL_IMAGE:-'zImage-dtb'};
+    KERNEL_OUTPUT=${KERNEL_OUTPUT:-'$KERNEL/out'};
+    RUN_MENUCONFIG=${RUN_MENUCONFIG:-0};
+    PACK_MODULES=${PACK_MODULES:-0};
+    MODULES_DIR=${MODULES_DIR:-'vendor/lib/modules'};
+    DO_MODULES_STRIP=${DO_MODULES_STRIP:-1};
 
     if [[ ! -f "$KERNEL"/arch/"$KERNEL_ARCH"/configs/"$KERNEL_DEFCONFIG" ]]; then
         error "Config \"$KERNEL_DEFCONFIG\" doesn't exists! ($KERNEL/arch/$KERNEL_ARCH/configs/$KERNEL_DEFCONFIG)";
-        error "      (Wrong KERNEL_ARCH? [$KERNEL_ARCH])";
-        error "      (Wrong path to kernel? [$KERNEL])";
-        error "      (Wrong defconfig? [$KERNEL_DEFCONFIG])";
+        error "      [KERNEL_ARCH=$KERNEL_ARCH]";
+        error "      [KERNEL=$KERNEL]";
+        error "      [KERNEL_DEFCONFIG=$KERNEL_DEFCONFIG]";
         exit 2;
     fi
 
-    if [[ ! -f ${CROSS_COMPILE}as ]]; then
+    ${CROSS_COMPILE}strip -V 2>&1 >&/dev/null;
+    if [[ ! $? -eq 0 ]]; then
         error "Check your CROSS_COMPILE variable in the $ENVFILE";
         exit 3;
     fi
 
 fi
+
+export ARCH=$KERNEL_ARCH;
 
 cleanup() {
     if [[ -d $KERNEL_OUTPUT ]]; then
@@ -210,8 +217,8 @@ case "$1" in
         package;
         ;;
     "")
-        prepare;
-        build;
+        prepare &&
+        build &&
         package;
         ;;
     usage|help|-h|--help)
