@@ -123,7 +123,11 @@ EXPORT_SYMBOL_GPL(have_governor_per_policy);
 
 bool cpufreq_driver_is_slow(void)
 {
+#ifdef CONFIG_MTK_TINYSYS_SSPM_SUPPORT
+	return false;
+#else
 	return !(cpufreq_driver->flags & CPUFREQ_DRIVER_FAST);
+#endif
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_is_slow);
 
@@ -315,11 +319,91 @@ static void adjust_jiffies(unsigned long val, struct cpufreq_freqs *ci)
  *               FREQUENCY INVARIANT CPU CAPACITY                    *
  *********************************************************************/
 
+static inline bool sched_assist(void)
+{
+#ifdef CONFIG_CPU_FREQ_SCHED_ASSIST
+return true;
+#else
+return false;
+#endif
+}
 static DEFINE_PER_CPU(unsigned long, freq_scale) = SCHED_CAPACITY_SCALE;
 static DEFINE_PER_CPU(unsigned long, max_freq_cpu);
 static DEFINE_PER_CPU(unsigned long, max_freq_scale) = SCHED_CAPACITY_SCALE;
 static DEFINE_PER_CPU(unsigned long, min_freq_scale);
 
+static void
+mtk_scale_freq_capacity(struct cpufreq_policy *policy, struct cpufreq_freqs *freqs)
+{
+	unsigned long cur = freqs ? freqs->new : policy->cur;
+	unsigned long scale;
+	struct cpufreq_cpuinfo *cpuinfo = &policy->cpuinfo;
+	int cpu, cid, sched_freq;
+#ifdef CONFIG_HOTPLUG_CPU
+	struct cpumask cls_cpus;
+#endif
+
+	cid = arch_get_cluster_id(policy->cpu);
+
+	sched_freq = get_sched_cur_freq(cid);
+
+#ifdef CONFIG_MTK_TINYSYS_SSPM_SUPPORT
+	/*
+	 * Consider current frequency for TINY-sys:
+	 *   sched gov: using get_sched_cur_freq()
+	 *   assist: update when no trigger in 20ms
+	 *   others: policy->cur
+	 */
+	if (sched_freq) {
+		/* sched-gov is used */
+		cur = sched_freq;
+		cur = clamp_t(int, cur, policy->min, policy->max);
+	}
+
+#endif
+
+	scale = (cur << SCHED_CAPACITY_SHIFT) / cpuinfo->max_freq;
+#ifdef CONFIG_HOTPLUG_CPU
+	arch_get_cluster_cpus(&cls_cpus, cid);
+
+	for_each_cpu(cpu, &cls_cpus) {
+		arch_scale_set_max_freq(cpu, policy->max);
+		arch_scale_set_min_freq(cpu, policy->min);
+
+		if (!sched_assist()) {
+			/* update current freqnecy */
+			per_cpu(freq_scale, cpu) = scale;
+			arch_scale_set_curr_freq(cpu, cur);
+		}
+	}
+#else
+	for_each_cpu(cpu, policy->cpus) {
+		arch_scale_set_max_freq(cpu, policy->max)
+		arch_scale_set_min_freq(cpu, policy->min);
+
+		if (!sched_assist()) {
+			/* update current freqnecy */
+			per_cpu(freq_scale, cpu) = scale;
+			arch_scale_set_curr_freq(cpu, cur);
+		}
+	}
+#endif
+
+	scale = (policy->max << SCHED_CAPACITY_SHIFT) / cpuinfo->max_freq;
+#ifdef CONFIG_HOTPLUG_CPU
+	for_each_cpu(cpu, &cls_cpus) {
+		per_cpu(max_freq_scale, cpu) = scale;
+	}
+#else
+	for_each_cpu(cpu, policy->cpus) {
+		per_cpu(max_freq_scale, cpu) = scale;
+	}
+#endif
+
+	pr_debug("cpus %*pbl cur max/max freq %u/%u kHz max freq scale %lu\n",
+		 cpumask_pr_args(policy->cpus), policy->max, cpuinfo->max_freq,
+		 scale);
+}
 static void
 scale_freq_capacity(const cpumask_t *cpus, unsigned long cur_freq,
 		    unsigned long max_freq)
@@ -334,11 +418,6 @@ scale_freq_capacity(const cpumask_t *cpus, unsigned long cur_freq,
 
 	pr_debug("cpus %*pbl cur freq/max freq %lu/%lu kHz freq scale %lu\n",
 		 cpumask_pr_args(cpus), cur_freq, max_freq, scale);
-}
-
-unsigned long cpufreq_scale_freq_capacity(struct sched_domain *sd, int cpu)
-{
-	return per_cpu(freq_scale, cpu);
 }
 
 static void
@@ -362,6 +441,11 @@ scale_max_freq_capacity(const cpumask_t *cpus, unsigned long policy_max_freq)
 
 	pr_debug("cpus %*pbl policy max freq/max freq %lu/%lu kHz max freq scale %lu\n",
 		 cpumask_pr_args(cpus), policy_max_freq, max_freq, scale);
+}
+
+unsigned long cpufreq_scale_freq_capacity(struct sched_domain *sd, int cpu)
+{
+	return per_cpu(freq_scale, cpu);
 }
 
 unsigned long cpufreq_scale_max_freq_capacity(struct sched_domain *sd, int cpu)
@@ -435,7 +519,7 @@ static void __cpufreq_notify_transition(struct cpufreq_policy *policy,
 			 (unsigned long)freqs->new, (unsigned long)freqs->cpu);
 		trace_cpu_frequency(freqs->new, freqs->cpu);
 		cpufreq_stats_record_transition(policy, freqs->new);
-		cpufreq_times_record_transition(freqs);
+		cpufreq_times_record_transition(policy, freqs->new);
 		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
 				CPUFREQ_POSTCHANGE, freqs);
 		if (likely(policy) && likely(policy->cpu == freqs->cpu))
@@ -506,6 +590,7 @@ wait:
 	spin_unlock(&policy->transition_lock);
 
 	scale_freq_capacity(policy->cpus, freqs->new, policy->cpuinfo.max_freq);
+	mtk_scale_freq_capacity(policy, freqs);
 #ifdef CONFIG_SMP
 	for_each_cpu(cpu, policy->cpus)
 		trace_cpu_capacity(capacity_curr_of(cpu), cpu);
@@ -1929,9 +2014,14 @@ EXPORT_SYMBOL(cpufreq_unregister_notifier);
 unsigned int cpufreq_driver_fast_switch(struct cpufreq_policy *policy,
 					unsigned int target_freq)
 {
+	int ret;
 	target_freq = clamp_val(target_freq, policy->min, policy->max);
 
-	return cpufreq_driver->fast_switch(policy, target_freq);
+        ret = cpufreq_driver->fast_switch(policy, target_freq);
+	if (ret)
+		cpufreq_times_record_transition(policy, ret);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_fast_switch);
 

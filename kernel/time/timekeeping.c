@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/sched/loadavg.h>
 #include <linux/syscore_ops.h>
 #include <linux/clocksource.h>
 #include <linux/jiffies.h>
@@ -24,6 +25,7 @@
 #include <linux/pvclock_gtod.h>
 #include <linux/compiler.h>
 
+#include <mt-plat/mtk_ccci_common.h>
 #include "tick-internal.h"
 #include "ntp_internal.h"
 #include "timekeeping_internal.h"
@@ -1255,7 +1257,7 @@ out:
 
 	/* signal hrtimers about time change */
 	clock_was_set();
-
+	notify_time_update();
 	return ret;
 }
 EXPORT_SYMBOL(do_settimeofday64);
