@@ -39,6 +39,7 @@
 #include "aed.h"
 #include "../common/aee-common.h"
 #include "../mrdump/mrdump_mini.h"
+#include "../mrdump/mrdump_panic.h"
 #include <linux/pid.h>
 #ifdef CONFIG_MTK_BOOT
 #include <mt-plat/mtk_boot_common.h>
@@ -708,7 +709,9 @@ static int DumpThreadNativeMaps_log(pid_t pid)
 	char *path_p = NULL;
 	struct path base_path;
 
+	rcu_read_lock();
 	current_task = find_task_by_vpid(pid);	/* get tid task */
+	rcu_read_unlock();
 	if (current_task == NULL)
 		return -ESRCH;
 	user_ret = task_pt_regs(current_task);
@@ -788,7 +791,9 @@ static int DumpThreadNativeInfo_By_tid_log(pid_t tid)
 	int ret = -1;
 
 	/* current_task = get_current(); */
+	rcu_read_lock();
 	current_task = find_task_by_vpid(tid);	/* get tid task */
+	rcu_read_unlock();
 	if (current_task == NULL)
 		return -ESRCH;
 	user_ret = task_pt_regs(current_task);
@@ -1117,7 +1122,9 @@ static int DumpThreadNativeMaps(pid_t pid)
 	char *path_p = NULL;
 	struct path base_path;
 
+	rcu_read_lock();
 	current_task = find_task_by_vpid(pid);	/* get tid task */
+	rcu_read_unlock();
 	if (current_task == NULL)
 		return -ESRCH;
 	user_ret = task_pt_regs(current_task);
@@ -1218,7 +1225,9 @@ static int DumpThreadNativeInfo_By_tid(pid_t tid)
 	int ret = -1;
 
 	/* current_task = get_current(); */
+	rcu_read_lock();
 	current_task = find_task_by_vpid(tid);	/* get tid task */
+	rcu_read_unlock();
 	if (current_task == NULL)
 		return -ESRCH;
 	user_ret = task_pt_regs(current_task);
@@ -1610,10 +1619,11 @@ static void ShowStatus(int flag)
 #ifdef CONFIG_MTK_GPU_SUPPORT
 		mtk_dump_gpu_memory_usage();
 #endif
+#ifdef CONFIG_MTK_WQ_DEBUG
+		wq_debug_dump();
+#endif
 
 	}
-
-
 }
 
 static void reset_hang_info(void)

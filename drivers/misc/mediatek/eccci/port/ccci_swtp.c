@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -189,7 +190,8 @@ int swtp_md_tx_power_req_hdlr(int md_id, int data)
 int swtp_init(int md_id)
 {
 	int ret = 0;
-	u32 ints[2] = { 0, 0 };
+         /* start chk18323 kouxin.wt 2019.2.28 add swtp*/
+	u32 ints[1] = { 0 }; 
 	u32 ints1[2] = { 0, 0 };
 	struct device_node *node = NULL;
 
@@ -202,14 +204,22 @@ int swtp_init(int md_id)
 	if (node) {
 		ret = of_property_read_u32_array(node, "debounce",
 				ints, ARRAY_SIZE(ints));
+		if (ret)
+			CCCI_LEGACY_ERR_LOG(md_id, SYS,
+				"%s get property debounce  fail\n", __func__);
 		ret |= of_property_read_u32_array(node, "interrupts",
 				ints1, ARRAY_SIZE(ints1));
 		if (ret)
 			CCCI_LEGACY_ERR_LOG(md_id, SYS,
 				"%s get property fail\n", __func__);
-
-		swtp_data[md_id].gpiopin = ints[0];
-		swtp_data[md_id].setdebounce = ints[1];
+		CCCI_LEGACY_ERR_LOG(md_id, SYS,
+				"%s get property:gpio=%d,setdebounce=%d, eint_type=%d\n",
+				 __func__,
+				 swtp_data[md_id].gpiopin,
+				 swtp_data[md_id].setdebounce,
+				 swtp_data[md_id].eint_type);
+		swtp_data[md_id].gpiopin = ints1[0];
+		swtp_data[md_id].setdebounce = ints[0];
 		swtp_data[md_id].eint_type = ints1[1];
 		gpio_set_debounce(swtp_data[md_id].gpiopin,
 			swtp_data[md_id].setdebounce);
@@ -221,10 +231,12 @@ int swtp_init(int md_id)
 				"swtp-eint IRQ LINE NOT AVAILABLE\n");
 		} else {
 			CCCI_LEGACY_ALWAYS_LOG(md_id, SYS,
-				"swtp-eint set EINT finished, irq=%d, setdebounce=%d, eint_type=%d\n",
+				"swtp-eint set EINT finished, irq=%d, gpio=%d,setdebounce=%d, eint_type=%d\n",
 				swtp_data[md_id].irq,
+				swtp_data[md_id].gpiopin,  
 				swtp_data[md_id].setdebounce,
 				swtp_data[md_id].eint_type);
+               /* end chk18323 kouxin.wt 2019.2.28 add swtp*/
 		}
 	} else {
 		CCCI_LEGACY_ERR_LOG(md_id, SYS,

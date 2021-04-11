@@ -53,9 +53,9 @@ static struct scp_reserve_mblock scp_reserve_mblock[] = {
 		.num = AUDIO_IPI_MEM_ID,
 		.start_phys = 0x0,
 		.start_virt = 0x0,
-		.size = 0x40000, /* 256K */
+		.size = 0x50000, /* 320K */
 	},
-#ifdef CONFIG_MTK_AUDIO_SCP_SPKPROTECT_SUPPORT
+#ifdef CONFIG_SND_SOC_MTK_SCP_SMARTPA
 	{
 		.num = SPK_PROTECT_MEM_ID,
 		.start_phys = 0x0,
@@ -67,6 +67,14 @@ static struct scp_reserve_mblock scp_reserve_mblock[] = {
 		.start_phys = 0x0,
 		.start_virt = 0x0,
 		.size = 0x18000,  /* 96 KB */
+	},
+#endif
+#ifdef SCP_PARAMS_TO_SCP_SUPPORT
+	{
+		.num = SCP_DRV_PARAMS_MEM_ID,
+		.start_phys = 0x0,
+		.start_virt = 0x0,
+		.size = 0x100,  /* 256 bytes */
 	},
 #endif
 };

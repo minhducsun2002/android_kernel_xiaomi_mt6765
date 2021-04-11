@@ -1089,6 +1089,9 @@ const char * const vmstat_text[] = {
 	"vmacache_find_hits",
 	"vmacache_full_flushes",
 #endif
+#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+	"speculative_pgfault",
+#endif
 
 #ifdef CONFIG_ZONE_MOVABLE_CMA
 	"zmc_lru_migrated",

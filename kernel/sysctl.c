@@ -397,7 +397,8 @@ static struct ctl_table kern_table[] = {
 		.data		= &sysctl_sched_time_avg,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &one,
 	},
 	{
 		.procname	= "sched_shares_window_ns",
@@ -405,6 +406,15 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "sched_big_task_rotation",
+		.data		= &sysctl_sched_rotation_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
 	},
 #ifdef CONFIG_SCHEDSTATS
 	{
@@ -515,6 +525,16 @@ static struct ctl_table kern_table[] = {
 		.extra1		= &zero,
 		.extra2		= &one_hundred,
 	},
+#ifdef CONFIG_CGROUP_SCHEDTUNE
+	{
+		.procname	= "sched_stune_task_threshold",
+		.data		= &stune_task_threshold,
+		.maxlen		= sizeof(stune_task_threshold),
+		.mode		= 0644,
+		.proc_handler   = &sched_stune_task_threshold_handler,
+	},
+#endif
+
 #endif
 #ifdef CONFIG_PROVE_LOCKING
 	{

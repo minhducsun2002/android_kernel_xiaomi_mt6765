@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -46,7 +47,10 @@ struct REGULATOR_CTRL regulator_control[REGULATOR_TYPE_MAX_NUM] = {
 	{"vcamio_main2"},
 	{"vcama_sub2"},
 	{"vcamd_sub2"},
-	{"vcamio_sub2"}
+	{"vcamio_sub2"},
+	{"vcama_main3"},
+	{"vcamd_main3"},
+	{"vcamio_main3"}
 };
 
 static struct REGULATOR reg_instance;
@@ -94,10 +98,7 @@ enum IMGSENSOR_RETURN imgsensor_oc_interrupt(
 {
 	struct regulator *preg = NULL;
 	struct device *pdevice = gimgsensor_device;
-
-
 	gimgsensor.status.oc = 0;
-
 	if (enable) {
 		mdelay(5);
 		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN) {
@@ -108,7 +109,6 @@ enum IMGSENSOR_RETURN imgsensor_oc_interrupt(
 				pr_debug("[regulator] %s INT_VCAMA_OC %d\n",
 					__func__, enable);
 			}
-
 		}
 		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN2) {
 			preg = regulator_get(pdevice, "vcamd");
@@ -119,11 +119,9 @@ enum IMGSENSOR_RETURN imgsensor_oc_interrupt(
 					__func__, enable);
 			}
 		}
-
 		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN ||
 			sensor_idx == IMGSENSOR_SENSOR_IDX_SUB ||
 			sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN2) {
-
 			preg = regulator_get(pdevice, "vcamio");
 			if (preg && regulator_is_enabled(preg)) {
 			pmic_enable_interrupt(INT_VCAMIO_OC, 1, "camera");
@@ -156,7 +154,6 @@ enum IMGSENSOR_RETURN imgsensor_oc_interrupt(
 			__func__,  enable);
 		}
 	}
-
 	return IMGSENSOR_RETURN_SUCCESS;
 }
 
@@ -237,7 +234,7 @@ static enum IMGSENSOR_RETURN regulator_set(
 	atomic_t	*enable_cnt;
 
 
-	if (pin > IMGSENSOR_HW_PIN_DOVDD   ||
+	if (pin > IMGSENSOR_HW_PIN_AFVDD   || 
 		pin < IMGSENSOR_HW_PIN_AVDD    ||
 		pin_state < IMGSENSOR_HW_PIN_STATE_LEVEL_0 ||
 		pin_state >= IMGSENSOR_HW_PIN_STATE_LEVEL_HIGH)
@@ -249,7 +246,9 @@ static enum IMGSENSOR_RETURN regulator_set(
 		? REGULATOR_TYPE_SUB_VCAMA
 		: (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN2)
 		? REGULATOR_TYPE_MAIN2_VCAMA
-		: REGULATOR_TYPE_SUB2_VCAMA;
+		: (sensor_idx == IMGSENSOR_SENSOR_IDX_SUB2)
+		? REGULATOR_TYPE_SUB2_VCAMA
+		: REGULATOR_TYPE_MAIN3_VCAMA;
 
 	pregulator =
 		preg->pregulator[reg_type_offset + pin - IMGSENSOR_HW_PIN_AVDD];

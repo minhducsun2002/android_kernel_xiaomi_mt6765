@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -72,6 +73,7 @@ extern int sec_usbdl_enabled(void);
 extern int sec_modem_auth_enabled(void);
 extern int sec_schip_enabled(void);
 extern int sec_get_random_id(unsigned int *rid);
+extern u32 get_devinfo_with_index(u32 index);
 
 /* HACC HW init */
 extern unsigned int sec_boot_hacc_init(void);

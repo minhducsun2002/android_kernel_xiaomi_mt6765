@@ -21,6 +21,7 @@
 #include <linux/page-flags.h>
 #include <mt-plat/mtk_memcfg.h>
 #include <mt-plat/mtk_meminfo.h>
+#include <mt_emi_api.h>
 
 #ifdef CONFIG_OF
 /* return the actual physical DRAM size */
@@ -231,3 +232,24 @@ out_free:
 	return vaddr;
 }
 EXPORT_SYMBOL(vmap_reserved_mem);
+
+#ifdef CONFIG_MACH_MT6779
+static int __init setup_tmp_mpu(void)
+{
+	struct emi_region_info_t region_info;
+
+	region_info.start = 0x40250000;
+	region_info.end = 0x4025FFFF;
+	region_info.region = 30;
+
+	SET_ACCESS_PERMISSION(region_info.apc, UNLOCK,
+		FORBIDDEN, FORBIDDEN, FORBIDDEN, FORBIDDEN,
+		FORBIDDEN, FORBIDDEN, FORBIDDEN, FORBIDDEN,
+		FORBIDDEN, FORBIDDEN, FORBIDDEN, FORBIDDEN,
+		FORBIDDEN, FORBIDDEN, FORBIDDEN, SEC_R_NSEC_R);
+
+	emi_mpu_set_protection(&region_info);
+	return 0;
+}
+late_initcall(setup_tmp_mpu);
+#endif

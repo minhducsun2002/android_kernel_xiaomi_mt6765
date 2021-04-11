@@ -18,6 +18,12 @@
  * to use off stack temporal storage
  */
 
+#ifdef CONFIG_DEBUG_PAGE_OWNER_DEFAULT_OFF
+static bool page_owner_disabled = true;
+#else
+static bool page_owner_disabled;
+#endif
+
 #define PAGE_OWNER_STACK_DEPTH (8)
 
 #ifdef CONFIG_PAGE_OWNER_SLIM
@@ -199,7 +205,6 @@ struct page_owner {
 	depot_stack_handle_t handle;
 };
 
-static bool page_owner_disabled = true;
 DEFINE_STATIC_KEY_FALSE(page_owner_inited);
 
 static depot_stack_handle_t dummy_handle;
@@ -437,25 +442,30 @@ int __dump_pfn_backtrace(unsigned long pfn)
 {
 	struct page *page = pfn_to_page(pfn);
 	struct page_ext *page_ext = lookup_page_ext(page);
+	struct page_owner *page_owner;
 	int pageblock_mt, page_mt;
+	unsigned long entries[PAGE_OWNER_STACK_DEPTH];
+	struct stack_trace trace = {
+		.nr_entries = 0,
+		.entries = entries,
+		.max_entries = PAGE_OWNER_STACK_DEPTH,
+		.skip = 0
+	};
+	depot_stack_handle_t handle;
 
 	/* Check for holes within a MAX_ORDER area */
 	if (!pfn_valid_within(pfn))
 		return -2;
 	if (page_ext) {
 		if (test_bit(PAGE_EXT_OWNER, &page_ext->flags)) {
-#ifdef CONFIG_PAGE_OWNER_SLIM
-			struct BtEntry *entry = page_ext->entry;
-			struct stack_trace trace = {
-				.nr_entries = entry->nr_entries,
-				.entries = &entry->backtrace[0],
-			};
-#else
-			struct stack_trace trace = {
-				.nr_entries = page_ext->nr_entries,
-				.entries = &page_ext->trace_entries[0],
-			};
-#endif
+			page_owner = get_page_owner(page_ext);
+			handle = READ_ONCE(page_owner->handle);
+			if (!handle) {
+				pr_info("page_owner info is not active (free page?)\n");
+				return -1;
+			}
+
+			depot_fetch_stack(handle, &trace);
 
 			pr_info("Page allocated via order %u, mask 0x%x, (%d:%d)\n",
 					page_ext->order, page_ext->gfp_mask,

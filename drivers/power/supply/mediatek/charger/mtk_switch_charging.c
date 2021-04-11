@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -134,6 +135,12 @@ static void swchg_select_charging_current_limit(struct charger_manager *info)
 		goto done;
 	}
 
+	if (info->water_detected) {
+		pdata->input_current_limit = info->data.usb_charger_current;
+		pdata->charging_current_limit = info->data.usb_charger_current;
+		goto done;
+	}
+
 	if ((get_boot_mode() == META_BOOT) ||
 	    (get_boot_mode() == ADVMETA_BOOT)) {
 		pdata->input_current_limit = 200000; /* 200mA */
@@ -254,7 +261,31 @@ static void swchg_select_charging_current_limit(struct charger_manager *info)
 			}
 		}
 	}
-
+#ifndef WT_COMPILE_FACTORY_VERSION
+	if(info->chr_type == STANDARD_HOST ||info->chr_type == CHARGING_HOST){
+		chr_err("chr_type =%d,usb_state =%d\n",info->chr_type,info->usb_state);
+		if (info->usb_state == USB_SUSPEND){
+			pr_debug("USB_SUSPEND,PC into suspend\n");
+			charger_dev_enable_hz(info->chg1_dev, true);
+			pdata->input_current_limit = 0;
+			pdata->charging_current_limit = 0;
+			charger_manager_notifier(info, CHARGER_NOTIFY_STOP_CHARGING);
+		}else {
+			pr_debug("PC nosuspend and charging\n");
+			charger_dev_enable_hz(info->chg1_dev, false);
+			if(info->chr_type == STANDARD_HOST) {
+				pdata->input_current_limit = info->data.usb_charger_current;;
+				pdata->charging_current_limit = info->data.usb_charger_current;
+			} else {
+				pdata->input_current_limit = info->data.charging_host_charger_current;
+				pdata->charging_current_limit = info->data.charging_host_charger_current;
+			}
+			charger_manager_notifier(info, CHARGER_NOTIFY_START_CHARGING);
+		}
+	}
+#endif
+	//+bug 348125  modify zms disable battery temperature protect
+	#ifndef CONFIG_MTK_DISABLE_TEMP_PROTECT
 	if (pdata->thermal_charging_current_limit != -1) {
 		if (pdata->thermal_charging_current_limit <
 		    pdata->charging_current_limit)
@@ -268,6 +299,8 @@ static void swchg_select_charging_current_limit(struct charger_manager *info)
 			pdata->input_current_limit =
 					pdata->thermal_input_current_limit;
 	}
+	#endif
+	//-bug 348125  modify zms disable battery temperature protect
 
 	if (mtk_pe40_get_is_connect(info)) {
 		if (info->pe4.pe4_input_current_limit != -1 &&
@@ -380,7 +413,8 @@ static void swchg_turn_on_charging(struct charger_manager *info)
 		chr_err("In meta mode, disable charging and set input current limit to 200mA\n");
 	} else {
 		mtk_pe20_start_algorithm(info);
-		mtk_pe_start_algorithm(info);
+		if (mtk_pe20_get_is_connect(info) == false)
+			mtk_pe_start_algorithm(info);
 
 		swchg_select_charging_current_limit(info);
 		if (info->chg1_data.input_current_limit == 0
@@ -403,7 +437,6 @@ static int mtk_switch_charging_plug_in(struct charger_manager *info)
 	info->polling_interval = CHARGING_INTERVAL;
 	swchgalg->disable_charging = false;
 	get_monotonic_boottime(&swchgalg->charging_begin_time);
-	charger_manager_notifier(info, CHARGER_NOTIFY_START_CHARGING);
 
 	return 0;
 }
@@ -418,7 +451,7 @@ static int mtk_switch_charging_plug_out(struct charger_manager *info)
 	mtk_pe_set_is_cable_out_occur(info, true);
 	mtk_pdc_plugout(info);
 	mtk_pe40_plugout_reset(info);
-	charger_manager_notifier(info, CHARGER_NOTIFY_STOP_CHARGING);
+
 	return 0;
 }
 
@@ -564,6 +597,7 @@ int mtk_switch_chr_err(struct charger_manager *info)
 int mtk_switch_chr_full(struct charger_manager *info)
 {
 	bool chg_done = false;
+	int chr_type;
 	struct switch_charging_alg_data *swchgalg = info->algorithm_data;
 
 	swchgalg->total_charging_time = 0;
@@ -577,7 +611,8 @@ int mtk_switch_chr_full(struct charger_manager *info)
 	swchg_select_cv(info);
 	info->polling_interval = CHARGING_FULL_INTERVAL;
 	charger_dev_is_charging_done(info->chg1_dev, &chg_done);
-	if (!chg_done) {
+	chr_type = mt_get_charger_type();
+	if (chr_type && !chg_done) {
 		swchgalg->state = CHR_CC;
 		charger_dev_do_event(info->chg1_dev, EVENT_RECHARGE, 0);
 		mtk_pe20_set_to_check_chr_type(info, true);
@@ -610,7 +645,8 @@ static int mtk_switch_charging_run(struct charger_manager *info)
 	if (mtk_pdc_check_charger(info) == false &&
 	    mtk_is_TA_support_pd_pps(info) == false) {
 		mtk_pe20_check_charger(info);
-		mtk_pe_check_charger(info);
+		if (mtk_pe20_get_is_connect(info) == false)
+			mtk_pe_check_charger(info);
 	}
 
 	do {

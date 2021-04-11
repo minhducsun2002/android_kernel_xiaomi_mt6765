@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -101,6 +102,7 @@ struct charger_ops {
 
 	/* enable term */
 	int (*enable_termination)(struct charger_device *, bool en);
+    int (*enable_rst)(struct charger_device *, bool en);
 
 	/* direct charging */
 	int (*enable_direct_charging)(struct charger_device *, bool en);
@@ -137,6 +139,7 @@ struct charger_ops {
 	int (*get_fod_status)(struct charger_device *dev, u8 *status);
 	int (*enable_fod_oneshot)(struct charger_device *dev, bool en);
 	int (*is_typec_ot)(struct charger_device *dev, bool *ot);
+	int (*enable_hz)(struct charger_device *, bool en);
 };
 
 static inline
@@ -217,6 +220,7 @@ extern int charger_dev_get_zcv(struct charger_device *chg_dev, u32 *uV);
 extern int charger_dev_run_aicl(struct charger_device *chg_dev, u32 *uA);
 extern int charger_dev_reset_eoc_state(struct charger_device *chg_dev);
 extern int charger_dev_safety_check(struct charger_device *chg_dev);
+extern int charger_dev_enable_hz(struct charger_device *charger_dev, bool en);
 
 /* PE+/PE+2.0 */
 extern int charger_dev_send_ta_current_pattern(struct charger_device *chg_dev,
@@ -247,5 +251,5 @@ extern int unregister_charger_device_notifier(struct charger_device *chg_dev,
 				struct notifier_block *nb);
 extern int charger_dev_notify(struct charger_device *chg_dev, int event);
 
-
+extern int charger_dev_enable_rst(struct charger_device *chg_dev, bool en);
 #endif /*LINUX_POWER_CHARGER_CLASS_H*/

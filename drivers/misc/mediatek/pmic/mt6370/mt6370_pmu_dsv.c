@@ -1,5 +1,6 @@
 /*
  *  Copyright (C) 2017 MediaTek Inc.
+ *  Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -394,7 +395,7 @@ static inline int mt_parse_dt(struct device *dev,
 	}
 
 	if (of_property_read_u32(np, "db_vbst", &val) == 0) {
-		if (val >= 4000 && val <= 6150) {
+		if (val >= 4000 && val <= 6200) {
 			mask->db_vbst.bitfield.vbst = 0x3f;
 			pdata->db_vbst.bitfield.vbst = (val - 4000) / 50;
 		}

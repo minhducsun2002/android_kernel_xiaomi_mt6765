@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -66,6 +67,7 @@ static unsigned int mt6370_timeout_ms[MT6370_CHANNEL_NUM];
 
 /* define usage count */
 static int use_count;
+static int fd_use_count;
 
 /* define RTK flashlight device */
 static struct flashlight_device *flashlight_dev_ch1;
@@ -265,6 +267,32 @@ static int mt6370_set_level(int channel, int level)
 
 	return 0;
 }
+
+/* set flashlight node */
+int mt6370_flashlight_strobe_node(int level)
+{
+	int ret = 0;
+
+	if (!flashlight_dev_ch1 || !flashlight_dev_ch2) {
+		pr_err("Failed to enable since no flashlight device.\n");
+		return -1;
+	}
+
+	if (level > 0) {
+		/* enable channel 1*/
+		mt6370_set_level_ch1(6);
+		ret |= flashlight_set_mode(flashlight_dev_ch1, FLASHLIGHT_MODE_TORCH);
+	} else {
+		/* disable channel 1*/
+		ret |= flashlight_set_mode(flashlight_dev_ch1, FLASHLIGHT_MODE_OFF);
+	}
+
+	if (ret < 0)
+		pr_err("Failed to enable.\n");
+
+	return ret;
+}
+EXPORT_SYMBOL(mt6370_flashlight_strobe_node);
 
 static int mt6370_set_scenario(int scenario)
 {
@@ -540,12 +568,29 @@ static int mt6370_ioctl(unsigned int cmd, unsigned long arg)
 static int mt6370_open(void)
 {
 	/* Move to set driver for saving power */
+	mutex_lock(&mt6370_mutex);
+	fd_use_count++;
+	pr_debug("open driver: %d\n", fd_use_count);
+	mutex_unlock(&mt6370_mutex);
 	return 0;
 }
 
 static int mt6370_release(void)
 {
 	/* Move to set driver for saving power */
+	mutex_lock(&mt6370_mutex);
+	fd_use_count--;
+	pr_debug("close driver: %d\n", fd_use_count);
+	/* If camera NE, we need to enable pe by ourselves*/
+	if (fd_use_count == 0 && is_decrease_voltage) {
+#ifdef CONFIG_MTK_CHARGER
+		pr_info("Increase voltage level.\n");
+		charger_manager_enable_high_voltage_charging(
+				flashlight_charger_consumer, true);
+#endif
+		is_decrease_voltage = 0;
+	}
+	mutex_unlock(&mt6370_mutex);
 	return 0;
 }
 
@@ -576,7 +621,12 @@ static int mt6370_set_driver(int set)
 static ssize_t mt6370_strobe_store(struct flashlight_arg arg)
 {
 	mt6370_set_driver(1);
-	mt6370_set_scenario(
+	if (arg.decouple)
+		mt6370_set_scenario(
+			FLASHLIGHT_SCENARIO_CAMERA |
+			FLASHLIGHT_SCENARIO_DECOUPLE);
+	else
+		mt6370_set_scenario(
 			FLASHLIGHT_SCENARIO_CAMERA |
 			FLASHLIGHT_SCENARIO_COUPLE);
 	mt6370_set_level(arg.channel, arg.level);
@@ -588,7 +638,12 @@ static ssize_t mt6370_strobe_store(struct flashlight_arg arg)
 		mt6370_operate(arg.channel, MT6370_ENABLE);
 
 	msleep(arg.dur);
-	mt6370_set_scenario(
+	if (arg.decouple)
+		mt6370_set_scenario(
+			FLASHLIGHT_SCENARIO_FLASHLIGHT |
+			FLASHLIGHT_SCENARIO_DECOUPLE);
+	else
+		mt6370_set_scenario(
 			FLASHLIGHT_SCENARIO_FLASHLIGHT |
 			FLASHLIGHT_SCENARIO_COUPLE);
 	mt6370_operate(arg.channel, MT6370_DISABLE);
@@ -698,6 +753,7 @@ static int mt6370_probe(struct platform_device *pdev)
 
 	/* clear attributes */
 	use_count = 0;
+	fd_use_count = 0;
 	is_decrease_voltage = 0;
 
 	/* get RTK flashlight handler */

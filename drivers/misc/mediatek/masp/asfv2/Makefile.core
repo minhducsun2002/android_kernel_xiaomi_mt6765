@@ -4,6 +4,7 @@
 
 core_obj += $(asf_link)/core/sec_boot_core.o
 core_obj += $(asf_link)/core/sec_mod_core.o
+core_obj += $(asf_link)/core/secboot_fuse.o
 core_obj += $(asf_link)/core/sec_osal.o
 core_obj += $(asf_link)/core/sec_legacy.o
 core_obj += $(asf_link)/module/sec_mod.o

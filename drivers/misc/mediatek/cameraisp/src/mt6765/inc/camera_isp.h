@@ -27,7 +27,7 @@ m4u_callback_ret_t ISP_M4U_TranslationFault_callback(
 /**
  * enforce kernel log enable
  */
-#define KERNEL_LOG
+//#define KERNEL_LOG
 #define ISR_LOG_ON
 
 #define SIG_ERESTARTSYS 512

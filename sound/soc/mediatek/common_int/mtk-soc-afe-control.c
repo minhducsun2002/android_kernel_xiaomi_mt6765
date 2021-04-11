@@ -64,7 +64,7 @@
 #include <sound/jack.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#if defined(CONFIG_MTK_AUDIO_SCP_SPKPROTECT_SUPPORT)
+#if defined(CONFIG_SND_SOC_MTK_SCP_SMARTPA)
 #include "mtk-auddrv-scp-spkprotect-common.h"
 #endif
 /*
@@ -1345,29 +1345,29 @@ bool SetI2SDacOut(unsigned int SampleRate, bool lowjitter, bool I2SWLen)
 	return true;
 }
 
-bool SetHwDigitalGainMode(enum soc_aud_digital_block AudBlock,
-			  unsigned int SampleRate, unsigned int SamplePerStep)
+bool SetHwDigitalGainMode(unsigned int GainType, unsigned int SampleRate,
+			  unsigned int SamplePerStep)
 {
-	pr_debug("+%s(), AudBlock = %d, SampleRate = %d, SamplePerStep= %d\n",
-		 __func__, AudBlock, SampleRate, SamplePerStep);
-
-	return set_chip_hw_digital_gain_mode(AudBlock,
-					     SampleRate, SamplePerStep);
+	/*
+	 * printk("SetHwDigitalGainMode GainType = %d, SampleRate = %d,
+	 * SamplePerStep= %d\n", GainType, SampleRate, SamplePerStep);
+	 */
+	return set_chip_hw_digital_gain_mode(GainType, SampleRate,
+					     SamplePerStep);
 }
 
-bool SetHwDigitalGainEnable(enum soc_aud_digital_block AudBlock, bool Enable)
+bool SetHwDigitalGainEnable(int GainType, bool Enable)
 {
-	pr_debug("+%s(), AudBlock = %d, Enable = %d\n",
-		 __func__, AudBlock, Enable);
-	return set_chip_hw_digital_gain_enable(AudBlock, Enable);
+	pr_debug("+%s(), GainType = %d, Enable = %d\n", __func__, GainType,
+		 Enable);
+	return set_chip_hw_digital_gain_enable(GainType, Enable);
 }
 
-
-bool SetHwDigitalGain(enum soc_aud_digital_block AudBlock, unsigned int Gain)
+bool SetHwDigitalGain(unsigned int Gain, int GainType)
 {
-	pr_debug("+%s(), AudBlock = %d, Gain = 0x%x\n",
-		 __func__, AudBlock, Gain);
-	return set_chip_hw_digital_gain(AudBlock, Gain);
+	pr_debug("+%s(), Gain = 0x%x, gain type = %d\n", __func__, Gain,
+		 GainType);
+	return set_chip_hw_digital_gain(Gain, GainType);
 }
 
 bool SetModemPcmConfig(int modem_index,
@@ -1569,6 +1569,10 @@ bool SetI2SDacEnable(bool bEnable)
 		SetDLSrcEnable(false);
 		Afe_Set_Reg(AFE_I2S_CON1, bEnable, 0x1);
 		SetADDAEnable(false);
+
+		/* should delayed 1/fs(smallest is 8k) = 125us before afe off */
+		usleep_range(125, 150);
+
 #ifdef CONFIG_FPGA_EARLY_PORTING
 		pr_info("%s(), disable fpga clock divide by 4", __func__);
 		Afe_Set_Reg(FPGA_CFG0, 0x0 << 1, 0x1 << 1);
@@ -3180,7 +3184,7 @@ unsigned int word_size_align(unsigned int in_size)
 {
 	unsigned int align_size;
 
-#if defined(CONFIG_MTK_AUDIO_SCP_SPKPROTECT_SUPPORT)
+#if defined(CONFIG_SND_SOC_MTK_SCP_SMARTPA)
 	if (scp_smartpa_used_flag) {
 		/* SCP use cache. Cache use 32 bytes data alignment */
 		align_size = in_size & 0xFFFFFFE0;

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -241,6 +242,7 @@ extern struct LCM_DRIVER nt35695_fhd_dsi_cmd_truly_nt50358_qhd_lcm_drv;
 extern struct LCM_DRIVER nt35695_fhd_dsi_cmd_truly_nt50358_lcm_drv;
 extern struct LCM_DRIVER nt35695_fhd_dsi_vdo_truly_nt50358_lcm_drv;
 extern struct LCM_DRIVER nt35695B_fhd_dsi_cmd_truly_nt50358_lcm_drv;
+extern struct LCM_DRIVER nt35695_fhd_dsi_cmd_truly_rt4801_lcm_drv;
 extern struct LCM_DRIVER nt35695_fhd_dsi_cmd_truly_rt5081_lcm_drv;
 extern struct LCM_DRIVER nt35695_fhd_dsi_vdo_truly_rt5081_lcm_drv;
 extern struct LCM_DRIVER nt35695_fhd_dsi_vdo_truly_rt5081_hdp_lcm_drv;
@@ -267,6 +269,7 @@ extern struct LCM_DRIVER s6e3fa3_fhd_cmd_lcm_drv;
 extern struct LCM_DRIVER nt35595_fhd_dsi_cmd_truly_nt50358_720p_extern_lcm_drv;
 extern struct LCM_DRIVER nt35695_fhd_dsi_cmd_auo_nt50358_laneswap_lcm_drv;
 extern struct LCM_DRIVER nt35695_fhd_dsi_vdo_auo_nt50358_laneswap_lcm_drv;
+extern struct LCM_DRIVER nt35695B_fhd_dsi_cmd_auo_rt4801_lcm_drv;
 extern struct LCM_DRIVER nt35695B_fhd_dsi_cmd_auo_rt5081_lcm_drv;
 extern struct LCM_DRIVER nt35695B_fhd_dsi_cmd_auo_rt5081_720p_lcm_drv;
 extern struct LCM_DRIVER nt35695B_fhd_dsi_cmd_auo_rt5081_qhd_lcm_drv;
@@ -289,12 +292,16 @@ extern struct LCM_DRIVER nt35695B_fhd_dsi_cmd_auo_nt50358_qhd_lcm_drv;
 extern struct LCM_DRIVER ili9881c_hdp_dsi_vdo_ilitek_rt5081_lcm_drv;
 extern struct LCM_DRIVER nt51021_wuxga_dsi_vdo_mt8173_lcm_drv;
 extern struct LCM_DRIVER ili9881c_hdp_dsi_vdo_ilitek_rt5081_lcm_drv_ebbg;
+extern struct LCM_DRIVER ili9881c_hdp_dsi_vdo_ilitek_rt5081_lcm_drv_boe;
 extern struct LCM_DRIVER hx8394f_hd720_dsi_vdo_tianma_lcm_drv;
 extern struct LCM_DRIVER nt36672_fhdp_dsi_vdo_auo_lcm_drv;
 extern struct LCM_DRIVER nt36672_fhdp_dsi_vdo_auo_laneswap_lcm_drv;
 extern struct LCM_DRIVER ili9881h_hdp_dsi_vdo_ilitek_rt5081_19_9_lcm_drv;
-extern struct LCM_DRIVER hx83112b_fhdp_dsi_cmd_auo_rt5081_lcm_drv;
-
+extern struct LCM_DRIVER hx83112b_fhdp_dsi_cmd_auo_rt4801_lcm_drv;
+extern struct LCM_DRIVER hx83112b_fhdp_dsi_cmd_fhd_auo_rt4801_lcm_drv;
+extern struct LCM_DRIVER hx83112b_fhdp_dsi_vdo_auo_rt4801_lcm_drv;
+extern struct LCM_DRIVER sofeg01_fhdplus_dsi_cmd_samsung_lcm_drv;
+extern struct LCM_DRIVER virtual_dsi_vdo_default;
 #ifdef BUILD_LK
 extern void mdelay(unsigned long msec);
 #endif

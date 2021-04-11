@@ -4,6 +4,7 @@
  * FocalTech TouchScreen driver.
  *
  * Copyright (c) 2010-2017, FocalTech Systems, Ltd., all rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -42,6 +43,8 @@
 #endif
 //#include <linux/wakelock.h>
 #include "focaltech_core.h"
+#include "./focaltech_test/focaltech_test.h"
+#include <linux/hardware_info.h>  
 
 /*****************************************************************************
 * Private constant and macro definitions using #define
@@ -55,11 +58,39 @@ struct pinctrl_state *focal_power_output1,*focal_power_output0;
 static void tpd_power_on(int flag);
 
 //add by cassy end
+#define FTS_GESTRUE_POINTS                          255
+#define FTS_GESTRUE_POINTS_HEADER               8
+
+struct fts_gesture_st {
+    u8 header[FTS_GESTRUE_POINTS_HEADER];
+    u16 coordinate_x[FTS_GESTRUE_POINTS];
+    u16 coordinate_y[FTS_GESTRUE_POINTS];
+    u8 mode;
+    u8 active;  /*gesture actutally work*/
+};
+
+extern struct gesture_struct gesture_data;
+extern struct fts_gesture_st fts_gesture_data;
 
 #define FTS_DRIVER_NAME                     "fts_ts"
 #define INTERVAL_READ_REG                   100  //interval time per read reg unit:ms
 #define TIMEOUT_READ_REG                    1000 //timeout of read reg unit:ms
 #define FTS_I2C_SLAVE_ADDR                  0x38
+
+
+#define MXT_INPUT_EVENT_START			0
+#define MXT_INPUT_EVENT_SENSITIVE_MODE_OFF	0
+#define MXT_INPUT_EVENT_SENSITIVE_MODE_ON	1
+#define MXT_INPUT_EVENT_STYLUS_MODE_OFF		2
+#define MXT_INPUT_EVENT_STYLUS_MODE_ON		3
+#define MXT_INPUT_EVENT_WAKUP_MODE_OFF		4
+#define MXT_INPUT_EVENT_WAKUP_MODE_ON		5
+#define MXT_INPUT_EVENT_EDGE_DISABLE		6
+#define MXT_INPUT_EVENT_EDGE_FINGER		7
+#define MXT_INPUT_EVENT_EDGE_HANDGRIP		8
+#define MXT_INPUT_EVENT_EDGE_FINGER_HANDGRIP	9
+#define MXT_INPUT_EVENT_END			9
+
 
 static DECLARE_WAIT_QUEUE_HEAD(waiter);
 static int tpd_flag;
@@ -75,6 +106,8 @@ static int tpd_def_calmat_local_factory[8] = TPD_CALIBRATION_MATRIX_ROTATION_FAC
 * Global variable or extern global variabls/functions
 *****************************************************************************/
 struct fts_ts_data *fts_data;
+static u8 vendor_id;
+static u8 ic_type;
 
 /*****************************************************************************
 * Static function prototypes
@@ -106,6 +139,71 @@ static struct i2c_driver tpd_i2c_driver = {
     .id_table = fts_tpd_id,
     .detect = tpd_i2c_detect,
 };
+#define OFILM_VENDOR     81
+#define TP_IC_FT5446   84
+#define LENS_VENDOR    109
+
+void hardwareinfo_set(void*drv_data)
+{
+	char firmware_ver[HARDWARE_MAX_ITEM_LONGTH];
+	char vendor_for_id[HARDWARE_MAX_ITEM_LONGTH];
+	char ic_name[HARDWARE_MAX_ITEM_LONGTH];
+	int err;
+	u8 fw_ver;
+
+	fts_i2c_read_reg(fts_data->client, FTS_REG_FW_VER, &fw_ver);
+#if 1	//for compatibility
+	if(vendor_id== OFILM_VENDOR)
+	{
+		snprintf(vendor_for_id,HARDWARE_MAX_ITEM_LONGTH,"OFILM");
+	}else if(vendor_id == LENS_VENDOR){
+		snprintf(vendor_for_id,HARDWARE_MAX_ITEM_LONGTH,"LENS");
+	}else {
+		snprintf(vendor_for_id,HARDWARE_MAX_ITEM_LONGTH,"Other vendor");
+	}
+
+	if(ic_type == TP_IC_FT5446)
+	{
+		snprintf(ic_name,HARDWARE_MAX_ITEM_LONGTH,"FT5446");
+	}else{
+		snprintf(ic_name,HARDWARE_MAX_ITEM_LONGTH,"Other IC");
+	}
+#endif
+    printk("ttt hardwareinfo_set vendor id :%d, ic_type : %d\n",vendor_id,ic_type);
+	snprintf(firmware_ver,HARDWARE_MAX_ITEM_LONGTH,"%s,%s,FW:0x%x",vendor_for_id,ic_name,fw_ver);
+	FTS_INFO("firmware_ver=%s\n", firmware_ver);
+
+	err = hardwareinfo_set_prop(HARDWARE_TP,firmware_ver);
+        if (err < 0)
+		return ;
+
+	return ;
+
+}
+static int fts_input_event(struct input_dev *dev,
+		unsigned int type, unsigned int code, int value)
+{
+	char buffer[16];
+
+	if (type == EV_SYN && code == SYN_CONFIG) {
+		sprintf(buffer, "%d", value);
+
+		FTS_INFO("FTS:Gesture on/off : %d",value);
+		if (value >= MXT_INPUT_EVENT_START && value <= MXT_INPUT_EVENT_END) {
+			if (value == MXT_INPUT_EVENT_WAKUP_MODE_ON ) {
+				gesture_data.gesture_all_switch = 1;
+			} else if(value == MXT_INPUT_EVENT_WAKUP_MODE_OFF){
+			       gesture_data.gesture_all_switch = 0;
+			}else {
+			        gesture_data.gesture_all_switch = 0;
+				FTS_ERROR("Failed Open/Close Gesture Function!\n");
+				return -ENOMEM;
+			}
+		}
+	}
+
+	return 0;
+}
 
 /*****************************************************************************
 *  Name: fts_wait_tp_to_valid
@@ -265,6 +363,7 @@ void fts_tp_state_recovery(struct i2c_client *client)
 
     /* recover TP gesture state 0xD0 */
 #if FTS_GESTURE_EN
+	if (gesture_data.gesture_all_switch)
     fts_gesture_recovery(client);
 #endif
 }
@@ -279,10 +378,11 @@ void fts_tp_state_recovery(struct i2c_client *client)
 int fts_reset_proc(int hdelayms)
 {
     FTS_FUNC_ENTER();
-	
     tpd_gpio_output(tpd_rst_gpio_number, 0);
+    gpio_direction_output(tpd_rst_gpio_number, 0);  //qiang
     msleep(20);
     tpd_gpio_output(tpd_rst_gpio_number, 1);
+    gpio_direction_output(tpd_rst_gpio_number, 1);  //qiang
     if (hdelayms) {
         msleep(hdelayms);
     }
@@ -513,20 +613,20 @@ static int fts_input_report_b(struct fts_ts_data *data)
             touchs |= BIT(events[i].id);
             data->touchs |= BIT(events[i].id);
 
-            FTS_DEBUG("[B]P%d(%d, %d)[p:%d,tm:%d] DOWN!", events[i].id, events[i].x,
-                      events[i].y, events[i].p, events[i].area);
+          //  FTS_DEBUG("[B]P%d(%d, %d)[p:%d,tm:%d] DOWN!", events[i].id, events[i].x,
+                      //events[i].y, events[i].p, events[i].area);
         } else {
             uppoint++;
             input_mt_report_slot_state(tpd->dev, MT_TOOL_FINGER, false);
             data->touchs &= ~BIT(events[i].id);
-            FTS_DEBUG("[B]P%d UP!", events[i].id);
+        //    FTS_DEBUG("[B]P%d UP!", events[i].id);
         }
     }
 
     if (unlikely(data->touchs ^ touchs)) {
         for (i = 0; i < max_touch_num; i++)  {
             if (BIT(i) & (data->touchs ^ touchs)) {
-                FTS_DEBUG("[B]P%d UP!", i);
+          //      FTS_DEBUG("[B]P%d UP!", i);
                 va_reported = true;
                 input_mt_slot(tpd->dev, i);
                 input_mt_report_slot_state(tpd->dev, MT_TOOL_FINGER, false);
@@ -538,7 +638,7 @@ static int fts_input_report_b(struct fts_ts_data *data)
     if (va_reported) {
         /* touchs==0, there's no point but key */
         if (EVENT_NO_DOWN(data) || (!touchs)) {
-            FTS_DEBUG("[B]Points All Up!");
+         //   FTS_DEBUG("[B]Points All Up!");
             input_report_key(tpd->dev, BTN_TOUCH, 0);
         } else {
             input_report_key(tpd->dev, BTN_TOUCH, 1);
@@ -746,17 +846,20 @@ static int touch_event_handler(void *unused)
 
         set_current_state(TASK_RUNNING);
 
-        FTS_DEBUG("touch_event_handler start");
+        //FTS_DEBUG("touch_event_handler start");
 #if FTS_PSENSOR_EN
         if (fts_proximity_readdata(ts_data->client) == 0)
             continue;
 #endif
 
 #if FTS_GESTURE_EN
+	if (gesture_data.gesture_all_switch){
+
         if (0 == fts_gesture_readdata(ts_data)) {
             FTS_INFO("succuss to get gesture data in irq handler");
             continue;
         }
+	}
 #endif
 
 #if FTS_POINT_REPORT_CHECK_EN
@@ -858,38 +961,37 @@ static int tpd_i2c_detect(struct i2c_client *client, struct i2c_board_info *info
 * Output:
 * Return:
 ***********************************************************************/
-	//add by cassy begin
-	int tpd_get_gpio_info_focal(struct i2c_client *pdev)
-	{
-		int ret;
-	
-		
-		pinctrl3 = devm_pinctrl_get(&pdev->dev);
-		if (IS_ERR(pinctrl3)) {
-			ret = PTR_ERR(pinctrl3);
-		
-			return ret;
-		}
-			focal_power_output0 = pinctrl_lookup_state(pinctrl3, "state_focal_power_output0");
-			if (IS_ERR(focal_power_output0)) {
-				ret = PTR_ERR(focal_power_output0);
-				return ret;
-			}
-			else
-				{
-				//printk("success\n");
-				}
-			focal_power_output1 = pinctrl_lookup_state(pinctrl3, "state_focal_power_output1");
-			if (IS_ERR(focal_power_output1)) {
-				ret = PTR_ERR(focal_power_output1);
-				return ret;
-			}
-		
-		return 0;
-	}
-	
-	
-	//add by cassy end
+//add by cassy begin
+int tpd_get_gpio_info_focal(struct i2c_client *pdev)
+{
+    int ret;
+    
+    pinctrl3 = devm_pinctrl_get(&pdev->dev);
+    if (IS_ERR(pinctrl3)) {
+        ret = PTR_ERR(pinctrl3);
+
+        return ret;
+    }
+    focal_power_output0 = pinctrl_lookup_state(pinctrl3, "state_focal_power_output0");
+    if (IS_ERR(focal_power_output0)) {
+        ret = PTR_ERR(focal_power_output0);
+        return ret;
+    }
+    else
+    {
+        //printk("success\n");
+    }
+    focal_power_output1 = pinctrl_lookup_state(pinctrl3, "state_focal_power_output1");
+    if (IS_ERR(focal_power_output1)) {
+        ret = PTR_ERR(focal_power_output1);
+        return ret;
+    }
+
+    return 0;
+}
+
+
+//add by cassy end
 
 static int tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -917,31 +1019,33 @@ static int tpd_probe(struct i2c_client *client, const struct i2c_device_id *id)
         FTS_ERROR("failed to create fts workqueue");
     }
 	
-	//add by cassy begin
-		tpd_get_gpio_info_focal(client);
-		//add by cassy end
-		
-//add by allen start
-tpd_power_on(1);
-//add by allen end
+    //add by cassy begin
+    tpd_get_gpio_info_focal(client);
+    //add by cassy end
+    //add by allen start
+    tpd_power_on(1);
+    //add by allen end
     spin_lock_init(&ts_data->irq_lock);
     mutex_init(&ts_data->report_mutex);
     /* Init I2C */
     fts_i2c_init();
-	    ret = fts_input_init(ts_data);
+    tpd->dev->event = fts_input_event;//
+    ret = fts_input_init(ts_data);
     if (ret) {
         FTS_ERROR("fts input initialize fail");
         goto err_input_init;
     }
 
-  fts_reset_proc(200);
-	
+    fts_reset_proc(200);
+
     ret = fts_get_ic_information(ts_data);
     if (ret) {
         FTS_ERROR("not focal IC, unregister driver");
         goto err_input_init;
     }
-	
+    fts_i2c_read_reg(fts_data->client, FTS_REG_VENDOR_ID,&vendor_id);
+    fts_i2c_read_reg(fts_data->client, FTS_REG_CHIP_ID, &ic_type);
+    printk("ttt ftsss_probe vendor id :%d, ic_type : %d\n",vendor_id,ic_type);
 #if FTS_APK_NODE_EN////1
     ret = fts_create_apk_debug_channel(ts_data);
     if (ret) {
@@ -979,7 +1083,7 @@ tpd_power_on(1);
     fts_proximity_init(client);
 #endif
 
-#if FTS_TEST_EN///0(cassy change from 1 to 0)
+#if FTS_TEST_EN///1(cassy change from 1 to 0)
     ret = fts_test_init(client);
     if (ret) {
         FTS_ERROR("init production test fail");
@@ -1021,7 +1125,11 @@ tpd_power_on(1);
 
     tpd_load_status = 1;
     FTS_DEBUG("TPD_RES_Y:%d", (int)TPD_RES_Y);
-    FTS_FUNC_EXIT();
+    hardwareinfo_tp_register(hardwareinfo_set, &fts_data);
+#if FTS_LOCK_DOWN_INFO
+	fts_lockdown_init(client,fts_data);
+#endif
+	FTS_FUNC_EXIT();
     return 0;
 
 err_irq_req:
@@ -1230,13 +1338,17 @@ static void tpd_suspend(struct device *h)
     fts_esdcheck_suspend();
 #endif
 
+
 #if FTS_GESTURE_EN
+if (gesture_data.gesture_all_switch){
+
     ret = fts_gesture_suspend(ts_data->client);
     if (ret == 0) {
         /* Enter into gesture mode(suspend) */
         ts_data->suspended = true;
         return;
     }
+}
 #endif
 
     fts_irq_disable();
@@ -1249,6 +1361,12 @@ static void tpd_suspend(struct device *h)
 #if FTS_POWER_SOURCE_CUST_EN
     fts_power_suspend();
 #endif
+
+	if (!gesture_data.gesture_all_switch){
+		tpd_power_on(0);
+		printk("[FTS] ttt  close ldo \n");
+	}
+
 
     ts_data->suspended = true;
     FTS_FUNC_EXIT();
@@ -1295,6 +1413,12 @@ static void tpd_resume(struct device *h)
     fts_power_resume();
 #endif
 
+	if (!gesture_data.gesture_all_switch | ts_data->suspended){
+		tpd_power_on(1);
+		printk("[FTS] open ldo \n");
+	}
+
+
     if (!ts_data->ic_info.is_incell) {
         fts_reset_proc(200);
     }
@@ -1307,11 +1431,14 @@ static void tpd_resume(struct device *h)
 #endif
 
 #if FTS_GESTURE_EN
+	if (gesture_data.gesture_all_switch || fts_gesture_data.active){ 
+
     if (fts_gesture_resume(ts_data->client) == 0) {
         ts_data->suspended = false;
         FTS_FUNC_EXIT();
         return;
     }
+}
 #endif
 
     fts_irq_enable();

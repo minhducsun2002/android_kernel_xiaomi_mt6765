@@ -2764,6 +2764,9 @@ void musb_g_resume(struct musb *musb)
 			musb->gadget_driver->resume(&musb->g);
 			spin_lock(&musb->lock);
 		}
+#ifndef WT_COMPILE_FACTORY_VERSION
+		musb_sync_with_bat(musb, USB_CONFIGURED);
+#endif
 		break;
 	default:
 		pr_warn("unhandled RESUME transition (%s)\n"

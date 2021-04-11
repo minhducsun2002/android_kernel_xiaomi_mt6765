@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -3357,28 +3358,25 @@ int DSI_Send_ROI(enum DISP_MODULE_ENUM module, void *handle, unsigned int x,
 
 	unsigned int data_array[16];
 
-	if (!primary_display_is_video_mode()) {
-		data_array[0] = 0x00053902;
-		data_array[1] = (x1_MSB << 24) | (x0_LSB << 16) |
-			(x0_MSB << 8) | 0x2a;
-		data_array[2] = (x1_LSB);
-		DSI_set_cmdq(module, handle, data_array, 3, 1);
-		data_array[0] = 0x00053902;
-		data_array[1] = (y1_MSB << 24) | (y0_LSB << 16) |
-			(y0_MSB << 8) | 0x2b;
-		data_array[2] = (y1_LSB);
-		DSI_set_cmdq(module, handle, data_array, 3, 1);
-		DDPMSG("%s(%d,%d,%dx%d)Done!\n",
-			__func__, x, y, width, height);
-	} else
-		DDPDBG("LCM is video mode, no need DSI send ROI!\n");
+	if(_is_lcm_cmd_mode(module) == 0)
+		return 0;
+
+	data_array[0] = 0x00053902;
+	data_array[1] = (x1_MSB << 24) | (x0_LSB << 16) | (x0_MSB << 8) | 0x2a;
+	data_array[2] = (x1_LSB);
+	DSI_set_cmdq(module, handle, data_array, 3, 1);
+	data_array[0] = 0x00053902;
+	data_array[1] = (y1_MSB << 24) | (y0_LSB << 16) | (y0_MSB << 8) | 0x2b;
+	data_array[2] = (y1_LSB);
+	DSI_set_cmdq(module, handle, data_array, 3, 1);
+	DDPMSG("DSI_Send_ROI(%d,%d,%dx%d)Done!\n", x, y, width, height);
 
 	return 0;
 }
 
 static void lcm_set_reset_pin(UINT32 value)
 {
-#if 1
+#if 0
 	DSI_OUTREG32(NULL, DISP_REG_CONFIG_MMSYS_LCM_RST_B, value);
 #else
 #if !defined(CONFIG_MTK_LEGACY)

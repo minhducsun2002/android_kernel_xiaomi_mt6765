@@ -1392,6 +1392,10 @@ void musb_start(struct musb *musb)
 		musb_writeb(regs, MUSB_POWER, val);
 	}
 
+	/* disable USB DCM */
+	musb_writel(musb->mregs, 0x220,
+		musb_readl(musb->mregs, 0x220) | 0x400);
+
 	if (musb->is_host)
 		musb->is_active = 0;
 	else

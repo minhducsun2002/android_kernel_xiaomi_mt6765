@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,8 +14,8 @@
 #ifndef _CPU_CTRL_H
 #define _CPU_CTRL_H
 
-
-#include <mtk_ppm_api.h>
+#include "../../base/power/include/mtk_ppm_api.h"  
+//#include <mtk_ppm_api.h>
 
 enum {
 	CPU_KIR_PERF = 0,
@@ -24,6 +25,7 @@ enum {
 	CPU_KIR_TOUCH,
 	CPU_KIR_PERFTOUCH,
 	CPU_KIR_USB,
+    CPU_KIR_FINGERPRINT,  
 	CPU_MAX_KIR
 };
 extern unsigned int mt_cpufreq_get_freq_by_idx(int id, int idx);

@@ -2,6 +2,7 @@
  * Mediatek's MT6765 SoC device tree source
  *
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -655,11 +656,15 @@ firmware_class.path=/vendor/firmware loop.max_part=7";
 	accdet: accdet {
 		compatible = "mediatek,pmic-accdet";
 	};
-
 	goodix_fp: fingerprint {
-		compatible = "mediatek,goodix-fp";
+		compatible =  "mediatek,fpc1022_irq",
+					"mediatek,goodix-fp";
+		/*
+			"mediatek,goodix-fp",
+			     "mediatek,fpc1022_irq",
+			     "mediatek,fingerprint";
+		*/
 	};
-
 	mt6357_gauge {
 		compatible = "mediatek,mt6357_gauge";
 		gauge_name = "gauge";
@@ -2374,7 +2379,9 @@ firmware_class.path=/vendor/firmware loop.max_part=7";
 			"TOP_ULPOSC1_D2",
 			"TOP_ULPOSC1_D8";
 	};
-
+	swtp: swtp {
+		compatible = "mediatek, swtp-eint";
+	};
 	dsi_te: dsi_te {
 		compatible = "mediatek, DSI_TE-eint";
 		status = "disabled";
@@ -2395,6 +2402,14 @@ firmware_class.path=/vendor/firmware loop.max_part=7";
 		interrupts = <GIC_SPI 258 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&imgsys CLK_IMG_FDVT>;
 		clock-names = "FD_CLK_IMG_FDVT";
+	};
+
+	dpe@15028000 {
+		compatible = "mediatek,dpe";
+		reg = <0 0x15028000 0 0x1000>;
+		interrupts = <GIC_SPI 256 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&imgsys CLK_IMG_DPE>;
+		clock-names = "DPE_CG_IMG_DPE";
 	};
 
 	venc_gcon: venc_gcon@17000000 {
@@ -2646,7 +2661,7 @@ firmware_class.path=/vendor/firmware loop.max_part=7";
 
 	flashlights_mt6370: flashlights_mt6370 {
 		compatible = "mediatek,flashlights_mt6370";
-		decouple = <0>;
+		decouple = <1>;
 		channel@1 {
 			type = <0>;
 			ct = <0>;
@@ -2680,20 +2695,20 @@ firmware_class.path=/vendor/firmware loop.max_part=7";
 		enable_anime;
 		enable_pe_plus;
 		power_path_support;
-		max_charger_voltage = <6500000>;
+		max_charger_voltage = <6000000>;
 		fast_charge_voltage = <3000000>;
 
 		/* charging current */
 		usb_charger_current = <500000>;
-		ac_charger_current = <2050000>;
-		ac_charger_input_current = <3200000>;
-		non_std_ac_charger_current = <500000>;
-		charging_host_charger_current = <1500000>;
+		ac_charger_current = <1100000>;
+		ac_charger_input_current = <1100000>;
+		non_std_ac_charger_current = <1100000>;
+		charging_host_charger_current = <1100000>;
 		ta_ac_charger_current = <3000000>;
 		pd_charger_current = <500000>;
 
 		/* battery temperature protection */
-		temp_t4_threshold = <50>;
+		temp_t4_threshold = <55>;
 		temp_t3_threshold = <45>;
 		temp_t1_threshold = <0>;
 	};
@@ -2701,7 +2716,7 @@ firmware_class.path=/vendor/firmware loop.max_part=7";
 	charger: charger {
 		compatible = "mediatek,charger";
 		algorithm_name = "SwitchCharging";
-		/* enable_sw_jeita; */
+		enable_sw_jeita;
 		enable_pe_plus;
 		enable_pe_2;
 		enable_pe_3;
@@ -2710,8 +2725,8 @@ firmware_class.path=/vendor/firmware loop.max_part=7";
 		power_path_support;
 
 		/* common */
-		battery_cv = <4350000>;
-		max_charger_voltage = <6500000>;
+		battery_cv = <4400000>;
+		max_charger_voltage = <6000000>;
 		min_charger_voltage = <4600000>;
 
 		/* charging current */
@@ -2719,29 +2734,29 @@ firmware_class.path=/vendor/firmware loop.max_part=7";
 		usb_charger_current_unconfigured = <70000>;
 		usb_charger_current_configured = <500000>;
 		usb_charger_current = <500000>;
-		ac_charger_current = <2050000>;
-		ac_charger_input_current = <3200000>;
-		non_std_ac_charger_current = <500000>;
-		charging_host_charger_current = <1500000>;
+		ac_charger_current = <1100000>;
+		ac_charger_input_current = <1100000>;
+		non_std_ac_charger_current = <1100000>;
+		charging_host_charger_current = <1100000>;
 		apple_1_0a_charger_current = <650000>;
 		apple_2_1a_charger_current = <800000>;
 		ta_ac_charger_current = <3000000>;
 
 		/* sw jeita */
-		jeita_temp_above_t4_cv = <4240000>;
-		jeita_temp_t3_to_t4_cv = <4240000>;
-		jeita_temp_t2_to_t3_cv = <4340000>;
-		jeita_temp_t1_to_t2_cv = <4240000>;
-		jeita_temp_t0_to_t1_cv = <4040000>;
-		jeita_temp_below_t0_cv = <4040000>;
-		temp_t4_thres = <50>;
-		temp_t4_thres_minus_x_degree = <47>;
+		jeita_temp_above_t4_cv = <4100000>;
+		jeita_temp_t3_to_t4_cv = <4100000>;
+		jeita_temp_t2_to_t3_cv = <4400000>;
+		jeita_temp_t1_to_t2_cv = <4400000>;
+		jeita_temp_t0_to_t1_cv = <4400000>;
+		jeita_temp_below_t0_cv = <4400000>;
+		temp_t4_thres = <55>;
+		temp_t4_thres_minus_x_degree = <53>;
 		temp_t3_thres = <45>;
-		temp_t3_thres_minus_x_degree = <39>;
-		temp_t2_thres = <10>;
-		temp_t2_thres_plus_x_degree = <16>;
+		temp_t3_thres_minus_x_degree = <43>;
+		temp_t2_thres = <15>;
+		temp_t2_thres_plus_x_degree = <17>;
 		temp_t1_thres = <0>;
-		temp_t1_thres_plus_x_degree = <6>;
+		temp_t1_thres_plus_x_degree = <2>;
 		temp_t0_thres = <0>;
 		temp_t0_thres_plus_x_degree = <0>;
 		temp_neg_10_thres = <0>;
@@ -2749,9 +2764,9 @@ firmware_class.path=/vendor/firmware loop.max_part=7";
 		/* battery temperature protection */
 		enable_min_charge_temp;
 		min_charge_temp = <0>;
-		min_charge_temp_plus_x_degree = <6>;
-		max_charge_temp = <50>;
-		max_charge_temp_minus_x_degree = <47>;
+		min_charge_temp_plus_x_degree = <2>;
+		max_charge_temp = <55>;
+		max_charge_temp_minus_x_degree = <53>;
 
 		/* PE */
 		ta_12v_support;

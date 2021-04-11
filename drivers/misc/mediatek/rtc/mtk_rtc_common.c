@@ -614,7 +614,11 @@ static void rtc_handler(void)
 						   tm.tm_min, tm.tm_sec);
 				} while (time <= now_time);
 				spin_unlock_irqrestore(&rtc_lock, flags);
+#if defined(CONFIG_MACH_MT6779)
+				arch_reset(0, "kpoc");
+#else
 				kernel_restart("kpoc");
+#endif
 			} else {
 				hal_rtc_save_pwron_alarm();
 				pwron_alm = true;
@@ -921,6 +925,7 @@ static int __init rtc_late_init(void)
 #if (defined(MTK_GPS_MT3332))
 	hal_rtc_set_gpio_32k_status(0, true);
 #endif
+	rtc_debug_init();
 
 	return 0;
 }

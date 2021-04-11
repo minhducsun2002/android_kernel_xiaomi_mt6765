@@ -11,6 +11,9 @@
 # GNU General Public License for more details.
 #
 
+ccflags-y += -I$(srctree)/drivers/misc/mediatek/emi/$(MTK_PLATFORM)
+ccflags-y += -I$(srctree)/drivers/misc/mediatek/emi/submodule
+
 obj-y += mtk_meminfo.o
 obj-$(CONFIG_MTK_MEMCFG) += mtk_memcfg.o
 obj-$(CONFIG_MTK_MEMCFG) += mtk_memcfg_reserve_info.o

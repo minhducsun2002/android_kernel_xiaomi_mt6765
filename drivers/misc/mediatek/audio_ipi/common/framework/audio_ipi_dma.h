@@ -67,12 +67,12 @@ struct ipi_msg_t;
  */
 
 /* kernel */
-int init_audio_ipi_dma(void);
+int init_audio_ipi_dma(const uint8_t task);
 
-int deinit_audio_ipi_dma(void);
+int deinit_audio_ipi_dma(const uint8_t task);
 
 /* dsp */
-int audio_ipi_dma_init_dsp(void);
+int audio_ipi_dma_init_dsp(const uint8_t task);
 
 
 
@@ -82,12 +82,17 @@ int audio_ipi_dma_init_dsp(void);
  * =============================================================================
  */
 
-int audio_ipi_dma_alloc(struct aud_ptr_t *phy_addr, const uint32_t size);
+int audio_ipi_dma_alloc(const uint8_t task,
+			struct aud_ptr_t *phy_addr,
+			const uint32_t size);
 
-int audio_ipi_dma_free(struct aud_ptr_t *phy_addr, const uint32_t size);
+int audio_ipi_dma_free(const uint8_t task,
+			struct aud_ptr_t *phy_addr,
+			const uint32_t size);
 
 
-void *get_audio_ipi_dma_vir_addr(unsigned long phy_addr_val);
+void *get_audio_ipi_dma_vir_addr(uint32_t opendsp_id,
+				unsigned long phy_addr_val);
 
 
 /*
@@ -101,6 +106,7 @@ int audio_ipi_dma_alloc_region(const uint8_t task,
 			       const uint32_t dsp_to_ap_size);
 
 int audio_ipi_dma_free_region(const uint8_t task);
+int audio_ipi_dma_free_region_all_task(void);
 
 
 

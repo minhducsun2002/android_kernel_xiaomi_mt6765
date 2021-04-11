@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -482,6 +483,11 @@ int primary_display_config_full_roi(struct disp_ddp_path_config *pconfig,
 int primary_display_set_scenario(int scenario);
 enum DISP_MODULE_ENUM _get_dst_module_by_lcm(struct disp_lcm_handle *plcm);
 extern void check_mm0_clk_sts(void);
+
+
+int primary_display_set_cabc(unsigned int enable);
+int primary_display_get_cabc(int *status);
+
 
 extern unsigned int dump_output;
 extern unsigned int dump_output_comp;

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -763,10 +764,8 @@ static unsigned int _fps_ctx_calc_cur_fps(struct fps_ctx_t *fps_ctx,
 	unsigned long long delta;
 	unsigned long long fps = 1000000000;
 
-	if (cur_ns > fps_ctx->last_trig) {
-		delta = cur_ns - fps_ctx->last_trig;
-		do_div(fps, delta);
-	}
+	delta = cur_ns - fps_ctx->last_trig;
+	do_div(fps, delta);
 
 	if (fps > 120ULL)
 		fps = 120ULL;
@@ -6142,7 +6141,7 @@ static void _ovl_yuv_throughput_freq_request
 
 static void _ovl_sbch_invalid_config(struct cmdqRecStruct *cmdq_handle)
 {
-	int i = 0;
+	int i = 0, j = 0;
 	CMDQ_VARIABLE sbch_invalid_status;
 	CMDQ_VARIABLE result;
 	CMDQ_VARIABLE shift;
@@ -6151,8 +6150,8 @@ static void _ovl_sbch_invalid_config(struct cmdqRecStruct *cmdq_handle)
 	cmdq_op_init_variable(&result);
 	cmdq_op_init_variable(&shift);
 
-	for (i = 0; i < OVL_NUM; i++) {
-		unsigned long ovl_base = ovl_base_addr(i);
+	for (j = 0; j < OVL_NUM; j++) {
+		unsigned long ovl_base = ovl_base_addr(j);
 
 		if (ovl_base == 0)
 			continue;
@@ -6780,6 +6779,7 @@ static int primary_frame_cfg_input(struct disp_frame_cfg_t *cfg)
 				m_ccorr_config.mode);
 
 			/* backup night params here */
+			mem_config.m_ccorr_config = m_ccorr_config;
 			cmdqRecBackupUpdateSlot(cmdq_handle,
 				pgc->night_light_params, 0,
 				mem_config.m_ccorr_config.mode);
@@ -9517,3 +9517,82 @@ int primary_display_set_scenario(int scenario)
 
 	return ret;
 }
+
+
+int _set_cabc_by_cmdq(unsigned int enable)
+{
+	int ret = 0;
+	struct cmdqRecStruct *cmdq_handle_cabc = NULL;
+
+	ret = cmdqRecCreate(CMDQ_SCENARIO_PRIMARY_DISP, &cmdq_handle_cabc);
+	DISPDBG("primary cabc, handle=%p\n", cmdq_handle_cabc);
+	if (ret) {
+		DISPWARN("fail to create primary cmdq handle for cabc\n");
+		return -1;
+	}
+
+	if (primary_display_is_video_mode()) {
+		cmdqRecReset(cmdq_handle_cabc);
+		_cmdq_insert_wait_frame_done_token_mira(cmdq_handle_cabc);
+		disp_lcm_set_cabc(pgc->plcm, cmdq_handle_cabc, enable);
+		_cmdq_flush_config_handle_mira(cmdq_handle_cabc, 1);
+		DISPMSG("[BL]_set_backlight_by_cmdq ret=%d\n", ret);
+	} else {
+		cmdqRecReset(cmdq_handle_cabc);
+		cmdqRecWait(cmdq_handle_cabc, CMDQ_SYNC_TOKEN_CABC_EOF);
+		_cmdq_handle_clear_dirty(cmdq_handle_cabc);
+		_cmdq_insert_wait_frame_done_token_mira(cmdq_handle_cabc);
+		disp_lcm_set_backlight(pgc->plcm, cmdq_handle_cabc, enable);
+		cmdqRecSetEventToken(cmdq_handle_cabc,
+			CMDQ_SYNC_TOKEN_CONFIG_DIRTY);
+		cmdqRecSetEventToken(cmdq_handle_cabc,
+			CMDQ_SYNC_TOKEN_CABC_EOF);
+		_cmdq_flush_config_handle_mira(cmdq_handle_cabc, 1);
+		DISPMSG("[BL]_set_backlight_by_cmdq ret=%d\n", ret);
+	}
+	cmdqRecDestroy(cmdq_handle_cabc);
+	cmdq_handle_cabc = NULL;
+	mmprofile_log_ex(ddp_mmp_get_events()->primary_set_bl,
+		MMPROFILE_FLAG_PULSE, 1, 5);
+
+	return ret;
+}
+
+int primary_display_set_cabc(unsigned int enable)
+{
+	int ret = 0;
+	static unsigned int last_status;
+
+	DISPFUNC();
+	_primary_path_switch_dst_lock();
+	_primary_path_lock(__func__);
+	if (pgc->state == DISP_SLEPT) {
+		DISPWARN("Sleep State set CABC invald\n");
+	} else {
+		primary_display_idlemgr_kick(__func__, 0);
+		if (primary_display_cmdq_enabled()) {
+			_set_cabc_by_cmdq(enable);
+			atomic_set(&delayed_trigger_kick, 1);
+		} else {
+			DISPWARN("CAMQ disbaled, not support set CABC\n");
+		}
+		last_status = enable;
+	}
+	_primary_path_unlock(__func__);
+	_primary_path_switch_dst_unlock();
+	return ret;
+}
+
+int primary_display_get_cabc(int *status)
+{
+	int ret = 0;
+
+	if (pgc->state == DISP_SLEPT) {
+		DISPWARN("Sleep State get CABC invald\n");
+	} else {
+		ret = disp_lcm_get_cabc(pgc->plcm, status);
+
+	}
+	return ret;
+}
+

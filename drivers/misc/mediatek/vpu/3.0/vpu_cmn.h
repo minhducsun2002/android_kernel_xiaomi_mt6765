@@ -18,6 +18,12 @@
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
 #include "vpu_drv.h"
+#include "vpu_dbg.h"
+
+#ifdef CONFIG_MTK_AEE_FEATURE
+#include <aee.h>
+#endif
+
 
 #define VPU_MET_READY
 #define VPU_PORT_OF_IOMMU M4U_PORT_VPU
@@ -69,10 +75,12 @@ struct vpu_user {
 	/* list of vlist_type(struct vpu_request) */
 	struct list_head enque_list;
 	struct list_head deque_list;
+	struct list_head algo_list;
 	wait_queue_head_t deque_wait;
 	wait_queue_head_t delete_wait;
 	uint8_t power_mode;
 	uint8_t power_opp;
+	uint8_t algo_num;
 };
 
 struct vpu_shared_memory_param {
@@ -95,6 +103,9 @@ enum vpu_power_param {
 	VPU_POWER_PARAM_JTAG,
 	VPU_POWER_PARAM_LOCK,
 	VPU_POWER_PARAM_VOLT_STEP,
+	VPU_POWER_HAL_CTL,
+	VPU_EARA_CTL,
+	VPU_CT_INFO,
 };
 
 enum vpu_debug_algo_param {
@@ -241,8 +252,11 @@ int vpu_get_name_of_algo(int core, int id, char **name);
  * @length:     return the length of algo binary
  */
 int vpu_get_entry_of_algo(int core, char *name, int *id,
-				unsigned int *mva, int *length);
+	unsigned int *mva, int *length);
 
+int vpu_get_default_algo_num(int core, vpu_id_t *algo_num);
+
+int vpu_total_algo_num(int core);
 /**
  * vpu_hw_get_algo_info - prepare a memory for vpu program to dump algo info
  * @core:	core index of device.
@@ -297,6 +311,13 @@ int vpu_ext_be_busy(void);
  * @state:		 expetected state.
  */
 int vpu_debug_func_core_state(int core, enum VpuCoreState state);
+
+/**
+ * vpu_dump_vpu_memory - dump the vpu memory when vpu d2d time out, and
+ *                       show the content of all fields.
+ * @s:		the pointer to seq_file.
+ */
+int vpu_dump_vpu_memory(struct seq_file *s);
 
 /**
  * vpu_dump_register - dump the register table, and show the content
@@ -428,6 +449,11 @@ int vpu_flush_requests_from_queue(struct vpu_user *user);
  */
 int vpu_dump_user(struct seq_file *s);
 
+/**
+ * vpu_dump_user_algo - dump user's created algo
+ * @s:          the pointer to seq_file.
+ */
+int vpu_dump_user_algo(struct seq_file *s);
 
 /* ========================== define in vpu_algo.c  ======================== */
 
@@ -449,12 +475,13 @@ int vpu_dump_algo(struct seq_file *s);
  */
 int vpu_add_algo_to_pool(int core, struct vpu_algo *algo);
 
-int vpu_find_algo_by_id(int core, vpu_id_t id, struct vpu_algo **ralgo);
+int vpu_find_algo_by_id(int core, vpu_id_t id,
+	struct vpu_algo **ralgo, struct vpu_user *user);
 
 int vpu_find_algo_by_name(int core, char *name, struct vpu_algo **ralgo,
-				bool needload);
+	bool needload, struct vpu_user *user);
 
-int vpu_get_algo_id_by_name(int core, char *name);
+int vpu_get_algo_id_by_name(int core, char *name, struct vpu_user *user);
 
 int vpu_alloc_algo(struct vpu_algo **ralgo);
 
@@ -464,6 +491,11 @@ int vpu_alloc_request(struct vpu_request **rreq);
 
 int vpu_free_request(struct vpu_request *req);
 
+int vpu_add_algo_to_user(struct vpu_user *user,
+	struct vpu_create_algo *create_algo);
+
+int vpu_free_algo_from_user(struct vpu_user *user,
+	struct vpu_create_algo *create_algo);
 
 /* ========================== define in vpu_dbg.c  ========================= */
 
@@ -489,20 +521,26 @@ int vpu_init_reg(int core, struct vpu_device *vpu_dev);
  * vpu_init_profile - init profiling
  * @device:     the pointer of vpu_device.
  */
-/* #define MET_POLLING_MODE */
+#define MET_POLLING_MODE
 int vpu_init_profile(int core, struct vpu_device *vpu_dev);
 int vpu_uninit_profile(void);
 int vpu_profile_state_set(int core, int val);
 int vpu_profile_state_get(void);
-void vpu_met_event_enter(int core, int algo_id, int vcore_opp,
-	int dsp_freq, int ipu_if_freq, int dsp1_freq, int dsp2_freq);
+void vpu_met_event_enter(int core, int algo_id, int dsp_freq);
 void vpu_met_event_leave(int core, int algo_id);
+void vpu_met_packet(long long wclk, char action, int core, int pid,
+	int sessid, char *str_desc, int val);
+void vpu_met_event_dvfs(int vcore_opp,
+	int dsp_freq, int ipu_if_freq, int dsp1_freq, int dsp2_freq);
 uint8_t vpu_boost_value_to_opp(uint8_t boost_value);
 bool vpu_update_lock_power_parameter(struct vpu_lock_power *vpu_lock_power);
 bool vpu_update_unlock_power_parameter(struct vpu_lock_power *vpu_lock_power);
 int vpu_lock_set_power(struct vpu_lock_power *vpu_lock_power);
 int vpu_unlock_set_power(struct vpu_lock_power *vpu_lock_power);
-
+/**
+ * vpu_is_idle - check per vpu core is idle and can be used by user immediately.
+ */
+bool vpu_is_idle(int core);
 
 /* LOG & AEE */
 #define VPU_TAG "[vpu]"
@@ -512,6 +550,11 @@ int vpu_unlock_set_power(struct vpu_lock_power *vpu_lock_power);
 #else
 #define LOG_DBG(format, args...)
 #endif
+
+#define LOG_DVFS(format, args...) \
+	do { if (g_vpu_log_level > Log_STATE_MACHINE) \
+		pr_info(VPU_TAG " " format, ##args); \
+	} while (0)
 #define LOG_INF(format, args...)    pr_info(VPU_TAG " " format, ##args)
 #define LOG_WRN(format, args...)    pr_info(VPU_TAG "[warn] " format, ##args)
 #define LOG_ERR(format, args...)    pr_info(VPU_TAG "[error] " format, ##args)
@@ -568,9 +611,17 @@ static unsigned long __read_mostly vpu_tracing_writer;
 	event_trace_printk(vpu_tracing_writer, "E\n"); \
 	preempt_enable(); \
 }
+#define vpu_trace_dump(format, args...) \
+{ \
+	preempt_disable(); \
+	event_trace_printk(vpu_tracing_writer, \
+	"MET_DUMP|" format "\n", ##args); \
+	preempt_enable(); \
+}
 #else
 #define vpu_trace_begin(...)
 #define vpu_trace_end()
+#define vpu_trace_dump(...)
 #endif
 
 #endif

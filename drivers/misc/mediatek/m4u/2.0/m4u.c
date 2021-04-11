@@ -826,8 +826,9 @@ int m4u_alloc_mva_sg(struct port_mva_info_t *port_info,
 		flags |= M4U_FLAGS_SG_READY;
 	else
 		port_info->va = 0;
-	ret = m4u_alloc_mva(ion_m4u_client, port_info->eModuleID, port_info->va, sg_table,
-		port_info->BufSize, prot, flags, &port_info->mva);
+	ret = m4u_alloc_mva(ion_m4u_client, port_info->module_id,
+			    port_info->va, sg_table, port_info->BufSize, prot,
+			    flags, &port_info->mva);
 	return ret;
 }
 

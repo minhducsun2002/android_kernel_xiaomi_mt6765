@@ -60,32 +60,6 @@ static int fsm_md_data_ioctl(int md_id, unsigned int cmd, unsigned long arg)
 		ret = ccci_port_send_msg_to_md(md_id, CCCI_SYSTEM_TX,
 				MD_GET_BATTERY_INFO, data, 1);
 		break;
-	case CCCI_IOC_GET_RAT_STR:
-		ret = ccci_get_rat_str_from_drv(md_id,
-				(char *)buffer, sizeof(buffer));
-		if (ret < 0)
-			CCCI_ERROR_LOG(md_id, FSM,
-				"CCCI_IOC_GET_RAT_STR: gen str fail %d\n",
-				(int)ret);
-		else {
-			if (copy_to_user((void __user *)arg, (char *)buffer,
-						strlen((char *)buffer) + 1)) {
-				CCCI_ERROR_LOG(md_id, FSM,
-					"CCCI_IOC_GET_RAT_STR: copy_from_user fail\n");
-				ret = -EFAULT;
-			}
-		}
-		break;
-	case CCCI_IOC_SET_RAT_STR:
-		if (strncpy_from_user((char *)buffer,
-				(void __user *)arg, sizeof(buffer))) {
-			CCCI_ERROR_LOG(md_id, FSM,
-				"CCCI_IOC_SET_RAT_STR: copy_from_user fail\n");
-			ret = -EFAULT;
-			break;
-		}
-		ccci_set_rat_str_to_drv(md_id, (char *)buffer);
-		break;
 	case CCCI_IOC_GET_EXT_MD_POST_FIX:
 		if (copy_to_user((void __user *)arg,
 				per_md_data->img_post_fix, IMG_POSTFIX_LEN)) {
@@ -432,8 +406,7 @@ long ccci_fsm_ioctl(int md_id, unsigned int cmd, unsigned long arg)
 	struct ccci_fsm_ctl *ctl = fsm_get_entity_by_md_id(md_id);
 	int ret = 0;
 	enum MD_STATE_FOR_USER state_for_user;
-	struct siginfo sig_info;
-	unsigned int data, sig, pid;
+	unsigned int data;
 	char *VALID_USER = "ccci_mdinit";
 
 	if (!ctl)
@@ -595,24 +568,6 @@ long ccci_fsm_ioctl(int md_id, unsigned int cmd, unsigned long arg)
 		break;
 	case CCCI_IOC_RESET_MD1_MD3_PCCIF:
 		ccci_md_reset_pccif(md_id);
-		break;
-	case CCCI_IOC_SEND_SIGNAL_TO_USER:
-		if (copy_from_user(&data, (void __user *)arg,
-				sizeof(unsigned int))) {
-			CCCI_NORMAL_LOG(md_id, FSM,
-				"signal to RILD fail: copy_from_user fail\n");
-			ret = -EFAULT;
-			break;
-		}
-		sig = (data >> 16) & 0xFFFF;
-		pid = data & 0xFFFF;
-		sig_info.si_signo = sig;
-		sig_info.si_code = SI_KERNEL;
-		sig_info.si_pid = current->pid;
-		sig_info.si_uid = __kuid_val(current->cred->uid);
-		ret = kill_proc_info(SIGUSR2, &sig_info, pid);
-		CCCI_NORMAL_LOG(md_id, FSM,
-			"send signal %d to rild %d ret=%d\n", sig, pid, ret);
 		break;
 	case CCCI_IOC_GET_MD_EX_TYPE:
 		ret = put_user((unsigned int)ctl->ee_ctl.ex_type,

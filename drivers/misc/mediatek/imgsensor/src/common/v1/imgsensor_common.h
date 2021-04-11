@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,7 +17,7 @@
 
 #define PREFIX "[imgsensor]"
 
-#define pr_fmt(fmt) PREFIX "[%s] " fmt, __func__
+//#define pr_fmt(fmt) PREFIX "[%s] " fmt, __func__
 
 #include "kd_camera_feature.h"
 #include "kd_imgsensor_define.h"

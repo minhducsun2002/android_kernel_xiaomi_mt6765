@@ -1,5 +1,6 @@
 /*
  *  Copyright (C) 2017 MediaTek Inc.
+ *  Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -271,10 +272,12 @@
 #define MT6370_MASK_USB_STATUS	0x70
 
 /* ========== CHG_PUMP 0x2A ============ */
+#define MT6370_SHIFT_PP_OFF_RST 7
 #define MT6370_SHIFT_VG_LVL_SEL	1
 #define MT6370_SHIFT_VG_EN	0
 
-#define MT6370_MASK_VG_LVL_SEL	(1 << MT6370_SHIFT_LVL_SEL)
+#define MT6370_MASK_PP_OFF_RST  (1 << MT6370_SHIFT_PP_OFF_RST)
+#define MT6370_MASK_VG_LVL_SEL	(1 << MT6370_SHIFT_VG_LVL_SEL)
 #define MT6370_MASK_VG_EN	(1 << MT6370_SHIFT_VG_EN)
 
 /* ========== CHG_CTRL17 0x2B ============ */

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,6 +19,16 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 
+enum adc_channel {
+	ADC_CHANNEL_VBUS,
+	ADC_CHANNEL_VSYS,
+	ADC_CHANNEL_VBAT,
+	ADC_CHANNEL_IBUS,
+	ADC_CHANNEL_IBAT,
+	ADC_CHANNEL_TEMP_JC,
+	ADC_CHANNEL_USBID,
+	ADC_CHANNEL_TS,
+};
 
 struct charger_properties {
 	const char *alias_name;
@@ -86,6 +97,7 @@ struct charger_ops {
 	int (*enable_cable_drop_comp)(struct charger_device *dev, bool en);
 
 	int (*set_mivr)(struct charger_device *dev, u32 uV);
+	int (*get_mivr)(struct charger_device *dev, u32 *uV);
 	int (*get_mivr_state)(struct charger_device *dev, bool *in_loop);
 
 	/* enable/disable powerpath */
@@ -101,6 +113,7 @@ struct charger_ops {
 
 	/* enable term */
 	int (*enable_termination)(struct charger_device *dev, bool en);
+    int (*enable_rst)(struct charger_device *dev, bool en);
 
 	/* direct charging */
 	int (*enable_direct_charging)(struct charger_device *dev, bool en);
@@ -128,6 +141,8 @@ struct charger_ops {
 	int (*set_pe20_efficiency_table)(struct charger_device *dev);
 	int (*dump_registers)(struct charger_device *dev);
 
+	int (*get_adc)(struct charger_device *dev, enum adc_channel chan,
+		       int *min, int *max);
 	int (*get_vbus_adc)(struct charger_device *dev, u32 *vbus);
 	int (*get_ibus_adc)(struct charger_device *dev, u32 *ibus);
 	int (*get_tchg_adc)(struct charger_device *dev, int *tchg_min,
@@ -135,9 +150,13 @@ struct charger_ops {
 	int (*get_zcv)(struct charger_device *dev, u32 *uV);
 
 	/* TypeC */
-	int (*get_fod_status)(struct charger_device *dev, u8 *status);
-	int (*enable_fod_oneshot)(struct charger_device *dev, bool en);
-	int (*is_typec_ot)(struct charger_device *dev, bool *ot);
+	int (*enable_usbid)(struct charger_device *dev, bool en);
+	int (*set_usbid_rup)(struct charger_device *dev, u32 rup);
+	int (*set_usbid_src_ton)(struct charger_device *dev, u32 src_ton);
+	int (*enable_usbid_floating)(struct charger_device *dev, bool en);
+	int (*enable_hidden_mode)(struct charger_device *dev, bool en);
+	int (*get_ctd_dischg_status)(struct charger_device *dev, u8 *status);
+	int (*enable_hz)(struct charger_device *, bool en);
 };
 
 static inline void *charger_dev_get_drvdata(
@@ -201,6 +220,8 @@ extern int charger_dev_enable_vbus_ovp(
 	struct charger_device *charger_dev, bool en);
 extern int charger_dev_set_mivr(
 	struct charger_device *charger_dev, u32 uV);
+extern int charger_dev_get_mivr(
+	struct charger_device *charger_dev, u32 *uV);
 extern int charger_dev_get_mivr_state(
 	struct charger_device *charger_dev, bool *in_loop);
 extern int charger_dev_do_event(
@@ -233,6 +254,8 @@ extern int charger_dev_reset_eoc_state(
 	struct charger_device *charger_dev);
 extern int charger_dev_safety_check(
 	struct charger_device *charger_dev);
+extern int charger_dev_enable_hz(
+	struct charger_device *charger_dev, bool en);
 
 /* PE+/PE+2.0 */
 extern int charger_dev_send_ta_current_pattern(
@@ -255,6 +278,9 @@ extern int charger_dev_enable_direct_charging(
 	struct charger_device *charger_dev, bool en);
 extern int charger_dev_kick_direct_charging_wdt(
 	struct charger_device *charger_dev);
+extern int charger_dev_get_adc(struct charger_device *charger_dev,
+	enum adc_channel chan, int *min, int *max);
+/* Prefer use charger_dev_get_adc api */
 extern int charger_dev_get_vbus(
 	struct charger_device *charger_dev, u32 *vbus);
 extern int charger_dev_get_ibus(
@@ -268,9 +294,17 @@ extern int charger_dev_set_direct_charging_vbusov(
 	struct charger_device *charger_dev, u32 uv);
 
 /* TypeC */
-extern int charger_dev_get_fod_status(struct charger_device *dev, u8 *status);
-extern int charger_dev_enable_fod_oneshot(struct charger_device *dev, bool en);
-extern int charger_dev_is_typec_ot(struct charger_device *dev, bool *ot);
+extern int charger_dev_enable_usbid(struct charger_device *dev, bool en);
+extern int charger_dev_set_usbid_rup(struct charger_device *dev, u32 rup);
+extern int charger_dev_set_usbid_src_ton(struct charger_device *dev,
+					 u32 src_ton);
+extern int charger_dev_enable_usbid_floating(struct charger_device *dev,
+					     bool en);
+extern int charger_dev_get_ctd_dischg_status(struct charger_device *dev,
+					     u8 *status);
+
+/* For buck1 FPWM */
+extern int charger_dev_enable_hidden_mode(struct charger_device *dev, bool en);
 
 extern int register_charger_device_notifier(
 	struct charger_device *charger_dev,

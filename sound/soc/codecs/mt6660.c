@@ -237,6 +237,8 @@ static int mt6660_codec_set_bias_level(struct snd_soc_codec *codec,
 		ret = mt6660_chip_power_on(codec, 0);
 		if (ret < 0)
 			dev_err(codec->dev, "power off fail\n");
+		dev_info(codec->dev, "%s reg0x05 = 0x%x\n", __func__,
+			snd_soc_read(codec, MT6660_REG_IRQ_STATUS1));
 		break;
 	default:
 		return -EINVAL;
@@ -445,6 +447,7 @@ static int mt6660_codec_classd_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget mt6660_codec_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC_E("DAC", NULL, MT6660_REG_PLL_CFG1,
 			   0, 1, mt6660_codec_dac_event, SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_ADC("VI ADC", NULL, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_PGA("PGA", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_OUT_DRV_E("ClassD", MT6660_REG_SYSTEM_CTRL, 2, 0,
 			       NULL, 0, mt6660_codec_classd_event,
@@ -458,6 +461,8 @@ static const struct snd_soc_dapm_route mt6660_codec_dapm_routes[] = {
 	{ "PGA", NULL, "DAC"},
 	{ "ClassD", NULL, "PGA"},
 	{ "SPK", NULL, "ClassD"},
+	{ "VI ADC", NULL, "ClassD"},
+	{ "aif_capture", NULL, "VI ADC"},
 };
 
 static int mt6660_codec_put_volsw(struct snd_kcontrol *kcontrol,
@@ -828,11 +833,13 @@ module_exit(mt6660_driver_exit);
 MODULE_AUTHOR("CY_Huang <cy_huang@richtek.com>");
 MODULE_DESCRIPTION("MT6660 SPKAMP Driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.0.1_G");
+MODULE_VERSION("1.0.3_G");
 
 /*
  * Driver Version
  *
  * 1.0.1_G
  *	fix _mt6660_chip_power_on Issue
+ * 1.0.2_G
+ *	add VI ADC for aif_capture
  */

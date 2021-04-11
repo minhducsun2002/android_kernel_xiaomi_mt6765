@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -128,10 +129,11 @@ static int mt_charger_online(struct mt_charger *mtk_chg)
 		if (boot_mode == KERNEL_POWER_OFF_CHARGING_BOOT ||
 		    boot_mode == LOW_POWER_OFF_CHARGING_BOOT) {
 			pr_notice("%s: Unplug Charger/USB\n", __func__);
+			msleep(3000);
 			kernel_power_off();
 		}
 	}
-#endif /* !CONFIG_TCPC_CLASS */
+#endif
 
 	return ret;
 }
@@ -229,6 +231,7 @@ static int mt_ac_get_property(struct power_supply *psy,
 	return 0;
 }
 
+extern int  usb_host_id;
 static int mt_usb_get_property(struct power_supply *psy,
 	enum power_supply_property psp, union power_supply_propval *val)
 {
@@ -248,6 +251,9 @@ static int mt_usb_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		val->intval = 5000000;
 		break;
+	case POWER_SUPPLY_PROP_MICO_USB_ID:
+		val->intval = usb_host_id;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -257,6 +263,7 @@ static int mt_usb_get_property(struct power_supply *psy,
 
 static enum power_supply_property mt_charger_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_CHARGE_TYPE,  
 };
 
 static enum power_supply_property mt_ac_properties[] = {
@@ -267,6 +274,7 @@ static enum power_supply_property mt_usb_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
+	POWER_SUPPLY_PROP_MICO_USB_ID,
 };
 
 static int mt_charger_probe(struct platform_device *pdev)
@@ -369,7 +377,6 @@ static int mt_charger_resume(struct device *dev)
 
 	power_supply_changed(mt_charger->chg_psy);
 	power_supply_changed(mt_charger->ac_psy);
-	power_supply_changed(mt_charger->usb_psy);
 
 	return 0;
 }

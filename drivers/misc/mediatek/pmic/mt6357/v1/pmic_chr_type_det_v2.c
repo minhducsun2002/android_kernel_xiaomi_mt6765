@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -393,11 +394,13 @@ void chrdet_int_handler(void)
 		if (boot_mode == KERNEL_POWER_OFF_CHARGING_BOOT
 		    || boot_mode == LOW_POWER_OFF_CHARGING_BOOT) {
 			pr_info("[chrdet_int_handler] Unplug Charger/USB\n");
+/*
 #ifndef CONFIG_TCPC_CLASS
 			orderly_poweroff(true);
 #else
 			return;
 #endif
+*/
 		}
 	}
 	do_charger_detect();

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,6 +22,9 @@
 #include <linux/workqueue.h>
 #include <linux/init.h>
 #include <linux/types.h>
+
+#include <linux/hardware_info.h>
+
 
 #undef CONFIG_MTK_SMI_EXT
 #ifdef CONFIG_MTK_SMI_EXT
@@ -85,6 +89,9 @@ struct IMGSENSOR *pgimgsensor = &gimgsensor;
 
 
 DEFINE_MUTEX(pinctrl_mutex);
+
+extern int hardwareinfo_set_prop(int cmd, const char *name);
+extern u8 *getImgSensorEfuseID(u32 deviceID);
 
 /************************************************************************
  * Profiling
@@ -786,9 +793,27 @@ static void cam_temperature_report_wq_routine(
 }
 #endif
 
+
+struct match_hardwareinfo hardwareinfo_camera_name[] = {         //{psensor_name,  hardwareinfo_set_name}
+    /* CACTUS */
+    {SENSOR_DRVNAME_CACTUS_OV13855_OFILM_MIPI_RAW, "ofilm_ov13855_i", "0xD855"},
+    {SENSOR_DRVNAME_CACTUS_S5K3L8_SUNNY_MIPI_RAW, "sunny_s5k3l8_ii", "0x30C8"},
+    {SENSOR_DRVNAME_CACTUS_S5K5E8YX_OFILM_MIPI_RAW, "ofilm_s5k5e8yx_i", "0x5e80"},
+    {SENSOR_DRVNAME_CACTUS_HI556_SUNNY_MIPI_RAW, "sunny_hi556_ii", "0x0556"},
+    /* CEREUS */
+    {SENSOR_DRVNAME_CEREUS_IMX486_SUNNY_MIPI_RAW, "sunny_imx486_i", "0x0486"},
+    {SENSOR_DRVNAME_CEREUS_S5K5E8YX_SUNNY_MIPI_RAW, "sunny_s5k5e8yx_i", "0x5e82"},
+    {SENSOR_DRVNAME_CEREUS_S5K5E8YXAUX_SUNNY_MIPI_RAW, "sunny_s5k5e8yx_i", "0x5e83"},
+    {SENSOR_DRVNAME_CEREUS_OV12A10_OFILM_MIPI_RAW, "ofilm_ov12a10_ii", "0x1241"},
+    {SENSOR_DRVNAME_CEREUS_S5K5E8YX_OFILM_MIPI_RAW, "ofilm_s5k5e8yx_ii", "0x5e84"},
+    {SENSOR_DRVNAME_CEREUS_S5K5E8YXAUX_OFILM_MIPI_RAW, "ofilm_s5k5e8yx_ii", "0x5e85"},
+    {"NULL", "UNKNOWN", 0},
+};
+
 static inline int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 {
 	int ret = 0;
+	int i = 0;
 	struct IMAGESENSOR_GETINFO_STRUCT *pSensorGetInfo;
 	struct IMGSENSOR_SENSOR    *psensor;
 
@@ -805,7 +830,7 @@ static inline int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 	MSDK_SENSOR_CONFIG_STRUCT  *pConfig4 = NULL;
 	MSDK_SENSOR_RESOLUTION_INFO_STRUCT  *psensorResolution = NULL;
 	char *pmtk_ccm_name = NULL;
-
+    u8 *efuseBuffer = NULL;
 	pSensorGetInfo = (struct IMAGESENSOR_GETINFO_STRUCT *)pBuf;
 	if (pSensorGetInfo == NULL ||
 	    pSensorGetInfo->pInfo == NULL ||
@@ -1043,6 +1068,12 @@ static inline int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 	pSensorInfo->SensorGrabStartX_CST5 = pInfo4->SensorGrabStartX;
 	pSensorInfo->SensorGrabStartY_CST5 = pInfo4->SensorGrabStartY;
 
+	efuseBuffer = getImgSensorEfuseID(pSensorGetInfo->SensorId);
+	if(efuseBuffer){
+       strncpy((char*)pSensorInfo->efuseID,(char*)efuseBuffer,sizeof(pSensorInfo->efuseID)-1);
+	   //pr_info("Little Sensor(%d) efuseID(%s) (%d),(%d)\n",pSensorGetInfo->SensorId,pSensorInfo->efuseID,sizeof(pSensorInfo->efuseID), sizeof(ACDK_SENSOR_INFO2_STRUCT));
+	}
+
 	if (copy_to_user(
 	    (void __user *)(pSensorGetInfo->pInfo),
 	    (void *)(pSensorInfo),
@@ -1072,6 +1103,29 @@ static inline int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 				"\n\nCAM_Info[%d]:%s;",
 				pSensorGetInfo->SensorId,
 				psensor->inst.psensor_name);
+
+
+    for(i = 0; strcmp(hardwareinfo_camera_name[i].psensor_name, "NULL"); i++){
+        if(!strcmp(hardwareinfo_camera_name[i].psensor_name, psensor->inst.psensor_name)){
+            break;
+        }
+    }
+    pr_info("i = %d, hardwareinfo_camera_name:%s, psensor->inst.psensor_name:%s, sensor_idx:%s",
+        i, hardwareinfo_camera_name[i].psensor_name, psensor->inst.psensor_name, hardwareinfo_camera_name[i].sensor_id);
+
+
+    if(pSensorGetInfo->SensorId == 0){
+		hardwareinfo_set_prop(HARDWARE_BACK_CAM,hardwareinfo_camera_name[i].hardwareinfo_set_name);
+		hardwareinfo_set_prop(HARDWARE_BACK_CAM_SENSORID, hardwareinfo_camera_name[i].sensor_id);        //set back camera sensor id
+    }
+	if(pSensorGetInfo->SensorId == 1){
+		hardwareinfo_set_prop(HARDWARE_FRONT_CAM,hardwareinfo_camera_name[i].hardwareinfo_set_name);
+		hardwareinfo_set_prop(HARDWARE_FRONT_CAM_SENSORID, hardwareinfo_camera_name[i].sensor_id);       //set front camera sensor id
+    }
+	if(pSensorGetInfo->SensorId == 2){
+		hardwareinfo_set_prop(HARDWARE_BACK_SUB_CAM,hardwareinfo_camera_name[i].hardwareinfo_set_name);
+		hardwareinfo_set_prop(HARDWARE_BACK_SUBCAM_SENSORID, hardwareinfo_camera_name[i].sensor_id);     //set sub back camera sensor id
+    }	
 
 	pmtk_ccm_name = strchr(mtk_ccm_name, '\0');
 	snprintf(pmtk_ccm_name,
@@ -1335,6 +1389,7 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_GET_SENSOR_PDAF_CAPACITY:
 	case SENSOR_FEATURE_GET_SENSOR_HDR_CAPACITY:
 	case SENSOR_FEATURE_GET_MIPI_PIXEL_RATE:
+	case SENOSR_FEATURE_GET_OFFSET_TO_START_OF_EXPOSURE:
 	case SENSOR_FEATURE_GET_PIXEL_RATE:
 	case SENSOR_FEATURE_SET_PDAF:
 	case SENSOR_FEATURE_SET_SHUTTER_FRAME_TIME:
@@ -1398,6 +1453,8 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_SINGLE_FOCUS_MODE:
 	case SENSOR_FEATURE_CANCEL_AF:
 	case SENSOR_FEATURE_CONSTANT_AF:
+	case SENSOR_FEATURE_GET_AE_EFFECTIVE_FRAME_FOR_LE:
+	case SENSOR_FEATURE_GET_AE_FRAME_MODE_FOR_LE:
 	default:
 		break;
 	}
@@ -1413,6 +1470,7 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_GET_SENSOR_PDAF_CAPACITY:
 	case SENSOR_FEATURE_GET_SENSOR_HDR_CAPACITY:
 	case SENSOR_FEATURE_GET_MIPI_PIXEL_RATE:
+	case SENOSR_FEATURE_GET_OFFSET_TO_START_OF_EXPOSURE:
 	case SENSOR_FEATURE_GET_PIXEL_RATE:
 	{
 		MUINT32 *pValue = NULL;
@@ -1451,6 +1509,8 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_GET_SENSOR_N3D_STREAM_TO_VSYNC_TIME:
 	case SENSOR_FEATURE_GET_PERIOD:
 	case SENSOR_FEATURE_GET_PIXEL_CLOCK_FREQ:
+	case SENSOR_FEATURE_GET_AE_EFFECTIVE_FRAME_FOR_LE:
+	case SENSOR_FEATURE_GET_AE_FRAME_MODE_FOR_LE:
 	{
 		ret = imgsensor_sensor_feature_control(
 		    psensor,
@@ -2033,11 +2093,14 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_GET_SENSOR_PDAF_CAPACITY:
 	case SENSOR_FEATURE_GET_SENSOR_HDR_CAPACITY:
 	case SENSOR_FEATURE_GET_MIPI_PIXEL_RATE:
+	case SENOSR_FEATURE_GET_OFFSET_TO_START_OF_EXPOSURE:
 	case SENSOR_FEATURE_GET_PIXEL_RATE:
 	case SENSOR_FEATURE_SET_ISO:
 	case SENSOR_FEATURE_SET_PDAF:
 	case SENSOR_FEATURE_SET_SHUTTER_FRAME_TIME:
 	case SENSOR_FEATURE_SET_PDFOCUS_AREA:
+	case SENSOR_FEATURE_GET_AE_EFFECTIVE_FRAME_FOR_LE:
+	case SENSOR_FEATURE_GET_AE_FRAME_MODE_FOR_LE:
 		if (copy_to_user(
 		    (void __user *) pFeatureCtrl->pFeaturePara,
 		    (void *)pFeaturePara,

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -32,6 +33,13 @@ struct IMGSENSOR {
 	atomic_t imgsensor_open_cnt;
 	enum IMGSENSOR_RETURN (*imgsensor_oc_irq_enable)
 			(enum IMGSENSOR_SENSOR_IDX sensor_idx, bool enable);
+};
+
+
+struct match_hardwareinfo{
+    char *psensor_name;
+    char *hardwareinfo_set_name;
+    char *sensor_id;
 };
 
 MINT32

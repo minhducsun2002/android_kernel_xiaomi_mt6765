@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -67,6 +68,7 @@ struct mt6357_gauge {
 
 #define VOLTAGE_FULL_RANGE    1800
 #define ADC_PRECISE           32768	/* 12 bits */
+#define SWCHR_POWER_PATH
 
 enum {
 	FROM_SW_OCV = 1,
@@ -1554,8 +1556,18 @@ static void fgauge_set_zcv_intr_internal(
 
 static int fgauge_enable_zcv_interrupt(struct gauge_device *gauge_dev, int en)
 {
-	pmic_set_register_value(PMIC_FG_ZCV_DET_EN, en);
-	pmic_enable_interrupt(FG_ZCV_NO, en, "GM30");
+	if (en == 0) {
+		pmic_enable_interrupt(FG_ZCV_NO, en, "GM30");
+		pmic_set_register_value(PMIC_FG_ZCV_DET_EN, en);
+		mdelay(100);
+	}
+
+	if (en == 1) {
+		pmic_enable_interrupt(FG_ZCV_NO, en, "GM30");
+		pmic_set_register_value(PMIC_FG_ZCV_DET_EN, en);
+	}
+
+
 	return 0;
 }
 

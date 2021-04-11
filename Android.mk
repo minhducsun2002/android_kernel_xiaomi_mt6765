@@ -1,4 +1,5 @@
 # Copyright (C) 2017 MediaTek Inc.
+# Copyright (C) 2019 XiaoMi, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
@@ -21,6 +22,14 @@ $(TARGET_KERNEL_CONFIG): $(KERNEL_CONFIG_FILE) $(LOCAL_PATH)/Android.mk
 $(TARGET_KERNEL_CONFIG): $(shell find $(KERNEL_DIR) -name "Kconfig*")
 	$(hide) mkdir -p $(dir $@)
 	$(MAKE) -C $(KERNEL_DIR) $(KERNEL_MAKE_OPTION) $(KERNEL_DEFCONFIG)
+	$(warning xiaomi international $(PRODUCT_BUILD_INTERNATIONAL))
+	$(warning xiaomi international $@)
+ifeq (true,$(PRODUCT_BUILD_INTERNATIONAL))
+	@echo "CONFIG_MTK_MD3_SUPPORT=0" >> $@
+	@echo "CONFIG_MTK_ECCCI_C2K=y" >> $@
+	@echo "CONFIG_MTK_MD1_SUPPORT=9" >> $@
+	@echo "CONFIG_MTK_C2K_LTE_MODE=0" >> $@
+endif
 
 $(KERNEL_MODULES_DEPS): $(KERNEL_ZIMAGE_OUT) ;
 $(BUILT_DTB_OVERLAY_TARGET): $(KERNEL_ZIMAGE_OUT)
@@ -30,6 +39,8 @@ $(KERNEL_ZIMAGE_OUT): $(TARGET_KERNEL_CONFIG) FORCE
 	$(hide) mkdir -p $(dir $@)
 	$(MAKE) -C $(KERNEL_DIR) $(KERNEL_MAKE_OPTION)
 	$(hide) $(call fixup-kernel-cmd-file,$(KERNEL_OUT)/arch/$(KERNEL_TARGET_ARCH)/boot/compressed/.piggy.xzkern.cmd)
+	# check the kernel image size
+	python device/mediatek/build/build/tools/check_kernel_size.py $(KERNEL_OUT) $(KERNEL_DIR)
 ifneq ($(KERNEL_CONFIG_MODULES),)
 	#$(MAKE) -C $(KERNEL_DIR) $(KERNEL_MAKE_OPTION) INSTALL_MOD_PATH=$(KERNEL_MODULES_SYMBOLS_OUT) modules_install
 	#$(hide) $(call move-kernel-module-files,$(KERNEL_MODULES_SYMBOLS_OUT),$(KERNEL_OUT))

@@ -266,10 +266,9 @@ static void cpufreq_sched_try_driver_target(
 	if (!freq)
 		return;
 
-	/* if freq min of stune changed, notify fps tracker */
-	if (min_boost_freq[cid] || cap_min_freq[cid])
-		if (cpufreq_notifier_fp)
-			cpufreq_notifier_fp(cid, freq);
+	/* notify fps tracker */
+	if (cpufreq_notifier_fp)
+		cpufreq_notifier_fp(cid, freq);
 
 	cur_time = ktime_get();
 
@@ -491,6 +490,7 @@ static void update_fdomain_capacity_request(int cpu, int type)
 	ktime_t throttle, now;
 	unsigned int cur_freq;
 	unsigned int max, min;
+	unsigned int uclamp_min, uclamp_max;
 	int cap_min = 0;
 
 	/*
@@ -529,6 +529,14 @@ static void update_fdomain_capacity_request(int cpu, int type)
 		if (!cpu_online(cpu_tmp))
 			continue;
 
+		uclamp_min = uclamp_value(cpu_tmp, UCLAMP_MIN);
+		uclamp_max = uclamp_value(cpu_tmp, UCLAMP_MAX);
+		trace_sched_dvfs_uclamp(cpu_tmp, uclamp_min, uclamp_max);
+
+		/* In schedplus, util is scaling by capacity_orig_of*/
+		uclamp_min = (uclamp_min << SCHED_CAPACITY_SHIFT) /
+			capacity_orig_of(cpu_tmp);
+
 		/* convert IO boosted freq to capacity */
 		boosted_util = (sg_cpu->iowait_boost << SCHED_CAPACITY_SHIFT) /
 					cpu_max_freq;
@@ -557,6 +565,7 @@ static void update_fdomain_capacity_request(int cpu, int type)
 			}
 			sg_cpu->last_update = time;
 		}
+
 		scr = &per_cpu(cpu_sched_capacity_reqs, cpu_tmp);
 
 		/*
@@ -581,6 +590,8 @@ static void update_fdomain_capacity_request(int cpu, int type)
 			capacity = max(capacity, boosted_util);
 		else
 			capacity = max(capacity, scr->total);
+
+		capacity = uclamp_min > capacity ? uclamp_min : capacity;
 
 #ifdef CONFIG_CGROUP_SCHEDTUNE
 		/* see if capacity_min exist */
@@ -617,8 +628,6 @@ static void update_fdomain_capacity_request(int cpu, int type)
 		goto out;
 
 	now = ktime_get();
-
-	cur_freq = gd->requested_freq;
 
 	gd->target_cpu = cpu;
 
@@ -663,7 +672,7 @@ static void update_fdomain_capacity_request(int cpu, int type)
 
 	gd->last_freq_update_time = time;
 
-	trace_sched_dvfs(cpu, cid, type, cur_freq, freq_new,
+	trace_sched_dvfs(cpu, cid, type, cur_freq, freq_new, min, max,
 			gd->thro_type, throttle.tv64);
 
 	/*
@@ -951,6 +960,39 @@ static ssize_t store_down_throttle_nsec(struct cpufreq_policy *policy,
 	gd->down_throttle_nsec_bk = val;
 	return count;
 }
+
+void schedplus_set_down_throttle_nsec(unsigned long val)
+{
+	int cid;
+	struct gov_data *gd;
+
+	for (cid = 0; cid < MAX_CLUSTER_NR; cid++) {
+		gd = g_gd[cid];
+		if (!gd)
+			return;
+		gd->down_throttle_nsec = val;
+		gd->down_throttle_nsec_bk = val;
+	}
+}
+EXPORT_SYMBOL(schedplus_set_down_throttle_nsec);
+
+unsigned long schedplus_show_down_throttle_nsec(int cpu)
+{
+	int cid;
+	struct gov_data *gd;
+
+	if (cpu < 0 || cpu >= nr_cpu_ids)
+		return -EINVAL;
+
+	cid = arch_get_cluster_id(cpu);
+	gd = g_gd[cid];
+
+	if (!gd)
+		return -EINVAL;
+
+	return gd->down_throttle_nsec;
+}
+EXPORT_SYMBOL(schedplus_show_down_throttle_nsec);
 
 /*
  * Create show/store routines

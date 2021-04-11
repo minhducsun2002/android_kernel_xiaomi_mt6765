@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -2350,9 +2351,6 @@ static void __mt_gpufreq_set_initial(void)
 	/* default OPP index */
 	g_cur_opp_cond_idx = 0;
 
-	/* set POST_DIVIDER initial value */
-	g_cur_post_divider_power = POST_DIV4;
-
 	g_parking = false;
 
 	gpufreq_pr_debug("@%s: initial opp index = %d\n",
@@ -2361,6 +2359,11 @@ static void __mt_gpufreq_set_initial(void)
 	cur_vsram_volt = __mt_gpufreq_get_cur_vsram_volt();
 	cur_volt = __mt_gpufreq_get_cur_volt();
 	cur_freq = __mt_gpufreq_get_cur_freq();
+
+	/* set POST_DIVIDER initial value */
+	g_cur_post_divider_power =
+		(DRV_Reg32(GPUPLL_CON1) & (0x7 << POST_DIV_SHIFT))
+		>> POST_DIV_SHIFT;
 
 	__mt_gpufreq_set(cur_freq, g_opp_table[g_cur_opp_cond_idx].gpufreq_khz,
 			cur_volt, g_opp_table[g_cur_opp_cond_idx].gpufreq_volt,
@@ -2461,7 +2464,8 @@ static int __mt_gpufreq_pdrv_probe(struct platform_device *pdev)
 	if (g_efuse_id == 0x8 || g_efuse_id == 0xf) {
 		/* 6762M */
 		g_segment_id = MT6762M_SEGMENT;
-	} else if (g_efuse_id == 0x1 || g_efuse_id == 0x7) {
+	} else if (g_efuse_id == 0x1 || g_efuse_id == 0x7
+		|| g_efuse_id == 0x9) {
 		/* 6762 */
 		g_segment_id = MT6762_SEGMENT;
 	} else if (g_efuse_id == 0x2 || g_efuse_id == 0x5) {

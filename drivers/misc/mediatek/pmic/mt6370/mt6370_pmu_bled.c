@@ -1,5 +1,6 @@
 /*
  *  Copyright (C) 2017 MediaTek Inc.
+ *  Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -32,7 +33,7 @@ struct mt6370_pmu_bled_data {
 static uint8_t bled_init_data[] = {
 	0x42, /* MT6370_PMU_REG_BLEN */
 	0x89, /* MT6370_PMU_REG_BLBSTCTRL */
-	0x04, /* MT6370_PMU_REG_BLPWM */
+	0x00, /* MT6370_PMU_REG_BLPWM */
 	0x00, /* MT6370_PMU_REG_BLCTRL */
 	0x00, /* MT6370_PMU_REG_BLDIM2 */
 	0x00, /* MT6370_PMU_REG_BLDIM1 */
@@ -392,6 +393,12 @@ static inline int mt6370_pmu_bled_parse_initdata(
 	bled_init_data[2] |= (pdata->use_pwm << MT6370_BLED_PWMSHIFT);
 	bled_init_data[2] |= (pdata->pwm_fsample << MT6370_BLED_PWMFSHFT);
 	bled_init_data[2] |= (pdata->pwm_deglitch << MT6370_BLED_PWMDSHFT);
+
+/*Extb-50617-xiaomi_o1.mp6_mt6762_mt6371_bled_pwm_hys_patch houbenzhong.wt 20181023 start */
+	bled_init_data[2] |= (pdata->pwm_hys_en << MT6370_BLED_PWMHESHFT);
+	bled_init_data[2] |= (pdata->pwm_hys << MT6370_BLED_PWMHSHFT);
+/*Extb-50617-xiaomi_o1.mp6_mt6762_mt6371_bled_pwm_hys_patch houbenzhong.wt 20181023 end */
+
 	bled_init_data[3] |= (pdata->bled_ramptime << MT6370_BLED_RAMPTSHFT);
 	bright = (bright * 255) >> 8;
 	bled_init_data[4] |= (bright & 0x7);
@@ -435,6 +442,18 @@ static inline int mt_parse_dt(struct device *dev)
 		pdata->pwm_deglitch = 0x1;
 	else
 		pdata->pwm_deglitch = tmp;
+
+/*Extb-50617-xiaomi_o1.mp6_mt6762_mt6371_bled_pwm_hys_patch houbenzhong.wt 20181023 start */
+	if (of_property_read_u32(np, "mt,pwm_hys_en", &tmp) < 0)
+		pdata->pwm_hys = 0x1;
+	else
+		pdata->pwm_hys = tmp;
+	if (of_property_read_u32(np, "mt,pwm_hys", &tmp) < 0)
+		pdata->pwm_hys = 0x0;	/* 1 bit */
+	else
+		pdata->pwm_hys = tmp;
+/*Extb-50617-xiaomi_o1.mp6_mt6762_mt6371_bled_pwm_hys_patch houbenzhong.wt 20181023 end */
+
 	if (of_property_read_u32(np, "mt,pwm_avg_cycle", &tmp) < 0)
 		pdata->pwm_avg_cycle = 0;
 	else

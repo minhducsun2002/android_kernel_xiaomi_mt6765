@@ -160,6 +160,11 @@ struct thermal_attr {
 	char name[THERMAL_NAME_LENGTH];
 };
 
+struct thermal_switch_config {
+	struct device device;
+	int thermal_policy_index;
+};
+
 /**
  * struct thermal_zone_device - structure for a thermal zone
  * @id:		unique id number for each thermal zone

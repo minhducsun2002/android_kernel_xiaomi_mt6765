@@ -729,6 +729,8 @@ ifeq ($(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-goto.sh $(CC) $(KBUILD_CFLA
 	KBUILD_AFLAGS += -DCC_HAVE_ASM_GOTO
 endif
 
+KBUILD_CFLAGS += $(MTK_CDEFS)
+
 include scripts/Makefile.gcc-plugins
 
 ifdef CONFIG_READABLE_ASM

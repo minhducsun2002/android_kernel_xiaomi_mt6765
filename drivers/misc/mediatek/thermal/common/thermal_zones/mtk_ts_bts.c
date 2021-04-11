@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -34,6 +35,10 @@
 #include <tmp_bts.h>
 #include <linux/slab.h>
 
+extern void thermal_ccc_identify(void);
+extern int aptemp_return_value;
+int notify_flag = 0;
+
 /*=============================================================
  *Weak functions
  *=============================================================
@@ -50,12 +55,17 @@ IMM_GetOneChannelValue(int dwChannel, int data[4], int *rawdata)
 	pr_notice("E_WF: %s doesn't exist\n", __func__);
 	return -1;
 }
+int __attribute__ ((weak))
+tsdctm_thermal_get_ttj_on(void)
+{
+	return 0;
+}
 /*=============================================================*/
 static kuid_t uid = KUIDT_INIT(0);
 static kgid_t gid = KGIDT_INIT(1000);
 static DEFINE_SEMAPHORE(sem_mutex);
 
-static unsigned int interval;	/* seconds, 0 : no auto polling */
+static unsigned int interval = 1;	/* seconds, 0 : no auto polling */
 static int trip_temp[10] = { 120000, 110000, 100000, 90000, 80000,
 				70000, 65000, 60000, 55000, 50000 };
 
@@ -65,7 +75,7 @@ static int kernelmode;
 static int g_THERMAL_TRIP[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 static int num_trip;
-static char g_bind0[20] = { 0 };
+static char g_bind0[20] = {"mtktsAP-sysrst"};
 static char g_bind1[20] = { 0 };
 static char g_bind2[20] = { 0 };
 static char g_bind3[20] = { 0 };
@@ -659,7 +669,6 @@ static int get_hw_bts_temp(void)
 #else
 	ret = ret * 1500 / 4096;
 #endif
-	/* ret = ret*1800/4096;//82's ADC power */
 	mtkts_bts_dprintk("APtery output mV = %d\n", ret);
 	output = mtk_ts_bts_volt_to_temp(ret);
 	mtkts_bts_dprintk("BTS output temperature = %d\n", output);
@@ -683,7 +692,8 @@ int mtkts_bts_get_hw_temp(void)
 	mutex_unlock(&BTS_lock);
 
 
-	if (tsatm_thermal_get_catm_type() == 2)
+	if ((tsatm_thermal_get_catm_type() == 2) &&
+		(tsdctm_thermal_get_ttj_on() == 0))
 		t_ret2 = wakeup_ta_algo(TA_CATMPLUS_TTJ);
 
 	if (t_ret2 < 0)
@@ -711,6 +721,27 @@ static int mtkts_bts_get_temp(struct thermal_zone_device *thermal, int *t)
 		thermal->polling_delay = interval * polling_factor2;
 	else
 		thermal->polling_delay = interval * polling_factor1;
+
+	if ((int)*t >= 58000)
+	{
+	        aptemp_return_value = 1;
+		if (notify_flag == 0)
+		{
+			thermal_ccc_identify();
+			 notify_flag = 1;
+		}
+	}
+	else if ((int)*t > 50000)
+	{
+	       aptemp_return_value = 0;
+		if ((int)*t <= 55000 && notify_flag == 1)
+		{
+			thermal_ccc_identify();
+			 notify_flag = 0;
+		}
+	}
+	else
+	        aptemp_return_value = 0;
 
 	return 0;
 }
@@ -1381,6 +1412,8 @@ static int __init mtkts_bts_init(void)
 			proc_set_user(entry, uid, gid);
 
 	}
+
+	mtkts_bts_register_thermal();
 #if 0
 	mtkTTimer_register("mtktsAP", mtkts_bts_start_thermal_timer,
 					mtkts_bts_cancel_thermal_timer);

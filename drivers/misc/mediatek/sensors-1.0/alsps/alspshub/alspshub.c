@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -47,6 +48,11 @@ struct alspshub_ipi_data {
 	bool als_android_enable;
 	bool ps_android_enable;
 	struct wakeup_source ps_wake_lock;
+
+	struct timer_list timer_psdata;  /* ps polling timer */
+	struct work_struct report_psdata;
+	atomic_t delay_psdata;
+
 };
 
 static struct alspshub_ipi_data *obj_ipi_data;
@@ -323,55 +329,60 @@ static void alspshub_init_done_work(struct work_struct *work)
 }
 static int ps_recv_data(struct data_unit_t *event, void *reserved)
 {
+	int err = 0;
 	struct alspshub_ipi_data *obj = obj_ipi_data;
 
 	if (!obj)
-		return -1;
+		return 0;
 
 	if (event->flush_action == FLUSH_ACTION)
-		ps_flush_report();
+		err = ps_flush_report();
 	else if (event->flush_action == DATA_ACTION &&
 			READ_ONCE(obj->ps_android_enable) == true) {
 		__pm_wakeup_event(&obj->ps_wake_lock, msecs_to_jiffies(100));
-		ps_data_report(event->proximity_t.oneshot,
+		err = ps_data_report(event->proximity_t.oneshot,
 			SENSOR_STATUS_ACCURACY_HIGH);
 	} else if (event->flush_action == CALI_ACTION) {
 		spin_lock(&calibration_lock);
 		atomic_set(&obj->ps_thd_val_high, event->data[0]);
 		atomic_set(&obj->ps_thd_val_low, event->data[1]);
 		spin_unlock(&calibration_lock);
-		ps_cali_report(event->data);
+		err = ps_cali_report(event->data);
 	}
-	return 0;
+	return err;
 }
 static int als_recv_data(struct data_unit_t *event, void *reserved)
 {
+	int err = 0;
 	struct alspshub_ipi_data *obj = obj_ipi_data;
 
 	if (!obj)
-		return -1;
+		return 0;
 
 	if (event->flush_action == FLUSH_ACTION)
-		als_flush_report();
+		err = als_flush_report();
 	else if ((event->flush_action == DATA_ACTION) &&
 			READ_ONCE(obj->als_android_enable) == true)
-		als_data_report(event->light, SENSOR_STATUS_ACCURACY_MEDIUM);
+		err = als_data_report(event->light,
+			SENSOR_STATUS_ACCURACY_MEDIUM);
 	else if (event->flush_action == CALI_ACTION) {
 		spin_lock(&calibration_lock);
 		atomic_set(&obj->als_cali, event->data[0]);
 		spin_unlock(&calibration_lock);
-		als_cali_report(event->data);
+		err = als_cali_report(event->data);
 	}
-	return 0;
+	return err;
 }
 
 static int rgbw_recv_data(struct data_unit_t *event, void *reserved)
 {
+	int err = 0;
+
 	if (event->flush_action == FLUSH_ACTION)
-		rgbw_flush_report();
+		err = rgbw_flush_report();
 	else if (event->flush_action == DATA_ACTION)
-		rgbw_data_report(event->data);
-	return 0;
+		err = rgbw_data_report(event->data);
+	return err;
 }
 
 static int alshub_factory_enable_sensor(bool enable_disable,
@@ -732,12 +743,16 @@ static int ps_open_report_data(int open)
 	return 0;
 }
 
+
+static int ps_cancel_enable = 0;
+
 static int ps_enable_nodata(int en)
 {
 	int res = 0;
 	struct alspshub_ipi_data *obj = obj_ipi_data;
 
-	pr_debug("obj_ipi_data als enable value = %d\n", en);
+	ps_cancel_enable = en;
+	pr_debug("ps_enable_nodata ps enable value = %d\n", en);
 	if (en == true)
 		WRITE_ONCE(obj->ps_android_enable, true);
 	else
@@ -747,6 +762,16 @@ static int ps_enable_nodata(int en)
 	if (res < 0) {
 		pr_err("als_enable_nodata is failed!!\n");
 		return -1;
+	}
+	if(en == true)
+		mod_timer(&obj->timer_psdata,jiffies + atomic_read(&obj->delay_psdata) /(1000 / HZ));
+	else
+	{
+		pr_debug("ps_enable_nodata ps disable");
+		smp_mb();
+		del_timer_sync(&obj->timer_psdata);
+		smp_mb();
+		cancel_work_sync(&obj->report_psdata);
 	}
 
 	mutex_lock(&alspshub_mutex);
@@ -848,6 +873,37 @@ static int scp_ready_event(uint8_t event, void *ptr)
 	return 0;
 }
 
+
+static void psdata_work_func(struct work_struct *work)
+{
+	struct alspshub_ipi_data *cxt = obj_ipi_data;
+	int32_t psrawdata = 0;
+	int err = 0;
+
+	pr_debug("psdata_work_func !!\n");
+	err = pshub_factory_get_raw_data(&psrawdata);
+	err = sensor_set_cmd_to_hub(ID_PROXIMITY,CUST_ACTION_SET_CALI, &cxt->ps_cali);
+	pr_debug("psdata_work_func data=%d,err=%d!!\n",psrawdata,err);
+	//pshub_factory_set_threshold();
+
+	smp_mb();/* for memory barrier */
+	del_timer_sync(&cxt->timer_psdata);
+	smp_mb();/* for memory barrier */
+	if(ps_cancel_enable == 1)
+		mod_timer(&cxt->timer_psdata,jiffies + atomic_read(&cxt->delay_psdata) /(1000 / HZ));
+}
+
+static void psdata_poll(unsigned long data)
+{
+	struct alspshub_ipi_data *obj = (struct alspshub_ipi_data *)data;
+
+	pr_debug("psdata_poll !!\n");
+
+	if (obj != NULL)
+		schedule_work(&obj->report_psdata);
+}
+
+
 static struct scp_power_monitor scp_ready_notifier = {
 	.name = "alsps",
 	.notifier_call = scp_ready_event,
@@ -893,6 +949,14 @@ static int alspshub_probe(struct platform_device *pdev)
 	WRITE_ONCE(obj->als_android_enable, false);
 	WRITE_ONCE(obj->ps_factory_enable, false);
 	WRITE_ONCE(obj->ps_android_enable, false);
+
+	atomic_set(&obj->delay_psdata,200); /* 5Hz,  set work queue delay time 200ms */
+	INIT_WORK(&obj->report_psdata, psdata_work_func);
+	init_timer(&obj->timer_psdata);
+	obj->timer_psdata.expires =
+		jiffies + atomic_read(&obj->delay_psdata) / (1000 / HZ);
+	obj->timer_psdata.function = psdata_poll;
+	obj->timer_psdata.data = (unsigned long)obj;
 
 	clear_bit(CMC_BIT_ALS, &obj->enable);
 	clear_bit(CMC_BIT_PS, &obj->enable);

@@ -572,6 +572,11 @@ int pd_core_init(struct tcpc_device *tcpc_dev)
 
 	pd_port->tcpc_dev = tcpc_dev;
 	pd_port->pe_pd_state = PE_IDLE2;
+	pd_port->cap_miss_match = 0; /* For src_cap miss match */
+
+#ifdef CONFIG_COMPATIBLE_APPLE_TA
+	pd_port->apple_ccopen_flag = false;
+#endif
 
 	ret = pd_parse_pdata(pd_port);
 	if (ret)
@@ -750,6 +755,7 @@ int pd_reset_protocol_layer(struct pd_port *pd_port, bool sop_only)
 	pe_data->local_selected_cap = 0;
 	pe_data->remote_selected_cap = 0;
 	pe_data->during_swap = 0;
+	pd_port->cap_miss_match = 0;
 
 #ifdef CONFIG_USB_PD_REV30_ALERT_REMOTE
 	pe_data->remote_alert = 0;
@@ -1176,6 +1182,7 @@ int pd_send_hard_reset(struct pd_port *pd_port)
 	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
 
 	PE_DBG("Send HARD Reset\r\n");
+	__pm_wakeup_event(&tcpc_dev->attach_wake_lock, 6000);
 
 	pd_port->pe_data.hard_reset_counter++;
 	pd_notify_pe_send_hard_reset(pd_port);
