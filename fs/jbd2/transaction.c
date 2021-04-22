@@ -385,8 +385,16 @@ repeat:
 		  jbd2_log_space_left(journal));
 	read_unlock(&journal->j_state_lock);
 	current->journal_info = handle;
-
+	/*
+	 * MTK:
+	 * disable the jbd2_handle lockdep check
+	 * it is a false alarm that there is a A/B
+	 * deadlock issue, but if ignore it, the checking
+	 * lockdep will close after print warning...
+	 */
+	lockdep_off();
 	rwsem_acquire_read(&journal->j_trans_commit_map, 0, 0, _THIS_IP_);
+	lockdep_on();
 	jbd2_journal_free_transaction(new_transaction);
 	return 0;
 }
@@ -670,8 +678,13 @@ int jbd2__journal_restart(handle_t *handle, int nblocks, gfp_t gfp_mask)
 	read_unlock(&journal->j_state_lock);
 	if (need_to_start)
 		jbd2_log_start_commit(journal, tid);
-
+	/*
+	 * MTK:
+	 * same with start_this_handle()
+	 */
+	lockdep_off();
 	rwsem_release(&journal->j_trans_commit_map, 1, _THIS_IP_);
+	lockdep_on();
 	handle->h_buffer_credits = nblocks;
 	ret = start_this_handle(journal, handle, gfp_mask);
 	return ret;
@@ -1349,6 +1362,13 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 		if (jh->b_transaction == transaction &&
 		    jh->b_jlist != BJ_Metadata) {
 			jbd_lock_bh_state(bh);
+			if (jh->b_transaction == transaction &&
+			    jh->b_jlist != BJ_Metadata)
+				pr_err("JBD2: assertion failure: h_type=%u "
+				       "h_line_no=%u block_no=%llu jlist=%u\n",
+				       handle->h_type, handle->h_line_no,
+				       (unsigned long long) bh->b_blocknr,
+				       jh->b_jlist);
 			J_ASSERT_JH(jh, jh->b_transaction != transaction ||
 					jh->b_jlist == BJ_Metadata);
 			jbd_unlock_bh_state(bh);
@@ -1368,11 +1388,11 @@ int jbd2_journal_dirty_metadata(handle_t *handle, struct buffer_head *bh)
 		 * of the transaction. This needs to be done
 		 * once a transaction -bzzz
 		 */
-		jh->b_modified = 1;
 		if (handle->h_buffer_credits <= 0) {
 			ret = -ENOSPC;
 			goto out_unlock_bh;
 		}
+		jh->b_modified = 1;
 		handle->h_buffer_credits--;
 	}
 
@@ -1751,8 +1771,13 @@ int jbd2_journal_stop(handle_t *handle)
 		if (journal->j_barrier_count)
 			wake_up(&journal->j_wait_transaction_locked);
 	}
-
+	/*
+	 * MTK:
+	 * same with start_this_handle()
+	 */
+	lockdep_off();
 	rwsem_release(&journal->j_trans_commit_map, 1, _THIS_IP_);
+	lockdep_on();
 
 	if (wait_for_commit)
 		err = jbd2_log_wait_commit(journal, tid);
