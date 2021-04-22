@@ -2170,9 +2170,9 @@ static void testcase_thread_dispatch(void)
 	msleep_interruptible(5 * 1000);
 
 	/* ensure both thread execute all command */
-	_testcase_simplest_command_loop_submit(1, CMDQ_SCENARIO_DEBUG_MDP,
+	_testcase_simplest_command_loop_submit(1, CMDQ_SCENARIO_DEBUG,
 		engineFlag1, false);
-	_testcase_simplest_command_loop_submit(1, CMDQ_SCENARIO_DEBUG_MDP,
+	_testcase_simplest_command_loop_submit(1, CMDQ_SCENARIO_DEBUG,
 		engineFlag2, false);
 
 	CMDQ_LOG("%s END\n", __func__);
@@ -5546,7 +5546,7 @@ static void testcase_remove_by_file_node(void)
 	handle_conflict->node_private = (void *)(unsigned long)node;
 
 	/* all task should be remove and no crash */
-	cmdq_mdp_release_active_task((void *)(unsigned long)node);
+	cmdq_mdp_release_task_by_file_node((void *)(unsigned long)node);
 
 	CMDQ_LOG("%s END\n", __func__);
 }

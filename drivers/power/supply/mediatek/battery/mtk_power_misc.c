@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -353,7 +354,7 @@ static int shutdown_event_handler(struct shutdown_controller *sdd)
 			if (down_to_low_bat == 0) {
 				if (IS_ENABLED(
 					LOW_TEMP_DISABLE_LOW_BAT_SHUTDOWN)) {
-					if (tmp >= LOW_TEMP_THRESHOLD) {
+					if (tmp >= 10) {
 						down_to_low_bat = 1;
 						notify_fg_shutdown();
 					} else if (sdd->avgvbat <=
@@ -369,14 +370,13 @@ static int shutdown_event_handler(struct shutdown_controller *sdd)
 			}
 
 			if ((current_ui_soc == 0) && (ui_zero_time_flag == 0)) {
-				get_monotonic_boottime(
-					&sdc.pre_time[LOW_BAT_VOLT]);
+				duraction =
+					timespec_sub(
+					now, sdd->pre_time[LOW_BAT_VOLT]);
 				ui_zero_time_flag = 1;
 			}
 
 			if (current_ui_soc == 0) {
-				duraction = timespec_sub(
-					now, sdd->pre_time[LOW_BAT_VOLT]);
 				if (duraction.tv_sec >= SHUTDOWN_TIME) {
 					bm_err("low bat shutdown\n");
 					mutex_unlock(&sdd->lock);

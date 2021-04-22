@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -48,7 +49,7 @@ static struct delayed_work register_otg_work;
 #define TCPC_OTG_DEV_NAME "type_c_port0"
 void do_register_otg_work(struct work_struct *data)
 {
-#define REGISTER_OTG_WORK_DELAY 500
+#define REGISTER_OTG_WORK_DELAY 1000
 	static int ret;
 
 	if (!otg_tcpc_dev)

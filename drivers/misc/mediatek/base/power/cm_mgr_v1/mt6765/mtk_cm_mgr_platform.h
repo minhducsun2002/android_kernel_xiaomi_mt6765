@@ -18,6 +18,7 @@
 #include <mtk_dramc.h>
 #endif /* CONFIG_MTK_DRAMC */
 
+/* #define ATF_SECURE_SMC */
 #define PER_CPU_STALL_RATIO
 #define LIGHT_LOAD
 /* #define USE_AVG_PMU */
@@ -25,22 +26,15 @@
 #define USE_TIMER_CHECK
 /* #define USE_IDLE_NOTIFY */
 #define USE_NEW_CPU_OPP
-/* #define USE_CM_MGR_AT_SSPM */
-/* #define USE_SINGLE_CLUSTER */
 
 #define CM_MGR_EMI_OPP	2
 #define CM_MGR_LOWER_OPP 9
 #define CM_MGR_LOWER_OPP_1 12
 #define CM_MGR_CPU_CLUSTER 2
 #define CM_MGR_CPU_COUNT 8
-#define CM_MGR_CPU_LIMIT 4
-
-#define CLUSTER0_MASK   0x0f
-#define CLUSTER1_MASK   0xf0
 
 #define VCORE_ARRAY_SIZE CM_MGR_EMI_OPP
 #define CM_MGR_CPU_ARRAY_SIZE (CM_MGR_CPU_CLUSTER * CM_MGR_EMI_OPP)
-#define CM_MGR_GPU_ARRAY_SIZE CM_MGR_EMI_OPP
 #define RATIO_COUNT (100 / 5 - 1)
 #define IS_UP 1
 #define IS_DOWN 0
@@ -52,35 +46,13 @@ enum {
 	CM_MGR_MAX,
 };
 
+extern spinlock_t sw_zq_tx_lock;
+
 extern void __iomem *mcucfg_mp0_counter_base;
 
-extern unsigned int cpu_power_up_array[CM_MGR_CPU_CLUSTER];
-extern unsigned int cpu_power_down_array[CM_MGR_CPU_CLUSTER];
-extern unsigned int cpu_power_up[CM_MGR_CPU_CLUSTER];
-extern unsigned int cpu_power_down[CM_MGR_CPU_CLUSTER];
-extern unsigned int v2f[CM_MGR_CPU_CLUSTER];
-extern unsigned int vcore_power_up;
-extern unsigned int vcore_power_down;
-extern int cpu_opp_cur[CM_MGR_CPU_CLUSTER];
-extern int ratio_max[CM_MGR_CPU_CLUSTER];
-extern int ratio[CM_MGR_CPU_COUNT];
-extern int count[CM_MGR_CPU_CLUSTER];
-extern int count_ack[CM_MGR_CPU_CLUSTER];
-extern int vcore_dram_opp;
-extern int vcore_dram_opp_cur;
 extern int cm_mgr_abs_load;
 extern int cm_mgr_rel_load;
-extern int total_bw;
-extern int cps_valid;
-extern int debounce_times_up;
-extern int debounce_times_down;
-extern int ratio_scale[CM_MGR_CPU_CLUSTER];
-extern int max_load[CM_MGR_CPU_CLUSTER];
-extern int cpu_load[NR_CPUS];
-extern int loading_acc[NR_CPUS];
-extern int loading_cnt;
 
-extern void cm_mgr_update_met(void);
 extern int cm_mgr_get_idx(void);
 extern int cm_mgr_get_stall_ratio(int cpu);
 extern int cm_mgr_get_cpu_count(int cluster);
@@ -91,6 +63,5 @@ extern void cm_mgr_perf_platform_set_status(int enable);
 extern void cm_mgr_perf_platform_set_force_status(int enable);
 extern int cm_mgr_register_init(void);
 extern int cm_mgr_platform_init(void);
-extern int cm_mgr_get_gpu_power(int level, int up);
 
 #endif	/* __MTK_CM_MGR_PLATFORM_H__ */

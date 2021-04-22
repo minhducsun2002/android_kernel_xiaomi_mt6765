@@ -2,6 +2,7 @@
  *  linux/arch/arm/mm/fault.c
  *
  *  Copyright (C) 1995  Linus Torvalds
+ * Copyright (C) 2018 XiaoMi, Inc.
  *  Modifications for ARM processor (c) 1995-2004 Russell King
  *
  * This program is free software; you can redistribute it and/or modify

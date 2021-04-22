@@ -1276,6 +1276,13 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 		return -EINVAL;
 	}
 
+	if (pi.flags & htons(0xF000)) {  //this is normal packet or GRO packet
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		if (pi.flags & htons(0x0F00)) {  //this is GRO packet
+			skb_shinfo(skb)->gso_size = 1;
+			skb_shinfo(skb)->gso_type = 1;
+		}
+	}
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case IFF_TUN:
 		if (tun->flags & IFF_NO_PI) {

@@ -43,17 +43,12 @@
 #include "trustzone/kree/system.h"
 #include "trustzone/kree/mem.h"
 
-#endif
+#else
 
-#if defined(CONFIG_MTK_LEGACY_SECMEM_SUPPORT)
+#ifdef ION_TO_BE_IMPL
 #include "secmem.h"
-#elif defined(CONFIG_MTK_SECURE_MEM_SUPPORT)
-#include "secmem_api.h"
 #endif
 
-#ifdef CONFIG_MTK_TRUSTED_MEMORY_SUBSYSTEM
-#define SECMEM_KERNEL_API
-#include "trusted_mem_api.h"
 #endif
 
 #define ION_PRINT_LOG_OR_SEQ(seq_file, fmt, args...) \

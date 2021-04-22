@@ -2,6 +2,7 @@
  *  linux/drivers/mmc/core/mmc.c
  *
  *  Copyright (C) 2003-2004 Russell King, All Rights Reserved.
+ *  Copyright (C) 2018 XiaoMi, Inc.
  *  Copyright (C) 2005-2007 Pierre Ossman, All Rights Reserved.
  *  MMCv4 support Copyright (C) 2006 Philip Langdale, All Rights Reserved.
  *
@@ -840,6 +841,8 @@ MMC_DEV_ATTR(pre_eol_info, "%02x\n", card->ext_csd.pre_eol_info);
 MMC_DEV_ATTR(life_time, "0x%02x 0x%02x\n",
 	card->ext_csd.device_life_time_est_typ_a,
 	card->ext_csd.device_life_time_est_typ_b);
+MMC_DEV_ATTR(life_time_est_typ_a, "0x%02x\n",card->ext_csd.device_life_time_est_typ_a);
+MMC_DEV_ATTR(life_time_est_typ_b, "0x%02x\n",card->ext_csd.device_life_time_est_typ_b);
 MMC_DEV_ATTR(serial, "0x%08x\n", card->cid.serial);
 MMC_DEV_ATTR(enhanced_area_offset, "%llu\n",
 		card->ext_csd.enhanced_area_offset);
@@ -863,6 +866,8 @@ static ssize_t mmc_fwrev_show(struct device *dev,
 }
 
 static DEVICE_ATTR(fwrev, S_IRUGO, mmc_fwrev_show, NULL);
+static DEVICE_ATTR(fw_version, S_IRUGO, mmc_fwrev_show, NULL);
+
 
 static ssize_t mmc_dsr_show(struct device *dev,
 			    struct device_attribute *attr,
@@ -888,6 +893,7 @@ static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_preferred_erase_size.attr,
 	&dev_attr_wp_grp_size.attr,
 	&dev_attr_fwrev.attr,
+	&dev_attr_fw_version.attr,
 	&dev_attr_ffu_capable.attr,
 	&dev_attr_hwrev.attr,
 	&dev_attr_manfid.attr,
@@ -897,6 +903,8 @@ static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_rev.attr,
 	&dev_attr_pre_eol_info.attr,
 	&dev_attr_life_time.attr,
+	&dev_attr_life_time_est_typ_a.attr,
+	&dev_attr_life_time_est_typ_b.attr,
 	&dev_attr_serial.attr,
 	&dev_attr_enhanced_area_offset.attr,
 	&dev_attr_enhanced_area_size.attr,

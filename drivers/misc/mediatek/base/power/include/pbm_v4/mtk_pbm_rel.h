@@ -17,8 +17,6 @@
 #include "mtk_pbm_common.h"
 #if defined(CONFIG_MACH_MT6765)
 #include "mt6765/mtk_pbm_data.h"
-#elif defined(CONFIG_MACH_MT6761)
-#include "mt6761/mtk_pbm_data.h"
 #endif
 
 #endif /* __MTK_PBM_REL_H__ */

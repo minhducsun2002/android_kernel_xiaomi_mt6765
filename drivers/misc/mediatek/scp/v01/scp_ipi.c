@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -177,13 +178,10 @@ EXPORT_SYMBOL_GPL(scp_ipi_unregistration);
 enum scp_ipi_status scp_ipi_send(enum ipi_id id, void *buf,
 	unsigned int  len, unsigned int wait, enum scp_core_id scp_id)
 {
+
 #if SCP_IPI_STAMP_SUPPORT
 	unsigned long flag = 0;
 #endif
-    /* the variable is for reading back the id from sram
-     * to check the if the sram is ready for accesses.
-     */
-	enum ipi_id rb_id;
 
 	/*avoid scp log print too much*/
 	if (scp_ipi_id_record == id)
@@ -279,20 +277,8 @@ enum scp_ipi_status scp_ipi_send(enum ipi_id id, void *buf,
 	memcpy(scp_send_buff[scp_id], buf, len);
 	memcpy_to_scp((void *)scp_send_obj[scp_id]->share_buf,
 					scp_send_buff[scp_id], len);
-
 	scp_send_obj[scp_id]->len = len;
 	scp_send_obj[scp_id]->id = id;
-
-	/*
-	 * read the value back to quarantee that scp's sram is ready.
-	 */
-	rb_id = readl(&(scp_send_obj[scp_id]->id));
-	if (rb_id != id) {
-		pr_debug("[SCP]ERR: write/read id failed, %d, %d\n",
-				id, rb_id);
-		WARN_ON(1);
-	}
-
 	dsb(SY);
 	/*record timestamp*/
 	scp_ipi_desc[id].success_count++;
@@ -366,7 +352,6 @@ void scp_ipi_status_dump_id(enum ipi_id id)
 
 }
 
-
 void scp_ipi_status_dump(void)
 {
 	enum ipi_id id;
@@ -390,6 +375,27 @@ void scp_ipi_status_dump(void)
 
 void mt_print_scp_ipi_id(void)
 {
-	pr_info("[SCP]scp_ipi:%s\n", ipi_id_names[scp_rcv_obj[0]->id]);
-}
+	enum ipi_id id = scp_rcv_obj[0]->id;
+	unsigned char *buf = scp_rcv_obj[0]->share_buf;
 
+	switch (id) {
+	case IPI_SENSOR:
+		pr_info("[SCP] ipi id/type/action/event/reserve = %d/%d/%d/%d/%d\n",
+				id, buf[0], buf[1], buf[2], buf[3]);
+		break;
+	default:
+		pr_info("[SCP] ipi id = %d\n", id);
+		break;
+	}
+}
+void mt_get_scp_ipi_id(int *sb)
+{
+	if(NULL==sb)
+	return;
+	*sb=(int)scp_rcv_obj[0]->id;
+	*(sb+1)= scp_rcv_obj[0]->share_buf[0];
+	*(sb+2)= scp_rcv_obj[0]->share_buf[1];
+	*(sb+3)= scp_rcv_obj[0]->share_buf[2];
+	*(sb+4)= scp_rcv_obj[0]->share_buf[3];
+
+}

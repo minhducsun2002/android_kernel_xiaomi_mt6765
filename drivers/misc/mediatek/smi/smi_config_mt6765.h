@@ -34,10 +34,9 @@
 #define SMI_ESL_VR4K		(SMI_ESL_INIT)
 #define SMI_ESL_ICFP		1
 
-static unsigned int smi_larb_cmd_gr_en_port[SMI_LARB_NUM][2] = {
-	{0, 5}, {0, 0}, {0, 0}, {0, 0}
-};
-
+/* CMD_GP_EN: SMI_LARB_NON_SEC_CON */
+#define SMI_LARB_CMD_GP_EN_LARB_NUM	1
+#define SMI_LARB_CMD_GP_EN_PORT_NUM	5
 static unsigned int smi_larb_bw_thrt_en_port[SMI_LARB_NUM][2] = { /* non-HRT */
 	{4, SMI_LARB0_PORT_NUM}, {0, SMI_LARB1_PORT_NUM},
 	{0, SMI_LARB2_PORT_NUM}, {0, 0}
@@ -187,29 +186,27 @@ struct mtk_smi_pair smi_comm_config_pair[SMI_COMM_CONFIG_NUM] = {
 	{SMI_DUMMY, 0x1}
 };
 
-#define SMI_LARB0_CONFIG_NUM	8
+#define SMI_LARB0_CONFIG_NUM	7
 struct mtk_smi_pair smi_larb0_config_pair[SMI_LARB0_CONFIG_NUM] = {
-	{SMI_LARB_CMD_THRT_CON, 0x370223},
 	{SMI_LARB_SW_FLAG, 0x1}, {SMI_LARB_SPM_ULTRA_MASK, 0xffffffc0},
 	{SMI_LARB_WRR_PORT(0), 0xb}, {SMI_LARB_WRR_PORT(1), 0xb},
 	{SMI_LARB_WRR_PORT(2), 0xb}, {SMI_LARB_WRR_PORT(3), 0xb},
 	{SMI_LARB_WRR_PORT(4), 0xb}
 };
 
-#define SMI_LARB1_CONFIG_NUM	2
+#define SMI_LARB1_CONFIG_NUM	1
 struct mtk_smi_pair smi_larb1_config_pair[SMI_LARB1_CONFIG_NUM] = {
-	{SMI_LARB_CMD_THRT_CON, 0x370223}, {SMI_LARB_SW_FLAG, 0x1}
+	{SMI_LARB_SW_FLAG, 0x1}
 };
 
-#define SMI_LARB2_CONFIG_NUM	3
+#define SMI_LARB2_CONFIG_NUM	2
 struct mtk_smi_pair smi_larb2_config_pair[SMI_LARB2_CONFIG_NUM] = {
-	{SMI_LARB_CMD_THRT_CON, 0x370223},
 	{SMI_LARB_SW_FLAG, 0x1}, {SMI_LARB_SPM_ULTRA_MASK, 0xffffc000}
 };
 
-#define SMI_LARB3_CONFIG_NUM	2
+#define SMI_LARB3_CONFIG_NUM	1
 struct mtk_smi_pair smi_larb3_config_pair[SMI_LARB3_CONFIG_NUM] = {
-	{SMI_LARB_CMD_THRT_CON, 0x370223}, {SMI_LARB_SW_FLAG, 0x1}
+	{SMI_LARB_SW_FLAG, 0x1}
 };
 
 unsigned int smi_config_pair_num[SMI_LARB_NUM + 1] = {

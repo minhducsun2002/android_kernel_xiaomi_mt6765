@@ -110,13 +110,20 @@ static int clVR_FPS_status_open(struct inode *inode, struct file *file)
 	return single_open(file, clVR_FPS_status_read, NULL);
 }
 
+static int clVR_FPS_status_close(struct inode *inode, struct file *file)
+{
+	clVR_FPS_dprintk("%s %d\n", __func__, __LINE__);
+
+	return 0;
+}
+
 static const struct file_operations clVR_FPS_status_fops = {
 	.owner = THIS_MODULE,
 	.open = clVR_FPS_status_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.write = clVR_FPS_status_write,
-	.release = single_release,
+	.release = clVR_FPS_status_close,
 };
 
 /*

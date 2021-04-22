@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -79,7 +80,6 @@ int ipanic(struct notifier_block *this, unsigned long event, void *ptr)
 	struct kmsg_dumper dumper;
 	struct pt_regs saved_regs;
 
-	show_kaslr();
 	memset(&dumper, 0x0, sizeof(struct kmsg_dumper));
 #ifdef CONFIG_MTK_RAM_CONSOLE
 	aee_rr_rec_fiq_step(AEE_FIQ_STEP_KE_IPANIC_START);
@@ -102,7 +102,6 @@ void ipanic_recursive_ke(struct pt_regs *regs, struct pt_regs *excp_regs,
 {
 	struct pt_regs saved_regs;
 
-	show_kaslr();
 #ifdef CONFIG_MTK_RAM_CONSOLE
 	aee_rr_rec_exp_type(3);
 #endif
@@ -148,13 +147,32 @@ void ipanic_zap_console_sem(void)
 	console_unlock();
 }
 
+#if defined(CONFIG_RANDOMIZE_BASE) && defined(CONFIG_ARM64)
+static u64 show_kaslr(void)
+{
+	u64 const kaslr_offset = kimage_vaddr - KIMAGE_VADDR;
+
+	pr_notice("Kernel Offset: 0x%llx from 0x%lx\n", kaslr_offset,
+			KIMAGE_VADDR);
+	return kaslr_offset;
+}
+#else
+static u64 show_kaslr(void)
+{
+	pr_notice("Kernel Offset: disabled\n");
+	return 0;
+}
+#endif
+
 static int ipanic_die(struct notifier_block *self, unsigned long cmd, void *ptr)
 {
 	struct die_args *dargs = (struct die_args *)ptr;
+	u64 kaslr_offset;
 
-	show_kaslr();
+	kaslr_offset = show_kaslr();
 	print_modules();
 #ifdef CONFIG_MTK_RAM_CONSOLE
+	aee_rr_rec_kaslr_offset(kaslr_offset);
 	aee_rr_rec_exp_type(2);
 	aee_rr_rec_fiq_step(AEE_FIQ_STEP_KE_IPANIC_DIE);
 #endif

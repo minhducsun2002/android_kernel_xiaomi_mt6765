@@ -658,9 +658,6 @@ static ssize_t clfps_level_write(struct file *file, const char __user *buffer,
 	if (cl_adp_fps_limit != max_fps_limit)
 		return -EAGAIN;
 
-	if (count >= 128 || count < 1)
-		return -EINVAL;
-
 	buf = kmalloc(count + 1, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
@@ -679,9 +676,8 @@ static ssize_t clfps_level_write(struct file *file, const char __user *buffer,
 	sepstr = buf;
 
 	substr = strsep(&sepstr, " ");
-	if (kstrtoint(substr, 10, &new_nr_fps_levels) != 0 ||
-		((new_nr_fps_levels > MAX_NR_FPS_LEVELS) ||
-		(new_nr_fps_levels <= 0)))  {
+	if (kstrtoint(substr, 10, &new_nr_fps_levels) != 0
+	|| new_nr_fps_levels > MAX_NR_FPS_LEVELS) {
 		ret = -EINVAL;
 		goto err;
 	}

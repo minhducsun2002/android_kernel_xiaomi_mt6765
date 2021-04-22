@@ -29,8 +29,7 @@
 /* ============================================================ */
 /* Define Macro Value */
 /* ============================================================ */
-#define FGD_NL_MSG_T_HDR_LEN 28
-#define FGD_NL_MAGIC 2015060303
+#define FGD_NL_MSG_T_HDR_LEN 24
 #define FGD_NL_MSG_MAX_LEN 9200
 
 #define UNIT_TRANS_10	10
@@ -46,7 +45,7 @@
 /* ============================================================ */
 #define BAT_VOLTAGE_LOW_BOUND 3400
 #define BAT_VOLTAGE_HIGH_BOUND 3450
-#define LOW_TMP_BAT_VOLTAGE_LOW_BOUND 3200
+#define LOW_TMP_BAT_VOLTAGE_LOW_BOUND 3270
 #define SHUTDOWN_TIME 40
 #define AVGVBAT_ARRAY_SIZE 30
 #define INIT_VOLTAGE 3450
@@ -114,37 +113,13 @@ enum gauge_hw_version {
 	GAUGE_HW_MAX
 };
 
-enum daemon_req_hw_data {
-	HW_INFO_NORETURN = 0,
-	HW_INFO_SHUTDOWN_CAR = 1,
-	HW_INFO_NCAR = 2,
-};
-
-enum daemon_send_algo_data {
-	ALGO_SOC = 0,
-	ALGO_C_D0_SOC = 1,
-	ALGO_V_D0_SOC = 2,
-	ALGO_C_SOC = 3,
-	ALGO_V_SOC = 4,
-	ALGO_QMAX_T_AGING = 5,
-	ALGO_SAVED_CAR = 6,
-	ALGO_AGING_FACTOR = 7,
-	ALGO_QMAX = 8,
-	ALGO_BAT_CYCLES = 9,
-	ALGO_NCAR = 10,
-	ALGO_OCV_mah = 11,
-	ALGO_OCV_Vtemp = 12,
-	ALGO_OCV_SOC = 13,
-};
-
 enum Fg_daemon_cmds {
 	FG_DAEMON_CMD_PRINT_LOG,
-	FG_DAEMON_CMD_SET_DAEMON_PID,
 	FG_DAEMON_CMD_GET_CUSTOM_SETTING,
-	FG_DAEMON_CMD_GET_DATA,
 	FG_DAEMON_CMD_IS_BAT_EXIST,
 	FG_DAEMON_CMD_GET_INIT_FLAG,
 	FG_DAEMON_CMD_SET_INIT_FLAG,
+	FG_DAEMON_CMD_SET_DAEMON_PID,
 	FG_DAEMON_CMD_NOTIFY_DAEMON,
 	FG_DAEMON_CMD_CHECK_FG_DAEMON_VERSION,
 	FG_DAEMON_CMD_FGADC_RESET,
@@ -222,6 +197,7 @@ enum Fg_daemon_cmds {
 	FG_DAEMON_CMD_GET_VBAT,
 	FG_DAEMON_CMD_GET_DISABLE_NAFG,
 	FG_DAEMON_CMD_DUMP_LOG,
+	FG_DAEMON_CMD_GET_DATA,
 	FG_DAEMON_CMD_SEND_DATA,
 
 	FG_DAEMON_CMD_FROM_USER_NUMBER
@@ -234,8 +210,6 @@ enum Fg_kernel_cmds {
 	FG_KERNEL_CMD_DISABLE_NAFG,
 	FG_KERNEL_CMD_DUMP_LOG,
 	FG_KERNEL_CMD_UISOC_UPDATE_TYPE,
-	FG_KERNEL_CMD_CHANG_LOGLEVEL,
-	FG_KERNEL_CMD_REQ_ALGO_DATA,
 
 	FG_KERNEL_CMD_FROM_USER_NUMBER
 
@@ -279,7 +253,6 @@ struct fgd_nl_msg_t {
 	unsigned int fgd_subcmd_para2;
 	unsigned int fgd_data_len;
 	unsigned int fgd_ret_data_len;
-	unsigned int identity;
 	char fgd_data[FGD_NL_MSG_MAX_LEN];
 };
 
@@ -305,9 +278,6 @@ struct fuel_gauge_custom_data {
 	int versionID2;
 	int versionID3;
 	int hardwareVersion;
-
-	int low_temp_mode;
-	int low_temp_mode_temp;
 
 	/* Qmax for battery  */
 	int q_max_L_current;
@@ -360,7 +330,7 @@ struct fuel_gauge_custom_data {
 	int difference_fullocv_ith;
 	int charge_pseudo_full_level;
 	int over_discharge_level;
-	int full_tracking_bat_int2_multiply;
+
 
 	/* threshold */
 	int hwocv_swocv_diff;	/* 0.1 mv */
@@ -376,9 +346,6 @@ struct fuel_gauge_custom_data {
 	int pmic_shutdown_time;	/* secs */
 	int bat_plug_out_time;	/* min */
 	int swocv_oldocv_diff_emb;	/* 0.1 mv */
-	int vir_oldocv_diff_emb;	/* 0.1 mv */
-	int vir_oldocv_diff_emb_lt;
-	int vir_oldocv_diff_emb_tmp;
 
 	/* fgc & fgv threshold */
 	int difference_fgc_fgv_th1;
@@ -487,12 +454,6 @@ struct fuel_gauge_custom_data {
 
 	/* boot status */
 	int pl_charger_status;
-	int power_on_car_chr;
-	int power_on_car_nochr;
-	int shutdown_car_ratio;
-
-	/* log_level */
-	int daemon_log_level;
 
 };
 
@@ -505,7 +466,6 @@ struct FUELGAUGE_PROFILE_STRUCT {
 	unsigned int mah;
 	unsigned short voltage;
 	unsigned short resistance; /* Ohm*/
-	unsigned short resistance2; /* Ohm*/
 	unsigned short percentage;
 };
 
@@ -591,7 +551,6 @@ struct BAT_EC_Struct {
 	int debug_d0_v_value;
 	int debug_uisoc_en;
 	int debug_uisoc_value;
-	int debug_kill_daemontest;
 };
 
 struct battery_temperature_table {
@@ -643,6 +602,7 @@ struct mtk_battery {
 
 /* log */
 	int log_level;
+	int d_log_level;
 
 /* for test */
 	struct BAT_EC_Struct Bat_EC_ctrl;
@@ -652,7 +612,6 @@ struct mtk_battery {
 /*battery status*/
 	int soc;
 	int ui_soc;
-	int d_saved_car;
 
 /*battery flag*/
 	bool init_flag;
@@ -669,7 +628,6 @@ struct mtk_battery {
 
 /* adb */
 	int fixed_bat_tmp;
-	int fixed_uisoc;
 
 	struct charger_consumer *pbat_consumer;
 	struct notifier_block bat_nb;
@@ -703,27 +661,13 @@ struct mtk_battery {
 	int fg_bat_tmp_int_ht;
 	int fg_bat_tmp_int_lt;
 
-/* battery cycle */
 	bool is_reset_battery_cycle;
-	int bat_cycle;
 	int bat_cycle_thr;
-	int bat_cycle_car;
-	int bat_cycle_ncar;
-
-/* cust req ocv data */
-	int algo_qmax;
-	int algo_req_ocv;
-	int algo_ocv_to_mah;
-	int algo_ocv_to_soc;
-	int algo_vtemp;
-
-	int aging_factor;
 
 	struct timespec uisoc_oldtime;
 
 	signed int ptim_lk_v;
 	signed int ptim_lk_i;
-	int lk_boot_coulomb;
 	int pl_bat_vol;
 	int pl_shutdown_time;
 	int pl_two_sec_reboot;
@@ -830,9 +774,6 @@ extern int pmic_is_bif_exist(void);
 extern int pmic_get_vbus(void);
 extern bool pmic_is_battery_exist(void);
 
-/* usb*/
-extern bool mt_usb_is_device(void);
-
 /* gauge hal */
 extern void battery_dump_nag(void);
 
@@ -873,8 +814,7 @@ extern void fg_bat_temp_int_sw_check(void);
 extern void gm3_log_notify(unsigned int interrupt);
 extern void dump_gm3_log(void);
 extern void fg_update_sw_low_battery_check(unsigned int thd);
-extern void fg_sw_bat_cycle_accu(void);
-extern void fg_ocv_query_soc(int ocv);
+
 
 /* query function , review */
 extern struct BAT_EC_Struct *get_ec(void);

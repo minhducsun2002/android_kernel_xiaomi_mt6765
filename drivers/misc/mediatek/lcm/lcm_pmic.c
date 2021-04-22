@@ -15,6 +15,8 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 
+extern unsigned int g_Lcm_Vbias_Level;
+
 #if defined(CONFIG_RT5081_PMU_DSV) || defined(CONFIG_MT6370_PMU_DSV)
 static struct regulator *disp_bias_pos;
 static struct regulator *disp_bias_neg;
@@ -53,15 +55,21 @@ int display_bias_enable(void)
 	int ret = 0;
 	int retval = 0;
 
+	if(g_Lcm_Vbias_Level == 0)
+	{
+		pr_info("warning, the target voltage is 0, do nothing\n");
+		return ret;
+	}
+
 	display_bias_regulator_init();
 
 	/* set voltage with min & max*/
-	ret = regulator_set_voltage(disp_bias_pos, 5400000, 5400000);
+	ret = regulator_set_voltage(disp_bias_pos, g_Lcm_Vbias_Level, g_Lcm_Vbias_Level);
 	if (ret < 0)
 		pr_info("set voltage disp_bias_pos fail, ret = %d\n", ret);
 	retval |= ret;
 
-	ret = regulator_set_voltage(disp_bias_neg, 5400000, 5400000);
+	ret = regulator_set_voltage(disp_bias_neg, g_Lcm_Vbias_Level, g_Lcm_Vbias_Level);
 	if (ret < 0)
 		pr_info("set voltage disp_bias_neg fail, ret = %d\n", ret);
 	retval |= ret;

@@ -29,7 +29,7 @@ $(PVRSRVKM_NAME)-y += \
 	services/system/$(PVR_SYSTEM)/sysconfig.o \
 	services/system/$(PVR_SYSTEM)/$(MTK_PLATFORM)/mtk_mfgsys.o
 
-ifeq ($(MTK_PLATFORM),mt6761)
+ifeq ($(MTK_PLATFORM),mt6739)
 $(PVRSRVKM_NAME)-y += \
 	services/system/$(PVR_SYSTEM)/$(MTK_PLATFORM)/mtk_mfg_counter.o
 endif

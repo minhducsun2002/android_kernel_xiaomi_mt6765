@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -52,13 +53,13 @@
 #define SCP_GPR_CM4_A_REBOOT     (scpreg.cfg + 0x64)
 	#define CM4_A_READY_TO_REBOOT  0x34
 	#define CM4_A_REBOOT_OK        0x1
-#define SCP_A_GENERAL_REG6       (scpreg.cfg + 0x0068)
-#define SCP_A_GENERAL_REG7       (scpreg.cfg + 0x006C)
+#define SCP_A_GENERAL_REG6      (scpreg.cfg + 0x0068)
+#define SCP_A_GENERAL_REG7      (scpreg.cfg + 0x006C)
 
-#define SCP_SEMAPHORE	         (scpreg.cfg  + 0x90)
-#define SCP_SCP2SPM_VOL_LV		 (scpreg.cfg + 0x0094)
+#define SCP_SEMAPHORE	        (scpreg.cfg  + 0x90)
+#define SCP_SCP2SPM_VOL_LV	(scpreg.cfg + 0x0094)
 
-#define SCP_SLP_PROTECT_CFG			(scpreg.cfg + 0x00C8)
+#define SCP_SLP_PROTECT_CFG	(scpreg.cfg + 0x00C8)
 
 #define SCP_WDT_SP					(scpreg.cfg + 0x00B8)
 #define SCP_WDT_LR					(scpreg.cfg + 0x00BC)
@@ -78,6 +79,9 @@
 	#define SCP_A_DEEP_SLEEP_BIT	(1)
 	#define SCP_B_DEEP_SLEEP_BIT	(3)
 
+#define INFRA_CTRL_STATUS		(scpreg.cfg + 0x011C)
+#define SCP_DEBUG_IRQ_INFO		(scpreg.cfg + 0x0160)
+
 #define SCP_SLEEP_STATUS_REG     (scpreg.cfg + 0x0114)
 	#define SCP_A_IS_SLEEP          (1<<0)
 	#define SCP_A_IS_DEEPSLEEP      (1<<1)
@@ -86,7 +90,6 @@
 
 #define INFRA_CTRL_STATUS		(scpreg.cfg + 0x011C)
 #define SCP_DEBUG_IRQ_INFO		(scpreg.cfg + 0x0160)
-
 /* clk reg*/
 #define SCP_CLK_CTRL_BASE				(scpreg.clkctrl)
 #define SCP_CLK_SW_SEL				(scpreg.clkctrl)
@@ -103,6 +106,7 @@
 #define MODULE_RESET_STATUS      (scpreg.scpsys + 0x0148)
     #define SCP_RESET_BIT           (1 << 3)
     #define SCP_SEC_RESET_BIT       (1 << 10)
+
 /* SCP INTC register*/
 #define SCP_INTC_IRQ_STATUS		(scpreg.cfg + 0x2000)
 #define SCP_INTC_IRQ_ENABLE		(scpreg.cfg + 0x2004)

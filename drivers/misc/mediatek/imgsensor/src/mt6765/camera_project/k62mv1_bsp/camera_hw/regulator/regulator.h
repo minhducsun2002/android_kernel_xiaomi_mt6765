@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,6 +22,7 @@
 
 #include "imgsensor_hw.h"
 #include "imgsensor.h"
+
 
 extern struct device *gimgsensor_device;
 extern struct IMGSENSOR gimgsensor;
@@ -63,6 +65,7 @@ struct REGULATOR_CTRL {
 struct REGULATOR {
 	struct regulator *pregulator[REGULATOR_TYPE_MAX_NUM];
 	atomic_t    enable_cnt[REGULATOR_TYPE_MAX_NUM];
+	pid_t pid;
 };
 
 enum IMGSENSOR_RETURN imgsensor_hw_regulator_open(

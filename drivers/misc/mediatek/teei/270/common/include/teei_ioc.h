@@ -58,5 +58,5 @@ struct init_param {
 #define SOTER_TUI_LEAVE		_IOWR(TEEI_IOC_MAGIC, 0x71, int)
 #endif
 #define TEEI_VFS_NOTIFY_DRM	_IOWR(TEEI_CONFIG_IOC_MAGIC, 0x75, int)
-
+#define TEEI_VFS_GET_FP_UUID 0x50
 #endif

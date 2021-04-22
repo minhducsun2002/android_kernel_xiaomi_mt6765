@@ -2473,7 +2473,6 @@ static int _btif_rx_btm_init(struct _mtk_btif_ *p_btif)
 			i_ret = -ENOMEM;
 			goto btm_init_err;
 		}
-		set_user_nice(p_btif->p_task, -4);
 
 #if ENABLE_BTIF_RX_THREAD_RT_SCHED
 		{

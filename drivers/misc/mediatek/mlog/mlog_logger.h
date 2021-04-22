@@ -17,6 +17,4 @@
 extern void mlog_init_procfs(void);
 extern void mlog_get_buffer(char **ptr, int *size);
 
-extern const char * const vmstat_text[];
-
 #endif

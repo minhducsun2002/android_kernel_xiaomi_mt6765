@@ -4,6 +4,7 @@
  *
  *  Generalized futexes, futex requeueing, misc fixes by Ingo Molnar
  *  (C) Copyright 2003 Red Hat Inc, All Rights Reserved
+ *  Copyright (C) 2018 XiaoMi, Inc.
  *
  *  Removed page pinning, fix privately mapped COW pages and other cleanups
  *  (C) Copyright 2003, 2004 Jamie Lokier

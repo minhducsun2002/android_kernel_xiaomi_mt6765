@@ -161,7 +161,7 @@ dual_swchg_select_charging_current_limit(struct charger_manager *info)
 			pdata->input_current_limit = 1500000;
 			pdata->charging_current_limit = 2000000;
 		} else {
-			chr_err("type-C: inquire rp error\n");
+			/* for TYPEC_CC_VOLT_SNK_DFT */
 			pdata->input_current_limit = 500000;
 			pdata->charging_current_limit = 500000;
 		}
@@ -529,9 +529,8 @@ static void dual_swchg_turn_on_charging(struct charger_manager *info)
 			} else {
 				charger_dev_set_eoc_current(info->chg1_dev,
 								150000);
-				if (mtk_pe40_get_is_connect(info) == false)
-					charger_dev_enable_termination(
-							info->chg1_dev, true);
+				charger_dev_enable_termination(info->chg1_dev,
+								true);
 			}
 		} else {
 			if (chg2_chip_enabled) {

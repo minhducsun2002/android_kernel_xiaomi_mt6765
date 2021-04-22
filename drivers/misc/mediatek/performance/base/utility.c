@@ -18,8 +18,8 @@
 #include <linux/trace_events.h>
 #endif
 
-char *perfmgr_copy_from_user_for_proc(const char __user *buffer,
-		size_t count)
+char *lbc_copy_from_user_for_proc(const char __user *buffer,
+					 size_t count)
 {
 	char *buf = (char *)__get_free_page(GFP_USER);
 
@@ -41,7 +41,6 @@ out:
 
 	return NULL;
 }
-
 int check_proc_write(int *data, const char *ubuf, size_t cnt)
 {
 
@@ -60,7 +59,7 @@ int check_proc_write(int *data, const char *ubuf, size_t cnt)
 }
 
 int check_boot_boost_proc_write(int *cgroup, int *data,
-		const char *ubuf, size_t cnt)
+const char *ubuf, size_t cnt)
 {
 	char buf[128];
 
@@ -75,31 +74,30 @@ int check_boot_boost_proc_write(int *cgroup, int *data,
 		return -1;
 	return 0;
 }
-
 #ifdef CONFIG_TRACING
 static unsigned long __read_mostly tracing_mark_write_addr;
 static inline void __mt_update_tracing_mark_write_addr(void)
 {
 	if (unlikely(tracing_mark_write_addr == 0))
 		tracing_mark_write_addr =
-			kallsyms_lookup_name("tracing_mark_write");
+				kallsyms_lookup_name("tracing_mark_write");
 }
 
+#ifdef CONFIG_TRACING
 void perfmgr_trace_printk(char *module, char *string)
 {
 	__mt_update_tracing_mark_write_addr();
 	preempt_disable();
 	event_trace_printk(tracing_mark_write_addr, "%d [%s] %s\n",
-			current->tgid, module, string);
+				current->tgid, module, string);
 	preempt_enable();
 }
-
 void perfmgr_trace_begin(char *name, int id, int a, int b)
 {
 	__mt_update_tracing_mark_write_addr();
 	preempt_disable();
 	event_trace_printk(tracing_mark_write_addr, "B|%d|%s|%d|%d|%d\n",
-			current->tgid, name, id, a, b);
+				current->tgid, name, id, a, b);
 	preempt_enable();
 }
 
@@ -111,4 +109,5 @@ void perfmgr_trace_end(void)
 	preempt_enable();
 }
 
+#endif
 #endif

@@ -26,6 +26,8 @@
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 #include <linux/ratelimit.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
 
 /**
  * struct alarm_base - Alarm timer bases
@@ -46,6 +48,15 @@ static ktime_t freezer_delta;
 static DEFINE_SPINLOCK(freezer_delta_lock);
 
 static struct wakeup_source *ws;
+
+#define AUTOWAKEUP_MAGIC 0xA2370000
+#define AUTOWAKEUP_MASK  0x0000FFFF
+
+static unsigned int auto_wakeup_time = AUTOWAKEUP_MAGIC;
+#define AUTOWAKEUP_VALID_TIME_GET() \
+	(AUTOWAKEUP_MAGIC == (auto_wakeup_time & (~AUTOWAKEUP_MASK)) ? (AUTOWAKEUP_MASK & auto_wakeup_time) : 0)
+module_param_named(auto_wakeup_time, auto_wakeup_time, uint, S_IRUGO | S_IWUSR | S_IWGRP);
+MODULE_PARM_DESC(auto_wakeup_time, "vRTC auto  wakeup expire time(default is 0s)");
 
 #ifdef CONFIG_RTC_CLASS
 /* rtc timer and device for setting alarm wakeups at suspend */
@@ -232,6 +243,7 @@ static int alarmtimer_suspend(struct device *dev)
 	struct rtc_device *rtc;
 	int i;
 	int ret;
+	unsigned int wakeup_time = 0;
 
 	spin_lock_irqsave(&freezer_delta_lock, flags);
 	min = freezer_delta;
@@ -268,6 +280,12 @@ static int alarmtimer_suspend(struct device *dev)
 		return -EBUSY;
 	}
 
+	wakeup_time = AUTOWAKEUP_VALID_TIME_GET();
+	if (unlikely(0 != wakeup_time)) {
+		min = ktime_set(wakeup_time, 0);
+		pr_err("auto wakeup: wake up in %d seconds\n", wakeup_time);
+	}
+
 	/* Setup an rtc timer to fire that far in the future */
 	rtc_timer_cancel(rtc, &rtctimer);
 	rtc_read_time(rtc, &tm);
@@ -289,9 +307,14 @@ static int alarmtimer_suspend(struct device *dev)
 	return ret;
 }
 
+extern void kpd_pwrkey_pmic_handler(unsigned long pressed);
 static int alarmtimer_resume(struct device *dev)
 {
 	struct rtc_device *rtc;
+
+	if (unlikely(0 != AUTOWAKEUP_VALID_TIME_GET())) {
+		kpd_pwrkey_pmic_handler(0x1);
+	}
 
 	rtc = alarmtimer_get_rtcdev();
 	if (rtc)

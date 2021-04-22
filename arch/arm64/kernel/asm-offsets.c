@@ -2,6 +2,7 @@
  * Based on arch/arm/kernel/asm-offsets.c
  *
  * Copyright (C) 1995-2003 Russell King
+ * Copyright (C) 2018 XiaoMi, Inc.
  *               2001-2002 Keith Owens
  * Copyright (C) 2012 ARM Ltd.
  *

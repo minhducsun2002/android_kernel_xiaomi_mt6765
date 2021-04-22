@@ -12,7 +12,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/memblock.h>
 #include <linux/memory.h>
 #include <linux/workqueue.h>
 #include <linux/dma-mapping.h>
@@ -84,118 +83,6 @@ static struct dma_pool *cmdq_buffer_pool;
 static atomic_t cmdq_dma_buf_cnt;
 
 /* CMDQ core feature functions */
-
-static bool cmdq_core_check_gpr_valid(const u32 gpr, const bool val)
-{
-	if (val)
-		switch (gpr) {
-		case CMDQ_DATA_REG_JPEG:
-		case CMDQ_DATA_REG_PQ_COLOR:
-		case CMDQ_DATA_REG_2D_SHARPNESS_0:
-		case CMDQ_DATA_REG_2D_SHARPNESS_1:
-		case CMDQ_DATA_REG_DEBUG:
-			return true;
-		default:
-			return false;
-		}
-	else
-		switch (gpr >> 16) {
-		case CMDQ_DATA_REG_JPEG_DST:
-		case CMDQ_DATA_REG_PQ_COLOR_DST:
-		case CMDQ_DATA_REG_2D_SHARPNESS_0:
-		case CMDQ_DATA_REG_2D_SHARPNESS_0_DST:
-		case CMDQ_DATA_REG_2D_SHARPNESS_1_DST:
-		case CMDQ_DATA_REG_DEBUG_DST:
-			return true;
-		default:
-			return false;
-		}
-	return false;
-}
-
-static bool cmdq_core_check_dma_addr_valid(const unsigned long pa)
-{
-	struct WriteAddrStruct *waddr = NULL;
-	unsigned long flags = 0L;
-	phys_addr_t start = memblock_start_of_DRAM();
-	bool ret = false;
-
-	spin_lock_irqsave(&cmdq_write_addr_lock, flags);
-	list_for_each_entry(waddr, &cmdq_ctx.writeAddrList, list_node)
-		if (pa < start || pa - (unsigned long)waddr->pa <
-			waddr->count << 2) {
-			ret = true;
-			break;
-		}
-	spin_unlock_irqrestore(&cmdq_write_addr_lock, flags);
-	return ret;
-}
-
-static bool cmdq_core_check_instr_valid(const u64 instr)
-{
-	u32 op = instr >> 56, option = (instr >> 53) & 0x7;
-	u32 argA = (instr >> 32) & 0x1FFFFF, argB = instr & 0xFFFFFFFF;
-
-	switch (op) {
-	case CMDQ_CODE_WRITE:
-		if (!option)
-			return true;
-		if (option == 0x4 && cmdq_core_check_gpr_valid(argA, false))
-			return true;
-	case CMDQ_CODE_READ:
-		if (option == 0x2 && cmdq_core_check_gpr_valid(argB, true))
-			return true;
-		if (option == 0x6 && cmdq_core_check_gpr_valid(argA, false) &&
-			cmdq_core_check_gpr_valid(argB, true))
-			return true;
-		break;
-	case CMDQ_CODE_MOVE:
-		if (!option && !argA)
-			return true;
-		if (option == 0x4 && cmdq_core_check_gpr_valid(argA, false) &&
-			cmdq_core_check_dma_addr_valid(argB))
-			return true;
-		break;
-	case CMDQ_CODE_JUMP:
-		if (!argA && argB == 0x8)
-			return true;
-		break;
-	case CMDQ_CODE_READ_S:
-	case CMDQ_CODE_WRITE_S:
-	case CMDQ_CODE_WRITE_S_W_MASK:
-	case CMDQ_CODE_LOGIC:
-	case CMDQ_CODE_JUMP_C_ABSOLUTE:
-	case CMDQ_CODE_JUMP_C_RELATIVE:
-		break;
-	default:
-		return true;
-	}
-	CMDQ_ERR("instr:%#llx\n", instr);
-	return false;
-}
-
-bool cmdq_core_check_pkt_valid(struct cmdq_pkt *pkt)
-{
-	struct cmdq_pkt_buffer *buf = NULL;
-	s32 size = CMDQ_CMD_BUFFER_SIZE;
-	u64 *va;
-	bool ret = true;
-
-	list_for_each_entry(buf, &pkt->buf, list_entry) {
-		if (list_is_last(&buf->list_entry, &pkt->buf))
-			size -= pkt->avail_buf_size;
-
-		for (va = (u64 *)buf->va_base; ret &&
-			(va + 1) < (u64 *)(buf->va_base + size); va++)
-			ret &= cmdq_core_check_instr_valid(*va);
-
-		if (ret && (*va >> 56) != CMDQ_CODE_JUMP)
-			ret &= cmdq_core_check_instr_valid(*va);
-		if (!ret)
-			break;
-	}
-	return ret;
-}
 
 static void cmdq_core_config_prefetch_gsize(void)
 {
@@ -1265,13 +1152,13 @@ static s32 cmdq_core_thread_exec_counter(const s32 thread)
 #endif
 }
 
-static void cmdq_core_dump_thread(const struct cmdqRecStruct *handle,
-	s32 thread, bool dump_irq, const char *tag)
+static bool cmdq_core_dump_thread(const struct cmdqRecStruct *handle,
+	s32 thread, bool dump_irq, bool aee_irq, const char *tag)
 {
 	u32 value[15] = { 0 };
 
 	if (thread == CMDQ_INVALID_THREAD)
-		return;
+		return aee_irq;
 
 	if (handle && handle->timeout_info) {
 		value[0] = (u32)handle->timeout_info->curr_pc;
@@ -1317,8 +1204,17 @@ static void cmdq_core_dump_thread(const struct cmdqRecStruct *handle,
 		value[11], value[12], value[13], value[14]);
 
 	/* if pc match end and irq flag on, dump irq status */
-	if (dump_irq && value[0] == value[1] && value[2] == 1)
+	if (dump_irq && value[0] == value[1] && value[2] == 1) {
 		mt_irq_dump_status(cmdq_dev_get_irq_id());
+		if (aee_irq) {
+			CMDQ_AEE("CMDQ",
+				"thread irq delay id:%u thread:%d",
+				cmdq_dev_get_irq_id(), thread);
+			return false;
+		}
+	}
+
+	return aee_irq;
 }
 
 void cmdq_core_dump_trigger_loop_thread(const char *tag)
@@ -1332,7 +1228,7 @@ void cmdq_core_dump_trigger_loop_thread(const char *tag)
 	for (i = 0; i < max_thread_count; i++) {
 		if (cmdq_ctx.thread[i].scenario != CMDQ_SCENARIO_TRIGGER_LOOP)
 			continue;
-		cmdq_core_dump_thread(NULL, i, false, tag);
+		cmdq_core_dump_thread(NULL, i, false, false, tag);
 		cmdq_core_dump_pc(NULL, i, tag);
 		val = cmdqCoreGetEvent(evt_rdma);
 		CMDQ_LOG("[%s]CMDQ_SYNC_TOKEN_VAL of %s is %d\n",
@@ -2014,7 +1910,7 @@ static void cmdq_delay_thread_deinit(void)
 
 void cmdq_delay_dump_thread(bool dump_sram)
 {
-	cmdq_core_dump_thread(NULL, CMDQ_DELAY_THREAD_ID, false, "INFO");
+	cmdq_core_dump_thread(NULL, CMDQ_DELAY_THREAD_ID, false, false, "INFO");
 	CMDQ_LOG(
 		"==Delay Thread Task, size:%u started:%d pa:%pa va:0x%p sram:%u\n",
 		cmdq_delay_thd_cmd.buffer_size, cmdq_delay_thd_started,
@@ -3301,7 +3197,7 @@ static void cmdq_core_dump_error_handle(const struct cmdqRecStruct *handle,
 	u32 *hwPC = NULL;
 	u64 printEngineFlag = 0;
 
-	cmdq_core_dump_thread(handle, thread, true, "ERR");
+	cmdq_core_dump_thread(handle, thread, true, false, "ERR");
 
 	if (handle) {
 		CMDQ_ERR("============ [CMDQ] Error Thread PC ============\n");
@@ -3763,35 +3659,6 @@ void cmdq_core_release_thread(s32 scenario, s32 thread)
 	mutex_unlock(&cmdq_thread_mutex);
 }
 
-static void cmdq_core_group_reset_hw(u64 engine_flag)
-{
-	struct CmdqCBkStruct *callback = cmdq_group_cb;
-	s32 status;
-	u32 i;
-
-	CMDQ_LOG("%s engine:0x%llx\n", __func__, engine_flag);
-
-	for (i = 0; i < CMDQ_MAX_GROUP_COUNT; i++) {
-		if (cmdq_core_is_group_flag((enum CMDQ_GROUP_ENUM)i,
-			engine_flag)) {
-			if (!callback[i].resetEng) {
-				CMDQ_ERR(
-					"no reset func to reset engine group:%u\n",
-					i);
-				continue;
-			}
-			status = callback[i].resetEng(
-				cmdq_mdp_get_func()->getEngineGroupBits(i) &
-				engine_flag);
-			if (status < 0) {
-				/* Error status print */
-				CMDQ_ERR("Reset engine group %d failed:%d\n",
-					i, status);
-			}
-		}
-	}
-}
-
 static void cmdq_core_group_clk_on(enum CMDQ_GROUP_ENUM group,
 	u64 engine_flag)
 {
@@ -4210,19 +4077,16 @@ void cmdq_core_replace_v3_instr(struct cmdqRecStruct *handle, s32 thread)
 	}
 }
 
-void cmdq_core_release_active_handle(void *file_node)
+void cmdq_core_release_handle_by_file_node(void *file_node)
 {
 	struct cmdqRecStruct *handle;
 	struct cmdq_client *client;
 
 	mutex_lock(&cmdq_handle_list_mutex);
 	list_for_each_entry(handle, &cmdq_ctx.handle_active, list_entry) {
-		if (handle->state == TASK_STATE_IDLE)
+		if (!(handle->state != TASK_STATE_IDLE &&
+			handle->node_private == file_node))
 			continue;
-		/* file node null means remove all */
-		if (file_node && handle->node_private != file_node)
-			continue;
-
 		CMDQ_LOG(
 			"[warn]running handle 0x%p auto release because file node 0x%p closed\n",
 			handle, file_node);
@@ -4268,12 +4132,12 @@ s32 cmdq_core_suspend(void)
 		kill_task = true;
 	}
 
-	/* We need to ensure the system is ready to suspend,
+	/* TODO:
+	 * We need to ensure the system is ready to suspend,
 	 * so kill all running CMDQ tasks
 	 * and release HW engines.
 	 */
 	if (kill_task) {
-		cmdq_mdp_release_active_task(NULL);
 #if 0
 		CMDQ_PROF_MUTEX_LOCK(gCmdqTaskMutex, suspend_kill);
 
@@ -5077,9 +4941,6 @@ static void cmdq_pkt_flush_handler(struct cmdq_cb_data data)
 		handle->state = TASK_STATE_DONE;
 	}
 
-	if (handle->state != TASK_STATE_DONE)
-		cmdq_core_group_reset_hw(handle->engineFlag);
-
 	CMDQ_PROF_MMP(cmdq_mmp_get_event()->CMDQ_IRQ, MMPROFILE_FLAG_PULSE,
 		(unsigned long)handle, handle->thread);
 
@@ -5134,6 +4995,7 @@ s32 cmdq_pkt_wait_flush_ex_result(struct cmdqRecStruct *handle)
 	s32 waitq;
 	s32 status = 0;
 	u32 count = 0;
+	bool aee = true;
 
 	CMDQ_PROF_MMP(cmdq_mmp_get_event()->wait_task,
 		MMPROFILE_FLAG_PULSE, ((unsigned long)handle), handle->thread);
@@ -5172,7 +5034,8 @@ s32 cmdq_pkt_wait_flush_ex_result(struct cmdqRecStruct *handle)
 			handle->state);
 		cmdq_core_dump_status("INFO");
 		cmdq_core_dump_pc(handle, handle->thread, "INFO");
-		cmdq_core_dump_thread(handle, handle->thread, true, "INFO");
+		aee = cmdq_core_dump_thread(handle, handle->thread, true,
+			aee, "INFO");
 
 		if (count == 0) {
 			cmdq_core_dump_trigger_loop_thread("INFO");

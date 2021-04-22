@@ -179,8 +179,7 @@ ifeq ($(MTK_PLATFORM),mt8167)
 		services/server/devices/rgx/rgxmipsmmuinit.o
 endif
 
-ifeq ($(MTK_PLATFORM),mt6761)
-  ccflags-y += -DMTK_MFG_COUNTER_SUPPORT
+ifeq ($(MTK_PLATFORM),mt6799)
 	pvrsrvkm-y += \
 		services/system/rgx_mtk/$(MTK_PLATFORM)/mtk_mfg_counter.o
 endif
@@ -235,11 +234,6 @@ ccflags-y += \
 	-I$(RGX_TOP)/services/system/rgx_mtk/$(MTK_PLATFORM)
 
 ifeq ($(MTK_PLATFORM),mt6765)
-ccflags-y += \
-	-I$(RGX_TOP)/../m1.9ED4940716/include
-endif
-
-ifeq ($(MTK_PLATFORM),mt6761)
 ccflags-y += \
 	-I$(RGX_TOP)/../m1.9ED4940716/include
 endif

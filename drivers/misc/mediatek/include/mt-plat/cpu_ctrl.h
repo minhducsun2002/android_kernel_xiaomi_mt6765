@@ -13,8 +13,8 @@
 #ifndef _CPU_CTRL_H
 #define _CPU_CTRL_H
 
-
-#include <mtk_ppm_api.h>
+#include "../../../../misc/mediatek/base/power/include/mtk_ppm_api.h"
+//#include <mtk_ppm_api.h>
 
 enum {
 	CPU_KIR_PERF = 0,
@@ -24,6 +24,7 @@ enum {
 	CPU_KIR_TOUCH,
 	CPU_KIR_PERFTOUCH,
 	CPU_KIR_USB,
+	CPU_KIR_FINGERPRINT,
 	CPU_MAX_KIR
 };
 extern unsigned int mt_cpufreq_get_freq_by_idx(int id, int idx);

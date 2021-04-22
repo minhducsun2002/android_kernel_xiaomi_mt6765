@@ -78,12 +78,14 @@
 #include "simulator_kernel.h"
 #endif
 
+#include <linux/hardware_info.h>
 
 
 /* ============================================================ */
 /* global variable */
 /* ============================================================ */
 struct mtk_battery gm;
+int r_resistance_id;
 
 /* ============================================================ */
 /* gauge hal interface */
@@ -114,13 +116,11 @@ bool gauge_get_current(int *bat_current)
 int gauge_get_average_current(bool *valid)
 {
 	int iavg = 0;
-	int ver = gauge_get_hw_version();
 
 	if (is_fg_disabled())
 		iavg = 0;
 	else {
-		if (ver >= GAUGE_HW_V1000 &&
-			ver < GAUGE_HW_V2000)
+		if (gauge_get_hw_version() < GAUGE_HW_V1000)
 			iavg = gm.sw_iavg;
 		else
 		gauge_dev_get_average_current(gm.gdev, &iavg, valid);
@@ -145,28 +145,11 @@ int gauge_reset_hw(void)
 	if (is_fg_disabled())
 		return 0;
 
-	/* must handle sw_ncar before reset car */
-	fg_sw_bat_cycle_accu();
-	gm.bat_cycle_car = 0;
-
 	gauge_coulomb_before_reset();
 	gauge_dev_reset_hw(gm.gdev);
 	gauge_coulomb_after_reset();
 	get_monotonic_boottime(&gm.sw_iavg_time);
 	gm.sw_iavg_car = gauge_get_coulomb();
-
-	gm.bat_cycle_car = 0;
-
-	return 0;
-}
-
-int gauge_reset_ncar(void)
-{
-	gauge_dev_reset_ncar(gm.gdev);
-	gm.bat_cycle_ncar = 0;
-
-	bm_err("gauge_reset_ncar done, %d, version:%d\n",
-		gm.bat_cycle_ncar, gauge_get_hw_version());
 
 	return 0;
 }
@@ -185,13 +168,11 @@ int gauge_get_hwocv(void)
 
 int gauge_set_coulomb_interrupt1_ht(int car)
 {
-	bm_debug("gauge_set_coulomb_interrupt1_ht:%d\n", car);
 	return gauge_dev_set_coulomb_interrupt1_ht(gm.gdev, car);
 }
 
 int gauge_set_coulomb_interrupt1_lt(int car)
 {
-	bm_debug("gauge_set_coulomb_interrupt1_lt:%d\n", car);
 	return gauge_dev_set_coulomb_interrupt1_lt(gm.gdev, car);
 }
 
@@ -300,6 +281,9 @@ int gauge_enable_iavg_interrupt(bool ht_en, int ht_th,
 /* ============================================================ */
 /* custom setting */
 /* ============================================================ */
+static char battery_name[][27] = {"xiaomi-atl-4v4-3000mah","xiaomi-desay-4v4-3000mah","xiaomi-tws-4v4-3000mah","xiaomi-sunwoda-4v4-3000mah"};
+static int resistance_id[4] = {68000,82000,200000,330000};
+
 #ifdef MTK_GET_BATTERY_ID_BY_AUXADC
 void fgauge_get_profile_id(void)
 {
@@ -312,6 +296,7 @@ void fgauge_get_profile_id(void)
 		bm_debug("[fgauge_get_profile_id]id_volt read fail\n");
 	else
 		bm_debug("[fgauge_get_profile_id]id_volt = %d\n", id_volt);
+	printk("id_volt = %d\n",id_volt);
 
 	if ((sizeof(g_battery_id_voltage) /
 		sizeof(int)) != TOTAL_BATTERY_NUMBER) {
@@ -329,6 +314,11 @@ void fgauge_get_profile_id(void)
 	}
 
 	bm_debug("[fgauge_get_profile_id]Battery id (%d)\n", gm.battery_id);
+	printk("battery_name[%d] = %s\n",gm.battery_id,battery_name[gm.battery_id]);
+	r_resistance_id =  resistance_id[gm.battery_id];
+	hardwareinfo_set_prop(HARDWARE_BATTERY_ID,battery_name[gm.battery_id]);
+	if(gm.battery_id == 3)
+	gm.battery_id = 0;
 }
 #elif defined(MTK_GET_BATTERY_ID_BY_GPIO)
 void fgauge_get_profile_id(void)
@@ -351,7 +341,7 @@ void fgauge_get_profile_id(void)
 
 void fg_custom_init_from_header(void)
 {
-	int i, j;
+	int i;
 
 	fgauge_get_profile_id();
 
@@ -365,7 +355,6 @@ void fg_custom_init_from_header(void)
 			gm.hw_status.pl_charger_status;
 	}
 
-	fg_cust_data.daemon_log_level = BM_DAEMON_DEFAULT_LOG_LEVEL;
 	fg_cust_data.q_max_L_current = Q_MAX_L_CURRENT;
 	fg_cust_data.q_max_H_current = Q_MAX_H_CURRENT;
 	fg_cust_data.q_max_sys_voltage =
@@ -417,8 +406,6 @@ void fg_custom_init_from_header(void)
 		UNIT_TRANS_10 * DIFFERENCE_FULLOCV_ITH;
 	fg_cust_data.charge_pseudo_full_level = CHARGE_PSEUDO_FULL_LEVEL;
 	fg_cust_data.over_discharge_level = OVER_DISCHARGE_LEVEL;
-	fg_cust_data.full_tracking_bat_int2_multiply =
-		FULL_TRACKING_BAT_INT2_MULTIPLY;
 
 	/* pre tracking */
 	fg_cust_data.fg_pre_tracking_en = FG_PRE_TRACKING_EN;
@@ -459,9 +446,6 @@ void fg_custom_init_from_header(void)
 	fg_cust_data.shutdown_gauge0_voltage = SHUTDOWN_GAUGE0_VOLTAGE;
 	fg_cust_data.shutdown_gauge1_vbat_en = SHUTDOWN_GAUGE1_VBAT_EN;
 	fg_cust_data.shutdown_gauge1_vbat = SHUTDOWN_GAUGE1_VBAT;
-	fg_cust_data.power_on_car_chr = POWER_ON_CAR_CHR;
-	fg_cust_data.power_on_car_nochr = POWER_ON_CAR_NOCHR;
-	fg_cust_data.shutdown_car_ratio = SHUTDOWN_CAR_RATIO;
 
 	/* ZCV update */
 	fg_cust_data.zcv_suspend_time = ZCV_SUSPEND_TIME;
@@ -478,9 +462,6 @@ void fg_custom_init_from_header(void)
 	fg_cust_data.swocv_oldocv_diff_chr = SWOCV_OLDOCV_DIFF_CHR;
 	fg_cust_data.vbat_oldocv_diff = VBAT_OLDOCV_DIFF;
 	fg_cust_data.swocv_oldocv_diff_emb = SWOCV_OLDOCV_DIFF_EMB;
-	fg_cust_data.vir_oldocv_diff_emb = VIR_OLDOCV_DIFF_EMB;
-	fg_cust_data.vir_oldocv_diff_emb_lt = VIR_OLDOCV_DIFF_EMB_LT;
-	fg_cust_data.vir_oldocv_diff_emb_tmp = VIR_OLDOCV_DIFF_EMB_TMP;
 
 	fg_cust_data.pmic_shutdown_time = UNIT_TRANS_60 * PMIC_SHUTDOWN_TIME;
 	fg_cust_data.tnew_told_pon_diff = TNEW_TOLD_PON_DIFF;
@@ -509,9 +490,6 @@ void fg_custom_init_from_header(void)
 	fg_cust_data.battery_tmp_to_disable_gm30 = BATTERY_TMP_TO_DISABLE_GM30;
 	fg_cust_data.battery_tmp_to_disable_nafg = BATTERY_TMP_TO_DISABLE_NAFG;
 	fg_cust_data.battery_tmp_to_enable_nafg = BATTERY_TMP_TO_ENABLE_NAFG;
-
-	fg_cust_data.low_temp_mode = LOW_TEMP_MODE;
-	fg_cust_data.low_temp_mode_temp = LOW_TEMP_MODE_TEMP;
 
 	/* current limit for uisoc 100% */
 	fg_cust_data.ui_full_limit_en = UI_FULL_LIMIT_EN;
@@ -569,6 +547,29 @@ void fg_custom_init_from_header(void)
 
 	fg_table_cust_data.temperature_tb0 = TEMPERATURE_TB0;
 	fg_table_cust_data.temperature_tb1 = TEMPERATURE_TB1;
+
+	for (i = 0; i < MAX_TABLE_NUMBER; i++) {
+		fg_table_cust_data.fg_profile[i].temperature =
+			g_temperature[i];
+		fg_table_cust_data.fg_profile[i].q_max =
+			g_Q_MAX[i][gm.battery_id];
+		fg_table_cust_data.fg_profile[i].q_max_h_current =
+			g_Q_MAX_H_CURRENT[i][gm.battery_id];
+		fg_table_cust_data.fg_profile[i].pseudo1 =
+			UNIT_TRANS_100 * g_FG_PSEUDO1[i][gm.battery_id];
+		fg_table_cust_data.fg_profile[i].pseudo100 =
+			UNIT_TRANS_100 * g_FG_PSEUDO100[i][gm.battery_id];
+		fg_table_cust_data.fg_profile[i].pmic_min_vol =
+			g_PMIC_MIN_VOL[i][gm.battery_id];
+		fg_table_cust_data.fg_profile[i].pon_iboot =
+			g_PON_SYS_IBOOT[i][gm.battery_id];
+		fg_table_cust_data.fg_profile[i].qmax_sys_vol =
+			g_QMAX_SYS_VOL[i][gm.battery_id];
+		/* shutdown_hl_zcv */
+		fg_table_cust_data.fg_profile[i].shutdown_hl_zcv =
+			g_SHUTDOWN_HL_ZCV[i][gm.battery_id];
+	}
+
 
 	fg_table_cust_data.fg_profile[0].size =
 		sizeof(fg_profile_t0[gm.battery_id]) /
@@ -650,38 +651,6 @@ void fg_custom_init_from_header(void)
 			&fg_profile_t9[gm.battery_id],
 			sizeof(fg_profile_t9[gm.battery_id]));
 
-	for (i = 0; i < MAX_TABLE; i++) {
-		struct FUELGAUGE_PROFILE_STRUCT *p;
-
-		p = &fg_table_cust_data.fg_profile[i].fg_profile[0];
-
-		fg_table_cust_data.fg_profile[i].temperature =
-			g_temperature[i];
-		fg_table_cust_data.fg_profile[i].q_max =
-			g_Q_MAX[i][gm.battery_id];
-		fg_table_cust_data.fg_profile[i].q_max_h_current =
-			g_Q_MAX_H_CURRENT[i][gm.battery_id];
-		fg_table_cust_data.fg_profile[i].pseudo1 =
-			UNIT_TRANS_100 * g_FG_PSEUDO1[i][gm.battery_id];
-		fg_table_cust_data.fg_profile[i].pseudo100 =
-			UNIT_TRANS_100 * g_FG_PSEUDO100[i][gm.battery_id];
-		fg_table_cust_data.fg_profile[i].pmic_min_vol =
-			g_PMIC_MIN_VOL[i][gm.battery_id];
-		fg_table_cust_data.fg_profile[i].pon_iboot =
-			g_PON_SYS_IBOOT[i][gm.battery_id];
-		fg_table_cust_data.fg_profile[i].qmax_sys_vol =
-			g_QMAX_SYS_VOL[i][gm.battery_id];
-		/* shutdown_hl_zcv */
-		fg_table_cust_data.fg_profile[i].shutdown_hl_zcv =
-			g_SHUTDOWN_HL_ZCV[i][gm.battery_id];
-
-		for (j = 0; j < 100; j++)
-			if (p[j].resistance2 == 0)
-				p[j].resistance2 = p[j].resistance;
-
-	}
-
-
 	/* fg_custom_init_dump(); */
 
 
@@ -730,7 +699,6 @@ static void fg_custom_parse_table(const struct device_node *np,
 		profile_p->mah = mah;
 		profile_p->voltage = voltage;
 		profile_p->resistance = resistance;
-		profile_p->resistance2 = resistance;
 
 		profile_p++;
 		if ((idx++) >= (saddles * 3))
@@ -753,7 +721,6 @@ static void fg_custom_parse_table(const struct device_node *np,
 		profile_p->mah = mah;
 		profile_p->voltage = voltage;
 		profile_p->resistance = resistance;
-		profile_p->resistance2 = resistance;
 		idx = idx + 3;
 	}
 }
@@ -1006,7 +973,7 @@ void fg_custom_init_from_dts(struct platform_device *dev)
 		int i = 0;
 
 		if (!of_property_read_u32(np, "PMIC_MIN_VOL", &val)) {
-			for (i = 0; i < MAX_TABLE; i++)
+			for (i = 0; i < MAX_TABLE_NUMBER; i++)
 				fg_table_cust_data.fg_profile[i].pmic_min_vol =
 				(int)val;
 			bm_debug("Get PMIC_MIN_VOL: %d\n",
@@ -1016,7 +983,7 @@ void fg_custom_init_from_dts(struct platform_device *dev)
 		}
 
 		if (!of_property_read_u32(np, "POWERON_SYSTEM_IBOOT", &val)) {
-			for (i = 0; i < MAX_TABLE; i++)
+			for (i = 0; i < MAX_TABLE_NUMBER; i++)
 				fg_table_cust_data.fg_profile[i].pon_iboot =
 				(int)val * UNIT_TRANS_10;
 
@@ -1401,12 +1368,10 @@ void notify_fg_chr_full(void)
 
 	get_monotonic_boottime(&now_time);
 	difftime = timespec_sub(now_time, gm.chr_full_handler_time);
-	if (now_time.tv_sec <= 10 || difftime.tv_sec >= 10) {
 		gm.chr_full_handler_time = now_time;
 		bm_err("[fg_chr_full_int_handler]\n");
 		wakeup_fg_algo(FG_INTR_CHR_FULL);
 		fg_bat_temp_int_sw_check();
-	}
 }
 
 /* ============================================================ */
@@ -1499,6 +1464,7 @@ static void sw_iavg_init(void)
 	gm.sw_iavg_lt = gm.sw_iavg - gm.sw_iavg_gap;
 }
 
+int iavg4bugreport=0;//MTK wfq add for bugreport
 void fg_update_sw_iavg(void)
 {
 	struct timespec now_time, diff;
@@ -1520,6 +1486,7 @@ void fg_update_sw_iavg(void)
 			if (gauge_get_hw_version() < GAUGE_HW_V2000)
 				wakeup_fg_algo(FG_INTR_IAVG);
 		}
+		iavg4bugreport=gm.sw_iavg;//MTK wfq add for bugreport
 		bm_debug("[fg_update_sw_iavg]time:%ld car:%d %d iavg:%d ht:%d lt:%d gap:%d\n",
 			diff.tv_sec, fg_coulomb, gm.sw_iavg_car, gm.sw_iavg,
 			gm.sw_iavg_ht, gm.sw_iavg_lt, gm.sw_iavg_gap);
@@ -1635,11 +1602,10 @@ void fg_zcv_int_handler(void)
 	fg_coulomb = gauge_get_coulomb();
 	gauge_get_zcv_current(&zcv_intr_curr);
 	gauge_get_zcv(&zcv);
-	bm_err("[fg_zcv_int_handler] car:%d zcv_curr:%d zcv:%d, slp_cur_avg:%d\n",
-		fg_coulomb, zcv_intr_curr, zcv,
-		fg_cust_data.sleep_current_avg);
+	bm_err("[fg_zcv_int_handler] car:%d zcv_curr:%d zcv:%d\n",
+		fg_coulomb, zcv_intr_curr, zcv);
 
-	if (abs(zcv_intr_curr) < fg_cust_data.sleep_current_avg) {
+	if (abs(zcv_intr_curr) < SLEEP_CURRENT_AVG) {
 		wakeup_fg_algo(FG_INTR_FG_ZCV);
 		zcv_intr_en = 0;
 		gauge_set_zcv_interrupt_en(zcv_intr_en);
@@ -1653,46 +1619,6 @@ void fg_zcv_int_handler(void)
 /* ============================================================ */
 /* battery cycle interrupt handler */
 /* ============================================================ */
-void fg_sw_bat_cycle_accu(void)
-{
-	int diff_car = 0, tmp_car = 0, tmp_ncar = 0, tmp_thr = 0;
-	int fg_coulomb = 0;
-
-	fg_coulomb = gauge_get_coulomb();
-	tmp_car = gm.bat_cycle_car;
-	tmp_ncar = gm.bat_cycle_ncar;
-
-	diff_car = fg_coulomb - gm.bat_cycle_car;
-
-	if (diff_car > 0) {
-		bm_err("[fg_sw_bat_cycle_accu]ERROR!drop diff_car\n");
-		gm.bat_cycle_car = fg_coulomb;
-	} else {
-		gm.bat_cycle_ncar = gm.bat_cycle_ncar + abs(diff_car);
-		gm.bat_cycle_car = fg_coulomb;
-	}
-
-	gauge_dev_get_hw_status(gm.gdev, &gm.hw_status, 0);
-	bm_err("[fg_sw_bat_cycle_accu]car[o:%d n:%d],diff_car:%d,ncar[o:%d n:%d hw:%d] thr %d\n",
-		tmp_car, fg_coulomb, diff_car,
-		tmp_ncar, gm.bat_cycle_ncar, gm.gdev->fg_hw_info.ncar,
-		gm.bat_cycle_thr);
-
-	if (gauge_get_hw_version() >= GAUGE_HW_V1000 &&
-		gauge_get_hw_version() < GAUGE_HW_V2000) {
-		if (gm.bat_cycle_thr > 0 &&
-			gm.bat_cycle_ncar >= gm.bat_cycle_thr) {
-			tmp_ncar = gm.bat_cycle_ncar;
-			tmp_thr = gm.bat_cycle_thr;
-
-			gm.bat_cycle_ncar = 0;
-			wakeup_fg_algo(FG_INTR_BAT_CYCLE);
-			bm_err("[fg_cycle_int_handler] ncar:%d thr:%d\n",
-				tmp_ncar, tmp_thr);
-		}
-	}
-}
-
 void fg_cycle_int_handler(void)
 {
 	if (fg_interrupt_check() == false)
@@ -2000,8 +1926,6 @@ int fg_bat_int1_l_handler(struct gauge_consumer *consumer)
 
 	fg_coulomb = gauge_get_coulomb();
 
-	fg_sw_bat_cycle_accu();
-
 	gm.fg_bat_int1_ht = fg_coulomb + gm.fg_bat_int1_gap;
 	gm.fg_bat_int1_lt = fg_coulomb - gm.fg_bat_int1_gap;
 
@@ -2022,12 +1946,11 @@ int fg_bat_int1_l_handler(struct gauge_consumer *consumer)
 int fg_bat_int2_h_handler(struct gauge_consumer *consumer)
 {
 	int fg_coulomb = 0;
+
 	fg_coulomb = gauge_get_coulomb();
 	bm_err("[fg_bat_int2_h_handler] car:%d ht:%d\n",
 		fg_coulomb, gm.fg_bat_int2_ht);
 
-
-	fg_sw_bat_cycle_accu();
 	fg_bat_temp_int_sw_check();
 	wakeup_fg_algo(FG_INTR_BAT_INT2_HT);
 	sw_check_bat_plugout();
@@ -2042,8 +1965,6 @@ int fg_bat_int2_l_handler(struct gauge_consumer *consumer)
 	fg_coulomb = gauge_get_coulomb();
 	bm_err("[fg_bat_int2_l_handler] car:%d lt:%d\n",
 		fg_coulomb, gm.fg_bat_int2_lt);
-
-	fg_sw_bat_cycle_accu();
 
 	fg_bat_temp_int_sw_check();
 	wakeup_fg_algo(FG_INTR_BAT_INT2_LT);
@@ -2123,11 +2044,11 @@ void fg_drv_update_hw_status(void)
 		gm.sw_low_battery_lt_en,
 		gm.sw_low_battery_lt_threshold);
 
-	bm_err("car[%d,%ld,%ld,%ld,%ld, cycle_car:%d,ncar:%d] c:%d %d vbat:%d vbus:%d soc:%d %d gm3:%d %d %d %d\n",
+
+	bm_err("car[%d,%ld,%ld,%ld,%ld] c:%d %d vbat:%d vbus:%d soc:%d %d gm3:%d %d %d %d\n",
 		fg_coulomb, gm.coulomb_plus.end,
 		gm.coulomb_minus.end, gm.soc_plus.end,
 		gm.soc_minus.end,
-		gm.bat_cycle_car, gm.bat_cycle_ncar,
 		fg_current_state, fg_current, bat_vol, chr_vol,
 		battery_get_soc(), battery_get_uisoc(),
 		gm.disableGM30, fg_cust_data.disable_nafg,
@@ -2224,7 +2145,7 @@ void fg_daemon_send_data(
 	prcv = (struct fgd_cmd_param_t_6 *)rcv;
 	pret = (struct fgd_cmd_param_t_6 *)ret;
 
-	bm_trace("fg_daemon_send_data type:%d, tsize:%d size:%d idx:%d\n",
+	bm_err("fg_daemon_send_data type:%d, tsize:%d size:%d idx:%d\n",
 		prcv->type,
 		prcv->total_size,
 		prcv->size,
@@ -2324,19 +2245,6 @@ void fg_daemon_get_data(
 
 	}
 
-}
-
-void fg_cmd_check(struct fgd_nl_msg_t *msg)
-{
-	while (msg->fgd_subcmd == 0 &&
-		msg->fgd_subcmd_para1 != FGD_NL_MSG_T_HDR_LEN) {
-		bm_err("fuel gauge version cmd:%d %d error %d != %d\n",
-			msg->fgd_cmd,
-			msg->fgd_subcmd,
-			FGD_NL_MSG_T_HDR_LEN,
-			msg->fgd_subcmd_para1);
-		msleep(5000);
-	}
 }
 
 void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
@@ -2441,8 +2349,7 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 		{
 			int is_charger_exist = 0;
 
-			if (upmu_get_rgs_chrdet() == 0 ||
-				mt_usb_is_device() == 0)
+			if (upmu_get_rgs_chrdet() == 0)
 				is_charger_exist = false;
 			else
 				is_charger_exist = true;
@@ -2473,10 +2380,6 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 		{
 			memcpy(&gm.init_flag,
 				&msg->fgd_data[0], sizeof(gm.init_flag));
-
-			if (gm.init_flag == 1)
-				gauge_dev_set_info(gm.gdev,
-					GAUGE_SHUTDOWN_CAR, -99999);
 
 			bm_debug(
 				"[fr] FG_DAEMON_CMD_SET_INIT_FLAG = %d\n",
@@ -2529,9 +2432,6 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 
 	case FG_DAEMON_CMD_SET_DAEMON_PID:
 		{
-
-			fg_cmd_check(msg);
-
 			/* check is daemon killed case*/
 			if (gm.g_fgd_pid == 0) {
 				memcpy(&gm.g_fgd_pid, &msg->fgd_data[0],
@@ -2542,12 +2442,10 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 				memcpy(&gm.g_fgd_pid, &msg->fgd_data[0],
 					sizeof(gm.g_fgd_pid));
 				bm_err(
-					"[fr]FG_DAEMON_CMD_SET_DAEMON_PID=%d,kill daemon case, %d\n",
-					gm.g_fgd_pid,
-					get_ec()->debug_kill_daemontest);
+					"[fr]FG_DAEMON_CMD_SET_DAEMON_PID=%d,kill daemon case\n",
+					gm.g_fgd_pid);
 				/* kill daemon dod_init 14*/
-				if (get_ec()->debug_kill_daemontest != 1)
-					fg_cust_data.dod_init_sel = 14;
+				fg_cust_data.dod_init_sel = 14;
 			}
 
 		}
@@ -2593,7 +2491,6 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 
 	case FG_DAEMON_CMD_GET_DATA:
 		{
-			fg_cmd_check(msg);
 			fg_daemon_get_data(&msg->fgd_data[0],
 				&ret_msg->fgd_data[0]);
 			ret_msg->fgd_data_len =
@@ -2603,7 +2500,6 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 
 	case FG_DAEMON_CMD_GET_CUSTOM_SETTING:
 		{
-			fg_cmd_check(msg);
 			bm_err("[fr] data len:%d custom data length = %d\n",
 				(int)sizeof(fg_cust_data),
 				ret_msg->fgd_data_len);
@@ -3107,8 +3003,6 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 		bm_err(
 			"[fr] FG_DAEMON_CMD_SET_BATTERY_CYCLE_THRESHOLD = %d\n",
 			gm.bat_cycle_thr);
-
-		fg_sw_bat_cycle_accu();
 	}
 	break;
 
@@ -3121,7 +3015,7 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 
 	case FG_DAEMON_CMD_NCAR_RESET:
 	{
-		gauge_reset_ncar();
+		gauge_dev_reset_ncar(gm.gdev);
 		bm_debug("[fr] BATTERY_METER_CMD_NCAR_RESET\n");
 	}
 	break;
@@ -3242,54 +3136,12 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 
 	case FG_DAEMON_CMD_GET_HW_INFO:
 	{
-		int intr_no = 0;
-		int shutdown_car_diff = 0;
-		int cmdtype = 0;
+		int intr_no;
 
-		cmdtype = msg->fgd_subcmd_para1;
-		if (cmdtype == HW_INFO_SHUTDOWN_CAR) {
-			gauge_dev_get_info(gm.gdev, GAUGE_SHUTDOWN_CAR,
-				&shutdown_car_diff);
+		memcpy(&intr_no, &msg->fgd_data[0], sizeof(intr_no));
 
-			ret_msg->fgd_data_len += sizeof(shutdown_car_diff);
-			memcpy(ret_msg->fgd_data, &shutdown_car_diff,
-				sizeof(shutdown_car_diff));
-
-			bm_err("FG_DAEMON_CMD_GET_HW_INFO (GAUGE_SHUTDOWN_CAR): %d, cmdtype:%d\n",
-				shutdown_car_diff, cmdtype);
-		} else if (cmdtype == HW_INFO_NCAR) {
-			if (gauge_get_hw_version() >= GAUGE_HW_V1000 &&
-				gauge_get_hw_version() < GAUGE_HW_V2000) {
-
-				ret_msg->fgd_data_len +=
-					sizeof(gm.bat_cycle_ncar);
-
-				memcpy(ret_msg->fgd_data, &gm.bat_cycle_ncar,
-					sizeof(gm.bat_cycle_ncar));
-			} else {
-				/* TODO GM3 */
-				gauge_dev_get_hw_status(gm.gdev,
-					&gm.hw_status, intr_no);
-
-				ret_msg->fgd_data_len +=
-					sizeof(gm.gdev->fg_hw_info.ncar);
-
-				memcpy(ret_msg->fgd_data,
-					&gm.gdev->fg_hw_info.ncar,
-					sizeof(gm.gdev->fg_hw_info.ncar));
-			}
-
-			bm_trace(
-				"FG_DAEMON_CMD_GET_HW_INFO(NCAR):%d %d, cmdtype:%d\n",
-				gm.bat_cycle_ncar,
-				gm.gdev->fg_hw_info.ncar, cmdtype);
-
-		} else {
-			memcpy(&intr_no, &msg->fgd_data[0], sizeof(intr_no));
-			intr_no = gauge_dev_get_hw_status(gm.gdev,
-				&gm.hw_status, intr_no);
-		}
-
+		intr_no = gauge_dev_get_hw_status(gm.gdev,
+			&gm.hw_status, intr_no);
 		bm_trace(
 			"[fr] FG_DAEMON_CMD_GET_HW_INFO = %d\n", intr_no);
 	}
@@ -3350,43 +3202,13 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 			fg_cust_data.c_soc = daemon_soc;
 		else if (soc_type == 4)
 			fg_cust_data.v_soc = daemon_soc;
-		else if (soc_type == 6)
-			gm.d_saved_car = daemon_soc;
-		else if (soc_type == ALGO_AGING_FACTOR)
-			gm.aging_factor = daemon_soc;
-		else if (soc_type == ALGO_QMAX)
-			gm.algo_qmax = daemon_soc;
-		else if (soc_type == ALGO_BAT_CYCLES)
-			gm.bat_cycle = daemon_soc;
-		else if (soc_type == ALGO_NCAR)
-			gm.bat_cycle_ncar = daemon_soc;
-		else if (soc_type == ALGO_OCV_mah)
-			gm.algo_ocv_to_mah = daemon_soc;
-		else if (soc_type == ALGO_OCV_Vtemp)
-			gm.algo_vtemp = daemon_soc;
-		else if (soc_type == ALGO_OCV_SOC)
-			gm.algo_ocv_to_soc = daemon_soc;
 
 		if (soc_type == 4)
 			bm_err(
-			"[fg_res]FG_DAEMON_CMD_SET_KERNEL_SOC = %d %d %d %d %d %d %d qmax:%d, type:%d\n",
+			"[fg_res] FG_DAEMON_CMD_SET_KERNEL_SOC = %d %d %d %d %d %d, type:%d\n",
 			daemon_soc, gm.soc, fg_cust_data.c_old_d0,
 			fg_cust_data.v_old_d0, fg_cust_data.c_soc,
-			fg_cust_data.v_soc, gm.d_saved_car,
-			gm.algo_qmax, soc_type);
-
-		if (soc_type == ALGO_BAT_CYCLES ||
-			soc_type == ALGO_AGING_FACTOR ||
-			soc_type == ALGO_NCAR)
-			bm_err("[fg_res]FG_DAEMON_CMD_SET_KERNEL_SOC: type:%d ,aging:%d cycle %d ncar %d\n",
-				soc_type, gm.aging_factor, gm.bat_cycle,
-				gm.bat_cycle_ncar);
-
-		if (soc_type == ALGO_OCV_mah)
-			bm_err("[fg_res]FG_DAEMON_CMD_SET_KERNEL_SOC: v_temp %d ocv:%d mah %d soc%d\n",
-				gm.algo_vtemp, gm.algo_req_ocv,
-				gm.algo_ocv_to_mah, gm.algo_ocv_to_soc);
-
+			fg_cust_data.v_soc, soc_type);
 	}
 	break;
 
@@ -3398,12 +3220,6 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 
 		memcpy(&daemon_ui_soc, &msg->fgd_data[0],
 			sizeof(daemon_ui_soc));
-
-		if (daemon_ui_soc < 0) {
-			bm_err("FG_DAEMON_CMD_SET_KERNEL_UISOC error,daemon_ui_soc:%d\n",
-				daemon_ui_soc);
-			daemon_ui_soc = 0;
-		}
 
 		fg_cust_data.ui_old_soc = daemon_ui_soc;
 		old_uisoc = gm.ui_soc;
@@ -3535,7 +3351,6 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 
 	case FG_DAEMON_CMD_PRINT_LOG:
 	{
-		fg_cmd_check(msg);
 		bm_err("%s", &msg->fgd_data[0]);
 	}
 	break;
@@ -3562,7 +3377,7 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 		ret_msg->fgd_data_len += sizeof(rtc_ui_soc);
 		memcpy(ret_msg->fgd_data, &rtc_ui_soc,
 			sizeof(rtc_ui_soc));
-		bm_err("[fr] FG_DAEMON_CMD_GET_RTC_UI_SOC = %d\n",
+		bm_debug("[fr] FG_DAEMON_CMD_GET_RTC_UI_SOC = %d\n",
 			rtc_ui_soc);
 	}
 	break;
@@ -3572,14 +3387,6 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 		int rtc_ui_soc;
 
 		memcpy(&rtc_ui_soc, &msg->fgd_data[0], sizeof(rtc_ui_soc));
-
-		if (rtc_ui_soc < 0) {
-			bm_err("[fr]FG_DAEMON_CMD_SET_RTC_UI_SOC error,rtc_ui_soc=%d\n",
-				rtc_ui_soc);
-
-			rtc_ui_soc = 0;
-		}
-
 		gauge_dev_set_rtc_ui_soc(gm.gdev, rtc_ui_soc);
 		bm_debug(
 			"[fr] BATTERY_METER_CMD_SET_RTC_UI_SOC=%d\n",
@@ -3604,9 +3411,7 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 		gauge_dev_get_info(gm.gdev, GAUGE_CON0_SOC, &_soc);
 		ret_msg->fgd_data_len += sizeof(_soc);
 		memcpy(ret_msg->fgd_data, &_soc, sizeof(_soc));
-
-		bm_err("[fg_res] FG_DAEMON_CMD_GET_CON0_SOC = %d\n", _soc);
-
+		bm_debug("[fg_res] FG_DAEMON_CMD_GET_CON0_SOC = %d\n", _soc);
 	}
 	break;
 
@@ -3684,8 +3489,7 @@ void mtk_battery_init(struct platform_device *dev)
 {
 	gm.ui_soc = -1;
 	gm.log_level = BM_DAEMON_DEFAULT_LOG_LEVEL;
-
-	gm.fixed_uisoc = 0xffff;
+	gm.d_log_level = BM_DAEMON_DEFAULT_LOG_LEVEL;
 
 	gm.fg_bat_int1_ht = 0xffff;
 	gm.fg_bat_int1_lt = 0xffff;
@@ -3769,9 +3573,6 @@ void mtk_battery_init(struct platform_device *dev)
 			fg_cust_data.vbat2_det_counter,
 			fg_cust_data.vbat2_det_time * 1000,
 			fg_cust_data.vbat2_det_counter);
-
-			/* sw bat_cycle_car init */
-			gm.bat_cycle_car = gauge_get_coulomb();
 		}
 	}
 

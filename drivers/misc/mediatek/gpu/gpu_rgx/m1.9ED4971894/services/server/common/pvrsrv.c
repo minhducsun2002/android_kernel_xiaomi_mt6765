@@ -2,6 +2,7 @@
 @File
 @Title          core services functions
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
+ * Copyright (C) 2018 XiaoMi, Inc.
 @Description    Main APIs for core services functions
 @License        Dual MIT/GPLv2
 
@@ -798,7 +799,7 @@ PVRSRVDriverInit(void)
 							"pvr_defer_free",
 							CleanupThread,
 							gpsPVRSRVData,
-							OS_THREAD_LOWEST_PRIORITY);
+							OS_THREAD_HIGHEST_PRIORITY);
 	if (eError != PVRSRV_OK)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to create deferred cleanup thread",
@@ -1674,12 +1675,6 @@ PVRSRV_ERROR IMG_CALLCONV PVRSRVDeviceCreate(void *pvOSDevice,
 	PVR_DPF((PVR_DBG_MESSAGE, "Register bank address = 0x%08lx",
 			 (unsigned long)psDevConfig->sRegsCpuPBase.uiAddr));
 	PVR_DPF((PVR_DBG_MESSAGE, "IRQ = %d", psDevConfig->ui32IRQ));
-
-#if defined(SUPPORT_ALT_REGBASE)
-	PVR_LOG(("%s: Using alternate Register bank address: 0x%08lx (orig: 0x%08lx)", __func__,
-			 (unsigned long)psDevConfig->sAltRegsCpuPBase.uiAddr,
-			 (unsigned long)psDevConfig->sRegsCpuPBase.uiAddr));
-#endif
 
 	/* Finally insert the device into the dev-list and set it as active */
 	List_PVRSRV_DEVICE_NODE_InsertTail(&psPVRSRVData->psDeviceNodeList,

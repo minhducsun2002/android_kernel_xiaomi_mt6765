@@ -285,6 +285,10 @@ int __attribute__ ((weak)) get_dynamic_period(
 	/* pr_err("NO %s !!!\n", __func__); */
 	return 5401;
 }
+#ifdef WT_COMPILE_FACTORY_VERSION
+//wfq mtk alarm patch
+extern bool mtk_disable_rtc;
+#endif//WT_COMPILE_FACTORY_VERSION
 
 u32 __spm_get_wake_period(int pwake_time, unsigned int last_wr)
 {
@@ -306,7 +310,12 @@ u32 __spm_get_wake_period(int pwake_time, unsigned int last_wr)
 
 	if (period > 36 * 3600)	/* max period is 36.4 hours */
 		period = 36 * 3600;
-
+	#ifdef WT_COMPILE_FACTORY_VERSION
+	//wfq mtk alarm patch
+	if(mtk_disable_rtc)
+		period= 24 * 3600;
+	//wfq mtk alarm patch
+	#endif//WT_COMPILE_FACTORY_VERSION
 	return period;
 }
 

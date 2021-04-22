@@ -90,8 +90,7 @@ static void spin_bug(raw_spinlock_t *lock, const char *msg)
 		pr_info("maybe already unlocked or wrong owner or wrong CPU\n");
 		pr_info("maybe bad magic %08x, should be %08x\n",
 			lock->magic, SPINLOCK_MAGIC);
-		pr_info(">>>>>>>>>>>>>> Let's KE <<<<<<<<<<<<<<\n");
-		BUG_ON(1);
+		pr_info(">>>>>>>>>>>>>> Let's dump Kernel API <<<<<<<<<<<<<<\n");
 	}
 	aee_kernel_warning_api(__FILE__, __LINE__,
 		DB_OPT_DUMMY_DUMP | DB_OPT_FTRACE,
@@ -163,12 +162,19 @@ static void __spin_lock_debug(raw_spinlock_t *lock)
 		return;
 	}
 
+#ifdef CONFIG_PREEMPT_MONITOR
+	MT_trace_spin_lock_start(lock);
+#endif
+
 	t1 = sched_clock();
 	t2 = t1;
 
 	for (;;) {
 		for (i = 0; i < loops; i++) {
 			if (arch_spin_trylock(&lock->raw_lock)) {
+#ifdef CONFIG_PREEMPT_MONITOR
+				MT_trace_spin_lock_end(lock);
+#endif
 				return;
 			}
 			__delay(1);
@@ -211,10 +217,12 @@ static void __spin_lock_debug(raw_spinlock_t *lock)
 				owner->comm, owner->pid);
 				smp_call_function_single(lock->owner_cpu,
 					show_cpu_backtrace, NULL, 0);
+				if (debug_locks)
 					debug_show_held_locks(owner);
 			}
 
 			/* ensure debug_locks is true,then can call aee */
+			if (debug_locks) {
 				debug_show_all_locks();
 				snprintf(aee_str, 50,
 					"Spinlock lockup: %ps in %s\n",
@@ -224,6 +232,7 @@ static void __spin_lock_debug(raw_spinlock_t *lock)
 					DB_OPT_DUMMY_DUMP | DB_OPT_FTRACE,
 					aee_str, "spinlock debugger\n");
 				#endif
+			}
 		}
 	}
 #else /* CONFIG_MTK_LOCK_DEBUG*/

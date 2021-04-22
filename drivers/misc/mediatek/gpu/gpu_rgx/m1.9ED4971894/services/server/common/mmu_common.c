@@ -1138,9 +1138,6 @@ static INLINE PVRSRV_ERROR _SetupPTE(MMU_CONTEXT *psMMUContext,
 				uiAddr = psDevice->sTrampoline.sPhysAddr.uiAddr + RGXMIPSFW_TRAMPOLINE_OFFSET(uiAddr);
 			}
 #if !defined(LMA)
-	#if defined(CONFIG_MACH_MT6761)
-			/* Device physical address 0x0 is a valid address and can be used by the GPU */
-	#else
 			/* FIX_HW_BRN_63553 is mainlined for all MIPS cores */
 			else if (uiAddr == 0x0)
 			{
@@ -1148,7 +1145,6 @@ static INLINE PVRSRV_ERROR _SetupPTE(MMU_CONTEXT *psMMUContext,
 				PVR_DPF((PVR_DBG_ERROR, "%s attempt to map addr 0x0 in the FW with BRN63553 WA present.", __func__));
 				return PVRSRV_ERROR_MMU_FAILED_TO_MAP_PAGE_TABLE;
 			}
-	#endif
 #endif
 		}
 	}
@@ -2954,7 +2950,6 @@ MMU_MapPages(MMU_CONTEXT *psMMUContext,
 				HTBLOG_U64_BITS_HIGH(sDevVAddr.uiAddr), HTBLOG_U64_BITS_LOW(sDevVAddr.uiAddr),
 				HTBLOG_U64_BITS_HIGH(sDevPAddr.uiAddr), HTBLOG_U64_BITS_LOW(sDevPAddr.uiAddr));
 
-#if defined(CONFIG_MACH_MT6765)
 			if ((sDevPAddr.uiAddr < 0x40000000) ||
 (sDevPAddr.uiAddr > 0xc0000000 - 1))
 			ged_log_buf_print2(_mpu_ged_log,
@@ -2968,7 +2963,7 @@ GED_LOG_ATTR_TIME, "[0]PAddr=0x%llx", sDevPAddr.uiAddr);
 "%s: _SetupPTE out-of-range, sDevPAddr=0x%llx, sDevVAddr=0x%llx", __func__,
 sDevPAddr.uiAddr, sDevVAddr.uiAddr));
 			}
-#endif
+
 
 			eError = _SetupPTE(psMMUContext,
 			                   psLevel,
@@ -3385,7 +3380,6 @@ MMU_MapPMRFast (MMU_CONTEXT *psMMUContext,
 			HTBLOG_U64_BITS_HIGH(sDevVAddr.uiAddr), HTBLOG_U64_BITS_LOW(sDevVAddr.uiAddr),
 			HTBLOG_U64_BITS_HIGH(psDevPAddr[i].uiAddr), HTBLOG_U64_BITS_LOW(psDevPAddr[i].uiAddr));
 
-#if defined(CONFIG_MACH_MT6765)
 		if ((psDevPAddr[i].uiAddr < 0x40000000) ||
 (psDevPAddr[i].uiAddr > 0xc0000000 - 1))
 			ged_log_buf_print2(_mpu_ged_log,
@@ -3399,7 +3393,7 @@ GED_LOG_ATTR_TIME, "[1]PAddr=0x%llx", psDevPAddr[i].uiAddr);
 "%s: _SetupPTE out-of-range, psDevPAddr=0x%llx, sDevVAddr=0x%llx", __func__,
 psDevPAddr[i].uiAddr, sDevVAddr.uiAddr));
 		}
-#endif
+
 		/* Set the PT entry with the specified address and protection flags */
 		eError = _SetupPTE(psMMUContext, psLevel, uiPTEIndex,
 		                   psConfig, &psDevPAddr[i], IMG_FALSE,

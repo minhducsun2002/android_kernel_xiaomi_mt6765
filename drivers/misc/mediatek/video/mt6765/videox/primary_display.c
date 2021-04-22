@@ -185,7 +185,6 @@ static int od_need_start;
 /* dvfs */
 #ifdef MTK_FB_MMDVFS_SUPPORT
 static int dvfs_last_ovl_req = HRT_LEVEL_NUM - 1;
-static unsigned int ovl_throughput_freq_req;
 #endif
 
 /* delayed trigger */
@@ -1794,8 +1793,7 @@ static void directlink_path_add_memory(struct WDMA_CONFIG_STRUCT *p_wdma,
 	cmdqRecReset(cmdq_wait_handle);
 #ifdef MTK_FB_MMDVFS_SUPPORT
 	primary_display_request_dvfs_perf(MMDVFS_SCEN_DISP,
-		HRT_LEVEL_NUM - 1,
-		layering_rule_get_mm_freq_table(HRT_OPP_LEVEL_LEVEL0));
+		HRT_LEVEL_NUM - 1);
 #endif
 	/* configure config thread */
 	_cmdq_insert_wait_frame_done_token_mira(cmdq_handle);
@@ -2054,8 +2052,7 @@ static int _DL_switch_to_DC_fast(int block)
 
 	/* Switch to lower gear */
 #ifdef MTK_FB_MMDVFS_SUPPORT
-	primary_display_request_dvfs_perf(
-		MMDVFS_SCEN_DISP, HRT_LEVEL_LEVEL0, 0);
+	primary_display_request_dvfs_perf(MMDVFS_SCEN_DISP, HRT_LEVEL_LEVEL0);
 #endif
 	/* ddp_mmp_rdma_layer(&rdma_config, 0, 20, 20); */
 
@@ -2091,19 +2088,6 @@ static int _DL_switch_to_DC_fast(int block)
 	/* move ovl config info from dl to dc */
 	memcpy(data_config_dc->ovl_config, data_config_dl->ovl_config,
 	       sizeof(data_config_dl->ovl_config));
-
-	/* when entering idle , the path will switch from DL to DC.
-	 *  OVL0_2L->RSZ -> OVL0 wil be configed again, even there
-	 * is not be triggered. Howerver, there miss to sync rsz roi information
-	 */
-
-	memcpy(&data_config_dc->rsz_enable, &data_config_dl->rsz_enable,
-	       sizeof(data_config_dl->rsz_enable));
-	memcpy(&data_config_dc->rsz_src_roi, &data_config_dl->rsz_src_roi,
-			sizeof(data_config_dl->rsz_src_roi));
-	memcpy(&data_config_dc->rsz_dst_roi, &data_config_dl->rsz_dst_roi,
-			sizeof(data_config_dl->rsz_dst_roi));
-
 	data_config_dc->ovl_dirty = 1;
 	data_config_dc->p_golden_setting_context =
 		data_config_dl->p_golden_setting_context;
@@ -2210,9 +2194,7 @@ static int _DC_switch_to_DL_fast(int block)
 
 #ifdef MTK_FB_MMDVFS_SUPPORT
 	/* switch back to last request gear */
-	primary_display_request_dvfs_perf(
-		MMDVFS_SCEN_DISP, dvfs_last_ovl_req,
-		ovl_throughput_freq_req);
+	primary_display_request_dvfs_perf(MMDVFS_SCEN_DISP, dvfs_last_ovl_req);
 #endif
 
 	mmprofile_log_ex(ddp_mmp_get_events()->primary_switch_mode,
@@ -3255,7 +3237,7 @@ static int _ovl_fence_release_callback(unsigned long userdata)
 	if ((real_hrt_level >= dvfs_last_ovl_req) &&
 	    (!primary_display_is_decouple_mode()))
 		primary_display_request_dvfs_perf(MMDVFS_SCEN_DISP,
-			dvfs_last_ovl_req, ovl_throughput_freq_req);
+			dvfs_last_ovl_req);
 #endif
 	_primary_path_unlock(__func__);
 
@@ -3719,7 +3701,6 @@ int primary_display_init(char *lcm_name, unsigned int lcm_fps,
 	init_cmdq_slots(&(pgc->dsi_vfp_line), 1, 0);
 	init_cmdq_slots(&(pgc->night_light_params), 17, 0);
 	init_cmdq_slots(&(pgc->ovl_dummy_info), OVL_NUM, 0);
-	init_cmdq_slots(&(pgc->ovl_sbch_trans_invalid), OVL_NUM, 0);
 
 	/* init night light related variable */
 	mem_config.m_ccorr_config.is_dirty = 1;
@@ -4739,7 +4720,7 @@ done:
 	/* set MMDVFS to default, do not prevent it from stepping into ULPM */
 #ifdef MTK_FB_MMDVFS_SUPPORT
 	primary_display_request_dvfs_perf(MMDVFS_SCEN_DISP,
-		HRT_LEVEL_DEFAULT, 0);
+		HRT_LEVEL_DEFAULT);
 #endif
 	return ret;
 }
@@ -5909,7 +5890,7 @@ static bool disp_rsz_frame_has_rsz_layer(struct disp_frame_cfg_t *cfg)
 	}
 
 	path = HRT_GET_PATH_ID(HRT_GET_PATH_SCENARIO(cfg->overlap_layer_num));
-	if ((path != 2 && path != 3 && path != 4) && (rsz == true)) {
+	if ((path != 2 && path != 3) && (rsz == true)) {
 		struct disp_input_config *c = &cfg->input_cfg[i];
 
 		DISPERR("not RPO but L%d(%u,%u,%ux%u)->(%u,%u,%ux%u)\n",
@@ -5921,212 +5902,6 @@ static bool disp_rsz_frame_has_rsz_layer(struct disp_frame_cfg_t *cfg)
 	return rsz;
 }
 
-static void rsz_in_out_roi(struct disp_frame_cfg_t *cfg,
-				struct disp_ddp_path_config *data_config)
-{
-	int i = 0;
-	struct disp_rect dst_layer_roi = {0, 0, 0, 0};
-	struct disp_rect dst_total_roi = {0, 0, 0, 0};
-	struct disp_rect src_layer_roi = {0, 0, 0, 0};
-	struct disp_rect src_total_roi = {0, 0, 0, 0};
-	struct disp_input_config *input_cfg = NULL;
-
-	data_config->rsz_enable = FALSE;
-
-	for (i = 0; i < cfg->input_layer_num; i++) {
-
-		input_cfg = &cfg->input_cfg[i];
-
-		if (input_cfg->layer_enable) {
-
-			if (i == 0 &&
-				input_cfg->buffer_source == DISP_BUFFER_ALPHA)
-				continue;
-
-			if (input_cfg->src_width < input_cfg->tgt_width ||
-				input_cfg->src_height < input_cfg->tgt_height) {
-				rect_make(&src_layer_roi,
-					(input_cfg->tgt_offset_x
-					* input_cfg->src_width)
-					/ input_cfg->tgt_width,
-					(input_cfg->tgt_offset_y
-					* input_cfg->src_height)
-					/ input_cfg->tgt_height,
-					input_cfg->src_width,
-					input_cfg->src_height);
-				rect_make(&dst_layer_roi,
-					input_cfg->tgt_offset_x,
-					input_cfg->tgt_offset_y,
-					input_cfg->tgt_width,
-					input_cfg->tgt_height);
-				rect_join(&src_layer_roi,
-					&src_total_roi, &src_total_roi);
-				rect_join(&dst_layer_roi,
-					&dst_total_roi, &dst_total_roi);
-				data_config->rsz_enable = TRUE;
-			} else
-				break;
-		}
-	}
-
-	data_config->rsz_src_roi = src_total_roi;
-	data_config->rsz_dst_roi = dst_total_roi;
-
-	DISPINFO("RPO] rsz_src(x,y,w,h)=(%d,%d,%d,%d)\n",
-		data_config->rsz_src_roi.x,
-		data_config->rsz_src_roi.y,
-		data_config->rsz_src_roi.width,
-		data_config->rsz_src_roi.height);
-	DISPINFO("[RPO] rsz_dst(x,y,w,h)=(%d,%d,%d,%d)\n",
-		data_config->rsz_dst_roi.x,
-		data_config->rsz_dst_roi.y,
-		data_config->rsz_dst_roi.width,
-		data_config->rsz_dst_roi.height);
-}
-
-static int _is_overlap(struct disp_input_config *src,
-			       struct disp_input_config *dst)
-{
-	if ((src->tgt_offset_y + src->tgt_height <=
-			dst->tgt_offset_y) ||
-	    (dst->tgt_offset_y + dst->tgt_height <=
-		src->tgt_offset_y))
-		return 0;
-	else if ((src->tgt_offset_x + src->tgt_width <=
-			dst->tgt_offset_x) ||
-		(dst->tgt_offset_x + dst->tgt_width <=
-		src->tgt_offset_x))
-		return 0;
-
-	return 1;
-}
-
-/* This function can only check for YUV layer overlap*/
-/* Todo: modify this func to check YUV layer number */
-static int _is_yuv_overlap
-	(struct disp_frame_cfg_t *cfg)
-{
-	int i = 0, j = 0, is_yuv_overlap = 0;
-	unsigned int yuv_num = 0;
-	struct disp_input_config *yuv_cfg[cfg->input_layer_num];
-
-	/* input layer less than 2, have not YUV overlap */
-	if (cfg->input_layer_num < 2)
-		return 0;
-
-	/* filter YUV layer */
-	for (i = 0; i < cfg->input_layer_num; i++) {
-		struct disp_input_config *input_cfg = &cfg->input_cfg[i];
-		enum DISP_FORMAT src_fmt = input_cfg->src_fmt;
-
-		if (!input_cfg->layer_enable)
-			continue;
-
-		if (UFMT_GET_RGB(disp_fmt_to_unified_fmt(src_fmt)))
-			continue;
-		else {
-			yuv_cfg[yuv_num] = input_cfg;
-			yuv_num += 1;
-		}
-	}
-
-	/* YUV layer less than 2, have not YUV overlap */
-	if (yuv_num < 2)
-		return 0;
-
-	/* Calculate YUV overlap number */
-	for (i = 0; i < yuv_num - 1; i++)
-		for (j = i + 1; j < yuv_num; j++)
-			if (_is_overlap(yuv_cfg[i], yuv_cfg[j]))
-				is_yuv_overlap = 1;
-
-	DISPDBG("%s yuv_num=%d, is_yuv_overlap=%d\n",
-		__func__, yuv_num, is_yuv_overlap);
-	return is_yuv_overlap;
-}
-
-static void _ovl_yuv_throughput_freq_request
-	(struct disp_frame_cfg_t *cfg)
-{
-	int overlap_yuv_num = 0;
-	long long panel_height =
-		(long long)disp_helper_get_option(DISP_OPT_FAKE_LCM_HEIGHT);
-	long long panel_width =
-		(long long)disp_helper_get_option(DISP_OPT_FAKE_LCM_WIDTH);
-	unsigned long long blank_ratio = 0;
-	unsigned long long pixel_total = 0;
-	unsigned long long blank_field = 0;
-	struct LCM_PARAMS *lcm_param;
-	int throughput_freq = 0;
-	unsigned long long throughput_freq_temp = 0;
-	enum HRT_OPP_LEVEL mm_dvfs_level;
-
-	/* if have yuv layer overlap, the overlap_yuv_num = 2 */
-	/* this is a workaround for two MM layer overlap */
-	overlap_yuv_num = _is_yuv_overlap(cfg) + 1;
-
-	/* have not overlay yuv layer */
-	if (overlap_yuv_num < 2) {
-		ovl_throughput_freq_req = 0;
-		return;
-	}
-
-	/* calculate ovl throughput frequence */
-	lcm_param = disp_lcm_get_params(pgc->plcm);
-
-	blank_field = (long long int)(((panel_height +
-		(long long)lcm_param->dsi.horizontal_sync_active +
-		(long long)lcm_param->dsi.horizontal_backporch +
-		(long long)lcm_param->dsi.horizontal_frontporch) *
-		(panel_width +
-		(long long)lcm_param->dsi.vertical_sync_active +
-		(long long)lcm_param->dsi.vertical_backporch +
-		(long long)lcm_param->dsi.vertical_frontporch)) -
-		(panel_height * panel_width));
-
-	pixel_total = panel_height * panel_width;
-
-	blank_ratio = blank_field * 10000;
-
-	if (pixel_total == 0) {
-		DISPERR(
-			"width or height of panel is 0! width=%lld, height=%lld\n",
-			panel_width, panel_height);
-		return;
-	}
-
-	do_div(blank_ratio, pixel_total);
-
-	throughput_freq_temp = panel_height * panel_width * overlap_yuv_num *
-		60 * (10000 + blank_ratio) * 10500;
-
-	do_div(throughput_freq_temp, 10000);
-	do_div(throughput_freq_temp, 10000);
-	do_div(throughput_freq_temp, 1000000);
-
-	throughput_freq = (int)throughput_freq_temp;
-
-	DISPDBG("%s throughput_freq=%d\n", __func__, throughput_freq);
-
-	/* Request MM freq, ensure MM Freq more than ovl throughput freq */
-	for (mm_dvfs_level = HRT_OPP_LEVEL_NUM - 1;
-		mm_dvfs_level >= HRT_OPP_LEVEL_LEVEL0;
-		mm_dvfs_level--) {
-		if (throughput_freq <
-				layering_rule_get_mm_freq_table
-					(mm_dvfs_level)) {
-			pm_qos_update_request(&primary_display_mm_freq_request,
-				layering_rule_get_mm_freq_table(mm_dvfs_level));
-			DISPDBG("%s request_mm_freq=%d\n",
-				__func__,
-				layering_rule_get_mm_freq_table(mm_dvfs_level));
-			ovl_throughput_freq_req =
-				layering_rule_get_mm_freq_table(mm_dvfs_level);
-			break;
-		}
-		ovl_throughput_freq_req = 0;
-	}
-}
 
 static int _config_ovl_input(struct disp_frame_cfg_t *cfg,
 			     disp_path_handle disp_handle,
@@ -6161,8 +5936,6 @@ static int _config_ovl_input(struct disp_frame_cfg_t *cfg,
 
 	if (disp_rsz_frame_has_rsz_layer(cfg))
 		assign_full_lcm_roi(&total_dirty_roi);
-
-	rsz_in_out_roi(cfg, data_config);
 
 	for (i = 0; i < cfg->input_layer_num; i++) {
 		struct disp_input_config *input_cfg = &cfg->input_cfg[i];
@@ -6228,8 +6001,7 @@ static int _config_ovl_input(struct disp_frame_cfg_t *cfg,
 			hrt_level, HRT_LEVEL_NUM - 1);
 	if ((hrt_level - dvfs_last_ovl_req) > 0 &&
 		(!primary_display_is_decouple_mode()))
-		primary_display_request_dvfs_perf(
-			MMDVFS_SCEN_DISP, hrt_level, 0);
+		primary_display_request_dvfs_perf(MMDVFS_SCEN_DISP, hrt_level);
 
 	dvfs_last_ovl_req = hrt_level;
 #endif
@@ -6315,26 +6087,22 @@ static int _config_ovl_input(struct disp_frame_cfg_t *cfg,
 	}
 
 #ifdef MTK_FB_MMDVFS_SUPPORT
-	/* Adjust MM DVFS by ovl YUV throughput */
-	_ovl_yuv_throughput_freq_request(cfg);
-
-	/* display hrt request*/
 	if (primary_display_is_decouple_mode() &&
 		primary_display_is_mirror_mode()) {
 		/* if DCMirror mode(WFD/ScreenRecord), */
 		/* forced set dvfs to opp0 */
 		primary_display_request_dvfs_perf(MMDVFS_SCEN_DISP,
-			HRT_LEVEL_LEVEL3, ovl_throughput_freq_req);
+			HRT_LEVEL_LEVEL3);
 		dvfs_last_ovl_req = HRT_LEVEL_LEVEL3;
 	} else if (hrt_level > HRT_LEVEL_LEVEL2 &&
 		primary_display_is_directlink_mode()) {
 		primary_display_request_dvfs_perf(MMDVFS_SCEN_DISP,
-			HRT_LEVEL_LEVEL3, ovl_throughput_freq_req);
+			HRT_LEVEL_LEVEL3);
 		dvfs_last_ovl_req = HRT_LEVEL_LEVEL3;
 	} else if (hrt_level > HRT_LEVEL_LEVEL1 &&
 		primary_display_is_directlink_mode()) {
 		primary_display_request_dvfs_perf(MMDVFS_SCEN_DISP,
-			HRT_LEVEL_LEVEL2, ovl_throughput_freq_req);
+			HRT_LEVEL_LEVEL2);
 		dvfs_last_ovl_req = HRT_LEVEL_LEVEL2;
 	} else if (hrt_level > HRT_LEVEL_LEVEL0) {
 		dvfs_last_ovl_req = HRT_LEVEL_LEVEL1;
@@ -6591,22 +6359,12 @@ static int _config_ovl_input(struct disp_frame_cfg_t *cfg,
 			pgc->subtractor_when_free, layer, sub);
 	}
 
-	/* GCE read ovl register about
-	 * full transparent layer & trans invalid status
-	 */
+	/* GCE read ovl register about full transparent layer */
 	for (i = 0; i < OVL_NUM; i++) {
 		if (data_config->read_dum_reg[i]) {
 			unsigned long ovl_base = ovl_base_addr(i);
 
 			data_config->read_dum_reg[i] = 0;
-
-			/* trans invalid status */
-			cmdqRecBackupRegisterToSlot(cmdq_handle,
-				pgc->ovl_sbch_trans_invalid, i,
-				disp_addr_convert
-				(DISP_REG_OVL_SBCH_CON + ovl_base));
-
-			/* full transparent layer */
 			cmdqRecBackupRegisterToSlot(cmdq_handle,
 				pgc->ovl_dummy_info, i,
 				disp_addr_convert
@@ -9420,5 +9178,82 @@ int primary_display_set_scenario(int scenario)
 			ret = primary_display_exit_self_refresh();
 	}
 
+	return ret;
+}
+
+int _set_cabc_by_cmdq(unsigned int enable)
+{
+	int ret = 0;
+	struct cmdqRecStruct *cmdq_handle_cabc = NULL;
+
+	ret = cmdqRecCreate(CMDQ_SCENARIO_PRIMARY_DISP, &cmdq_handle_cabc);
+	DISPDBG("primary cabc, handle=%p\n", cmdq_handle_cabc);
+	if (ret) {
+		DISPWARN("fail to create primary cmdq handle for cabc\n");
+		return -1;
+	}
+
+	if (primary_display_is_video_mode()) {
+		cmdqRecReset(cmdq_handle_cabc);
+		_cmdq_insert_wait_frame_done_token_mira(cmdq_handle_cabc);
+		disp_lcm_set_cabc(pgc->plcm, cmdq_handle_cabc, enable);
+		_cmdq_flush_config_handle_mira(cmdq_handle_cabc, 1);
+		DISPMSG("[BL]_set_backlight_by_cmdq ret=%d\n", ret);
+	} else {
+		cmdqRecReset(cmdq_handle_cabc);
+		cmdqRecWait(cmdq_handle_cabc, CMDQ_SYNC_TOKEN_CABC_EOF);
+		_cmdq_handle_clear_dirty(cmdq_handle_cabc);
+		_cmdq_insert_wait_frame_done_token_mira(cmdq_handle_cabc);
+		disp_lcm_set_backlight(pgc->plcm, cmdq_handle_cabc, enable);
+		cmdqRecSetEventToken(cmdq_handle_cabc,
+			CMDQ_SYNC_TOKEN_CONFIG_DIRTY);
+		cmdqRecSetEventToken(cmdq_handle_cabc,
+			CMDQ_SYNC_TOKEN_CABC_EOF);
+		_cmdq_flush_config_handle_mira(cmdq_handle_cabc, 1);
+		DISPMSG("[BL]_set_backlight_by_cmdq ret=%d\n", ret);
+	}
+	cmdqRecDestroy(cmdq_handle_cabc);
+	cmdq_handle_cabc = NULL;
+	mmprofile_log_ex(ddp_mmp_get_events()->primary_set_bl,
+		MMPROFILE_FLAG_PULSE, 1, 5);
+
+	return ret;
+}
+
+int primary_display_set_cabc(unsigned int enable)
+{
+	int ret = 0;
+	static unsigned int last_status;
+
+	DISPFUNC();
+	_primary_path_switch_dst_lock();
+	_primary_path_lock(__func__);
+	if (pgc->state == DISP_SLEPT) {
+		DISPWARN("Sleep State set CABC invald\n");
+	} else {
+		primary_display_idlemgr_kick(__func__, 0);
+		if (primary_display_cmdq_enabled()) {
+			_set_cabc_by_cmdq(enable);
+			atomic_set(&delayed_trigger_kick, 1);
+		} else {
+			DISPWARN("CAMQ disbaled, not support set CABC\n");
+		}
+		last_status = enable;
+	}
+	_primary_path_unlock(__func__);
+	_primary_path_switch_dst_unlock();
+	return ret;
+}
+
+int primary_display_get_cabc(int *status)
+{
+	int ret = 0;
+
+	if (pgc->state == DISP_SLEPT) {
+		DISPWARN("Sleep State get CABC invald\n");
+	} else {
+		ret = disp_lcm_get_cabc(pgc->plcm, status);
+
+	}
 	return ret;
 }

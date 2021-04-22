@@ -266,6 +266,32 @@ static int mt6370_set_level(int channel, int level)
 	return 0;
 }
 
+/* set flashlight node */
+int mt6370_flashlight_strobe_node(int level)
+{
+	int ret = 0;
+
+	if (!flashlight_dev_ch1 || !flashlight_dev_ch2) {
+		pr_err("Failed to enable since no flashlight device.\n");
+		return -1;
+	}
+
+	if (level > 0) {
+		/* enable channel 1*/
+		mt6370_set_level_ch1(6);
+		ret |= flashlight_set_mode(flashlight_dev_ch1, FLASHLIGHT_MODE_TORCH);
+	} else {
+		/* disable channel 1*/
+		ret |= flashlight_set_mode(flashlight_dev_ch1, FLASHLIGHT_MODE_OFF);
+	}
+
+	if (ret < 0)
+		pr_err("Failed to enable.\n");
+
+	return ret;
+}
+EXPORT_SYMBOL(mt6370_flashlight_strobe_node);
+
 static int mt6370_set_scenario(int scenario)
 {
 	/* set decouple mode */
@@ -430,8 +456,7 @@ static int mt6370_operate(int channel, int enable)
 			mt6370_timer_cancel(MT6370_CHANNEL_CH1);
 			mt6370_timer_cancel(MT6370_CHANNEL_CH2);
 		} else {
-			if (mt6370_timeout_ms[MT6370_CHANNEL_CH1] &&
-				mt6370_en_ch1 != MT6370_DISABLE) {
+			if (mt6370_timeout_ms[MT6370_CHANNEL_CH1]) {
 				s = mt6370_timeout_ms[MT6370_CHANNEL_CH1] /
 					1000;
 				ns = mt6370_timeout_ms[MT6370_CHANNEL_CH1] %
@@ -439,8 +464,7 @@ static int mt6370_operate(int channel, int enable)
 				ktime = ktime_set(s, ns);
 				mt6370_timer_start(MT6370_CHANNEL_CH1, ktime);
 			}
-			if (mt6370_timeout_ms[MT6370_CHANNEL_CH2] &&
-				mt6370_en_ch2 != MT6370_DISABLE) {
+			if (mt6370_timeout_ms[MT6370_CHANNEL_CH2]) {
 				s = mt6370_timeout_ms[MT6370_CHANNEL_CH2] /
 					1000;
 				ns = mt6370_timeout_ms[MT6370_CHANNEL_CH2] %

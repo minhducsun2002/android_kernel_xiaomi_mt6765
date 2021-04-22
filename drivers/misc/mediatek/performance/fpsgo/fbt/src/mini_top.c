@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2018 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -36,7 +37,7 @@
 
 
 /* 32 ms based */
-#define _ALIVE_THRS			((u64)(0x1 << (30)))
+#define _ALIVE_THRS			((u64)(0x1 << (25 + 1)))
 
 
 

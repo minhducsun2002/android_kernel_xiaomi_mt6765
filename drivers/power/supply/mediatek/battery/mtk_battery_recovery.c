@@ -847,9 +847,6 @@ void fgr_construct_battery_profile(int table_idx)
 		}
 	}
 
-	if (i > (ptable->active_table_number - 1))
-		i = ptable->active_table_number - 1;
-
 	if (is_ascending) {
 		low_profile_p =
 			fg_get_profile(
@@ -920,10 +917,6 @@ void fgr_construct_battery_profile(int table_idx)
 		temp_profile_p[i].resistance =
 		interpolation(low_temp, low_profile_p[i].resistance,
 		high_temp, high_profile_p[i].resistance, temperature);
-		temp_profile_p[i].resistance2 =
-		interpolation(low_temp, low_profile_p[i].resistance2,
-		high_temp, high_profile_p[i].resistance2, temperature);
-
 	}
 
 	if (table_idx == ptable->temperature_tb0) {
@@ -1918,23 +1911,12 @@ void fgr_dod_init(void)
 
 	if (rtc_ui_soc == 0 || con0_soc == 0) {
 		rtc_ui_soc = OCV_to_SOC_c(init_swocv);
+		ui_d0_soc = rtc_ui_soc;
 		fg_c_d0_soc = rtc_ui_soc;
-
-		if (rtc_ui_soc < 0) {
-			bm_err("[dod_init_recovery]rtcui<0,set to 0,rtc_ui_soc:%d fg_c_d0_soc:%d\n",
-				rtc_ui_soc, fg_c_d0_soc);
-
-			rtc_ui_soc = 0;
-		}
-
-		ui_d0_soc = rtc_ui_soc;
-		bm_err("[dod_init_recovery]rtcui=0 case,init_swocv=%d,OCV_to_SOC_c=%d ui:[%d %d] con0_soc=[%d %d]\n",
-			init_swocv, fg_c_d0_soc,
-			ui_d0_soc, rtc_ui_soc,
-			con0_soc, con0_uisoc);
-
+		bm_err("[dod_init_recovery]rtcui=0,init_swocv=%d,OCV_to_SOC=%d ui:%d con0_soc=%d\n",
+			init_swocv, rtc_ui_soc, ui_d0_soc, con0_soc);
 	} else {
-		ui_d0_soc = rtc_ui_soc;
+	ui_d0_soc = rtc_ui_soc;
 		fg_c_d0_soc = UNIT_TRANS_100 * con0_soc;
 	}
 

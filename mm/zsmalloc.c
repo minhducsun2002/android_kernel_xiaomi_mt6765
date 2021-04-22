@@ -2,6 +2,7 @@
  * zsmalloc memory allocator
  *
  * Copyright (C) 2011  Nitin Gupta
+ * Copyright (C) 2018 XiaoMi, Inc.
  * Copyright (C) 2012, 2013 Minchan Kim
  *
  * This code is released using a dual license strategy: BSD/GPL
@@ -115,7 +116,7 @@
 #define OBJ_TAG_BITS 1
 #if BITS_PER_LONG == 32
 /* minus 1 bit for large DRAM (>3GB) */
-#define OBJ_INDEX_BITS	(BITS_PER_LONG - _PFN_BITS - OBJ_TAG_BITS - 1)
+#define OBJ_INDEX_BITS (BITS_PER_LONG - _PFN_BITS - OBJ_TAG_BITS - 1)
 #else
 #define OBJ_INDEX_BITS	(BITS_PER_LONG - _PFN_BITS - OBJ_TAG_BITS)
 #endif

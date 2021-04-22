@@ -3,6 +3,7 @@
  *
  * Based on ideas and code from CFQ, CFS and BFQ:
  * Copyright (C) 2003 Jens Axboe <axboe@kernel.dk>
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * Copyright (C) 2008 Fabio Checconi <fabio@gandalf.sssup.it>
  *		      Paolo Valente <paolo.valente@unimore.it>
@@ -184,7 +185,7 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 		goto err_free_blkg;
 	}
 
-	wb_congested = wb_congested_get_create(q->backing_dev_info,
+	wb_congested = wb_congested_get_create(&q->backing_dev_info,
 					       blkcg->css.id, GFP_NOWAIT);
 	if (!wb_congested) {
 		ret = -ENOMEM;
@@ -468,8 +469,8 @@ static int blkcg_reset_stats(struct cgroup_subsys_state *css,
 const char *blkg_dev_name(struct blkcg_gq *blkg)
 {
 	/* some drivers (floppy) instantiate a queue w/o disk registered */
-	if (blkg->q->backing_dev_info->dev)
-		return dev_name(blkg->q->backing_dev_info->dev);
+	if (blkg->q->backing_dev_info.dev)
+		return dev_name(blkg->q->backing_dev_info.dev);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(blkg_dev_name);

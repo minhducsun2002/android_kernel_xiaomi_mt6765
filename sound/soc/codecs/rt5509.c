@@ -338,6 +338,75 @@ static inline int rt5509_power_on(struct rt5509_chip *chip, bool en)
 	return ret;
 }
 
+static int rt5509_set_bias_level(struct snd_soc_codec *codec,
+	enum snd_soc_bias_level level)
+{
+	struct rt5509_chip *chip = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	int ret = 0;
+
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+	case SND_SOC_BIAS_PREPARE:
+		dapm->bias_level = level;
+		break;
+	case SND_SOC_BIAS_STANDBY:
+		if (dapm->bias_level != SND_SOC_BIAS_OFF) {
+			dapm->bias_level = level;
+			break;
+		}
+		ret = rt5509_power_on(chip, true);
+		if (ret < 0)
+			goto out_set_bias;
+		ret = snd_soc_update_bits(codec, RT5509_REG_DSPKCONF5,
+			RT5509_VBG_ENMASK, RT5509_VBG_ENMASK);
+		if (ret < 0)
+			goto out_set_bias;
+		ret = snd_soc_update_bits(codec, RT5509_REG_DSPKEN1,
+			RT5509_BIAS_ENMASK, RT5509_BIAS_ENMASK);
+		if (ret < 0)
+			goto out_set_bias;
+		ret = snd_soc_write(codec, RT5509_REG_BST_MODE,
+				    chip->mode_store);
+		if (ret < 0)
+			goto out_set_bias;
+		dapm->bias_level = level;
+		ret = 0;
+		break;
+	case SND_SOC_BIAS_OFF:
+		ret = snd_soc_read(codec, RT5509_REG_BST_MODE);
+		if (ret < 0)
+			goto out_set_bias;
+		chip->mode_store = ret;
+		ret = snd_soc_update_bits(codec, RT5509_REG_BST_MODE,
+					  0x03, 0x00);
+		if (ret < 0)
+			goto out_set_bias;
+		ret = snd_soc_update_bits(codec, RT5509_REG_DSPKEN1,
+			RT5509_BIAS_ENMASK, ~RT5509_BIAS_ENMASK);
+		if (ret < 0)
+			goto out_set_bias;
+		ret = snd_soc_update_bits(codec, RT5509_REG_DSPKCONF5,
+			RT5509_VBG_ENMASK, ~RT5509_VBG_ENMASK);
+		if (ret < 0)
+			goto out_set_bias;
+		ret = snd_soc_read(codec, RT5509_REG_INTERRUPT);
+		if (ret < 0)
+			goto out_set_bias;
+		ret = rt5509_power_on(chip, false);
+		if (ret < 0)
+			goto out_set_bias;
+		dapm->bias_level = level;
+		ret = 0;
+		break;
+	default:
+		ret = -EINVAL;
+	}
+out_set_bias:
+	dev_info(codec->dev, "%s: bias_level %d\n", __func__, level);
+	return ret;
+}
+
 static int rt5509_init_battmode_setting(struct snd_soc_codec *codec)
 {
 	int i = 0, ret = 0;
@@ -702,89 +771,6 @@ static void rt5509_param_destroy(struct rt5509_chip *chip)
 {
 	platform_device_unregister(chip->pdev);
 	platform_driver_unregister(&rt5509_param_driver);
-}
-
-static int rt5509_set_bias_level(struct snd_soc_codec *codec,
-	enum snd_soc_bias_level level)
-{
-	struct rt5509_chip *chip = snd_soc_codec_get_drvdata(codec);
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	int ret = 0;
-
-	switch (level) {
-	case SND_SOC_BIAS_ON:
-	case SND_SOC_BIAS_PREPARE:
-		dapm->bias_level = level;
-		break;
-	case SND_SOC_BIAS_STANDBY:
-		if (dapm->bias_level != SND_SOC_BIAS_OFF) {
-			dapm->bias_level = level;
-			break;
-		}
-		ret = rt5509_power_on(chip, true);
-		if (ret < 0)
-			goto out_set_bias;
-		ret = snd_soc_read(codec, RT5509_REG_DSPKIBCONF2);
-		if (ret < 0) {
-			dev_err(codec->dev, "read reg for check fail\n");
-			goto out_set_bias;
-		}
-		if ((ret & 0x03) == 0x00)
-			goto bypass_reinitial;
-		dev_warn(codec->dev, "amp abnormal reset, reinitial\n");
-		rt5509_init_general_setting(codec);
-		rt5509_init_adaptive_setting(codec);
-		rt5509_init_battmode_setting(codec);
-		rt5509_do_tcsense_fix(codec);
-		rt5509_init_proprietary_setting(codec);
-bypass_reinitial:
-		ret = snd_soc_update_bits(codec, RT5509_REG_DSPKCONF5,
-			RT5509_VBG_ENMASK, RT5509_VBG_ENMASK);
-		if (ret < 0)
-			goto out_set_bias;
-		ret = snd_soc_update_bits(codec, RT5509_REG_DSPKEN1,
-			RT5509_BIAS_ENMASK, RT5509_BIAS_ENMASK);
-		if (ret < 0)
-			goto out_set_bias;
-		ret = snd_soc_write(codec, RT5509_REG_BST_MODE,
-				    chip->mode_store);
-		if (ret < 0)
-			goto out_set_bias;
-		dapm->bias_level = level;
-		ret = 0;
-		break;
-	case SND_SOC_BIAS_OFF:
-		ret = snd_soc_read(codec, RT5509_REG_BST_MODE);
-		if (ret < 0)
-			goto out_set_bias;
-		chip->mode_store = ret;
-		ret = snd_soc_update_bits(codec, RT5509_REG_BST_MODE,
-					  0x03, 0x00);
-		if (ret < 0)
-			goto out_set_bias;
-		ret = snd_soc_update_bits(codec, RT5509_REG_DSPKEN1,
-			RT5509_BIAS_ENMASK, ~RT5509_BIAS_ENMASK);
-		if (ret < 0)
-			goto out_set_bias;
-		ret = snd_soc_update_bits(codec, RT5509_REG_DSPKCONF5,
-			RT5509_VBG_ENMASK, ~RT5509_VBG_ENMASK);
-		if (ret < 0)
-			goto out_set_bias;
-		ret = snd_soc_read(codec, RT5509_REG_INTERRUPT);
-		if (ret < 0)
-			goto out_set_bias;
-		ret = rt5509_power_on(chip, false);
-		if (ret < 0)
-			goto out_set_bias;
-		dapm->bias_level = level;
-		ret = 0;
-		break;
-	default:
-		ret = -EINVAL;
-	}
-out_set_bias:
-	dev_info(codec->dev, "%s: bias_level %d\n", __func__, level);
-	return ret;
 }
 
 static int rt5509_codec_probe(struct snd_soc_codec *codec)

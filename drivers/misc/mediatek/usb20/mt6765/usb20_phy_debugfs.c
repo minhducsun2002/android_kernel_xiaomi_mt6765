@@ -472,7 +472,7 @@ static int rg_usb20_rev6_open(struct inode *inode, struct file *file)
 	return single_open(file, rg_usb20_rev6_show, inode->i_private);
 }
 
-void val_to_bstring_width3(long val, char *str)
+void val_to_bstring_width3(u8 val, char *str)
 {
 
 	if (val == VAL_0_WIDTH_3)
@@ -492,7 +492,7 @@ void val_to_bstring_width3(long val, char *str)
 	if (val == VAL_7_WIDTH_3)
 		memcpy(str, STRNG_7_WIDTH_3, BIT_WIDTH_3 + 1);
 
-	pr_notice("MTK_ICUSB [DBG], <%s(), %d> val(%lu), str(%s)\n",
+	pr_notice("MTK_ICUSB [DBG], <%s(), %d> val(%d), str(%s)\n",
 				__func__, __LINE__, val, str);
 }
 
@@ -501,7 +501,7 @@ static ssize_t usb_driving_capability_write(struct file *file,
 					    size_t count, loff_t *ppos)
 {
 	char buf[18];
-	long val, tmp_val;
+	u8 val, tmp_val;
 	char str_rg_usb20_term_vref_sel[18], str_rg_usb20_vrt_vref_sel[18];
 
 	memset(buf, 0x00, sizeof(buf));
@@ -509,23 +509,23 @@ static ssize_t usb_driving_capability_write(struct file *file,
 	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
 
-	if (kstrtol(buf, 10, &val) != 0) {
+	if (kstrtol(buf, 10, (long *)&val) != 0) {
 		pr_notice("MTK_ICUSB [DBG], <%s(), %d> kstrtol, err(%d)\n)\n",
-			__func__, __LINE__, kstrtol(buf, 10, &val));
+			__func__, __LINE__, kstrtol(buf, 10, (long *)&val));
 		return count;
 	}
-	pr_notice("MTK_ICUSB [DBG], <%s(), %d> kstrtol, val(%lu)\n)\n",
+	pr_notice("MTK_ICUSB [DBG], <%s(), %d> kstrtol, val(%d)\n)\n",
 					__func__, __LINE__, val);
 
 	if (val > VAL_7_WIDTH_3 * 2) {
-		pr_notice("MTK_ICUSB [DBG], <%s(), %d> wrong val set(%lu), direct return\n",
+		pr_notice("MTK_ICUSB [DBG], <%s(), %d> wrong val set(%d), direct return\n",
 					__func__, __LINE__, val);
 		return count;
 	}
 	tmp_val = val;
 	val /= 2;
 
-	pr_notice("MTK_ICUSB [DBG], <%s(), %d> val(%lu), tmp_val(%lu)\n",
+	pr_notice("MTK_ICUSB [DBG], <%s(), %d> val(%d), tmp_val(%d)\n",
 				__func__, __LINE__, val, tmp_val);
 
 	val_to_bstring_width3(tmp_val - val, str_rg_usb20_term_vref_sel);

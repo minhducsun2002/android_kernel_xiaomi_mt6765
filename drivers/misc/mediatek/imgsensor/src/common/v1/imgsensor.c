@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,9 +22,10 @@
 #include <linux/workqueue.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include "smi_public.h"
-#include "mtk_dcm.h"
+#include <linux/hardware_info.h>
 
+#include <linux/pm_qos.h>
+#include <mmdvfs_pmqos.h>
 #undef CONFIG_MTK_SMI_EXT
 #ifdef CONFIG_MTK_SMI_EXT
 #include "mmdvfs_mgr.h"
@@ -57,6 +59,14 @@
 #include "imgsensor_clk.h"
 #include "imgsensor.h"
 
+#ifndef MFALSE
+#define MFALSE 0
+#endif
+#ifndef MTRUE
+#define MTRUE 1
+#endif
+struct pm_qos_request imgsensor_qos;
+
 #define PDAF_DATA_SIZE 4096
 
 #ifdef CONFIG_MTK_SMI_EXT
@@ -87,7 +97,8 @@ struct IMGSENSOR *pgimgsensor = &gimgsensor;
 
 
 DEFINE_MUTEX(pinctrl_mutex);
-
+extern int hardwareinfo_set_prop(int cmd, const char *name);
+extern u8 *getImgSensorEfuseID(u32 deviceID);
 /************************************************************************
  * Profiling
  ************************************************************************/
@@ -455,6 +466,13 @@ static inline int imgsensor_check_is_alive(struct IMGSENSOR_SENSOR *psensor)
 		err = ERROR_SENSOR_CONNECT_FAIL;
 	} else {
 		pr_info(" Sensor found ID = 0x%x\n", sensorID);
+		snprintf(mtk_ccm_name,
+		    sizeof(mtk_ccm_name),
+		    "%s CAM[%d]:%s;",
+		    mtk_ccm_name,
+		    psensor->inst.sensor_idx,
+		    psensor_inst->psensor_name);
+
 		err = ERROR_NONE;
 	}
 
@@ -788,9 +806,26 @@ static void cam_temperature_report_wq_routine(
 }
 #endif
 
+struct match_hardwareinfo hardwareinfo_camera_name[] = {
+    /* CACTUS */
+    {SENSOR_DRVNAME_CACTUS_OV13855_OFILM_MIPI_RAW, "ofilm_ov13855_i", "0xD855"},
+    {SENSOR_DRVNAME_CACTUS_S5K3L8_SUNNY_MIPI_RAW, "sunny_s5k3l8_ii", "0x30C8"},
+    {SENSOR_DRVNAME_CACTUS_S5K5E8YX_OFILM_MIPI_RAW, "ofilm_s5k5e8yx_i", "0x5e80"},
+    {SENSOR_DRVNAME_CACTUS_HI556_SUNNY_MIPI_RAW, "sunny_hi556_ii", "0x0556"},
+    /* CEREUS */
+    {SENSOR_DRVNAME_CEREUS_IMX486_SUNNY_MIPI_RAW, "sunny_imx486_i", "0x0486"},
+    {SENSOR_DRVNAME_CEREUS_S5K5E8YX_SUNNY_MIPI_RAW, "sunny_s5k5e8yx_i", "0x5e82"},
+    {SENSOR_DRVNAME_CEREUS_S5K5E8YXAUX_SUNNY_MIPI_RAW, "sunny_s5k5e8yx_i", "0x5e83"},
+    {SENSOR_DRVNAME_CEREUS_OV12A10_OFILM_MIPI_RAW, "ofilm_ov12a10_ii", "0x1241"},
+    {SENSOR_DRVNAME_CEREUS_S5K5E8YX_OFILM_MIPI_RAW, "ofilm_s5k5e8yx_ii", "0x5e84"},
+    {SENSOR_DRVNAME_CEREUS_S5K5E8YXAUX_OFILM_MIPI_RAW, "ofilm_s5k5e8yx_ii", "0x5e85"},
+    {"NULL", "UNKNOWN", 0},
+};
+
 static inline int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 {
 	int ret = 0;
+	int i = 0;
 	struct IMAGESENSOR_GETINFO_STRUCT *pSensorGetInfo;
 	struct IMGSENSOR_SENSOR    *psensor;
 
@@ -806,7 +841,7 @@ static inline int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 	MSDK_SENSOR_INFO_STRUCT *pInfo4 = NULL;
 	MSDK_SENSOR_CONFIG_STRUCT  *pConfig4 = NULL;
 	MSDK_SENSOR_RESOLUTION_INFO_STRUCT  *psensorResolution = NULL;
-
+	u8 *efuseBuffer = NULL;
 	pSensorGetInfo = (struct IMAGESENSOR_GETINFO_STRUCT *)pBuf;
 	if (pSensorGetInfo == NULL ||
 	    pSensorGetInfo->pInfo == NULL ||
@@ -1043,7 +1078,10 @@ static inline int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 	pSensorInfo->SensorGrabStartY_CST4 = pInfo3->SensorGrabStartY;
 	pSensorInfo->SensorGrabStartX_CST5 = pInfo4->SensorGrabStartX;
 	pSensorInfo->SensorGrabStartY_CST5 = pInfo4->SensorGrabStartY;
-
+	efuseBuffer = getImgSensorEfuseID(pSensorGetInfo->SensorId);
+	if (efuseBuffer) {
+		strncpy((char*)pSensorInfo->efuseID,(char*)efuseBuffer,strlen((char*)efuseBuffer));
+	}
 	if (copy_to_user(
 	    (void __user *)(pSensorGetInfo->pInfo),
 	    (void *)(pSensorInfo),
@@ -1053,6 +1091,7 @@ static inline int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 		ret = -EFAULT;
 		goto IMGSENSOR_GET_INFO_RETURN;
 	}
+	
 
 	/* Step2 : Get Resolution */
 	imgsensor_sensor_get_resolution(psensor, psensorResolution);
@@ -1073,6 +1112,26 @@ static inline int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 				pSensorGetInfo->SensorId,
 				psensor->inst.psensor_name);
 
+    for(i = 0; strcmp(hardwareinfo_camera_name[i].psensor_name, "NULL"); i++){
+        if(!strcmp(hardwareinfo_camera_name[i].psensor_name, psensor->inst.psensor_name)){
+            break;
+        }
+    }
+    pr_info("i = %d, hardwareinfo_camera_name:%s, psensor->inst.psensor_name:%s, sensor_idx:%s",
+        i, hardwareinfo_camera_name[i].psensor_name, psensor->inst.psensor_name, hardwareinfo_camera_name[i].sensor_id);
+
+    if(pSensorGetInfo->SensorId == 0){
+		hardwareinfo_set_prop(HARDWARE_BACK_CAM,hardwareinfo_camera_name[i].hardwareinfo_set_name);
+		hardwareinfo_set_prop(HARDWARE_BACK_CAM_SENSORID, hardwareinfo_camera_name[i].sensor_id);
+    }
+	if(pSensorGetInfo->SensorId == 1){
+		hardwareinfo_set_prop(HARDWARE_FRONT_CAM,hardwareinfo_camera_name[i].hardwareinfo_set_name);
+		hardwareinfo_set_prop(HARDWARE_FRONT_CAM_SENSORID, hardwareinfo_camera_name[i].sensor_id);
+    }
+	if(pSensorGetInfo->SensorId == 2){
+		hardwareinfo_set_prop(HARDWARE_BACK_SUB_CAM,hardwareinfo_camera_name[i].hardwareinfo_set_name);
+		hardwareinfo_set_prop(HARDWARE_BACK_SUBCAM_SENSORID, hardwareinfo_camera_name[i].sensor_id);
+    }	
 	snprintf(mtk_ccm_name, sizeof(mtk_ccm_name),
 		"%s\nPre: TgGrab_w,h,x_,y=%5d,%5d,%3d,%3d, delay_frm=%2d",
 		mtk_ccm_name,
@@ -1326,7 +1385,6 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_GET_SENSOR_PDAF_CAPACITY:
 	case SENSOR_FEATURE_GET_SENSOR_HDR_CAPACITY:
 	case SENSOR_FEATURE_GET_MIPI_PIXEL_RATE:
-	case SENSOR_FEATURE_GET_PIXEL_RATE:
 	case SENSOR_FEATURE_SET_PDAF:
 	case SENSOR_FEATURE_SET_SHUTTER_FRAME_TIME:
 	case SENSOR_FEATURE_SET_PDFOCUS_AREA:
@@ -1404,7 +1462,6 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_GET_SENSOR_PDAF_CAPACITY:
 	case SENSOR_FEATURE_GET_SENSOR_HDR_CAPACITY:
 	case SENSOR_FEATURE_GET_MIPI_PIXEL_RATE:
-	case SENSOR_FEATURE_GET_PIXEL_RATE:
 	{
 		MUINT32 *pValue = NULL;
 		unsigned long long *pFeaturePara_64 =
@@ -2024,7 +2081,6 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 	case SENSOR_FEATURE_GET_SENSOR_PDAF_CAPACITY:
 	case SENSOR_FEATURE_GET_SENSOR_HDR_CAPACITY:
 	case SENSOR_FEATURE_GET_MIPI_PIXEL_RATE:
-	case SENSOR_FEATURE_GET_PIXEL_RATE:
 	case SENSOR_FEATURE_SET_ISO:
 	case SENSOR_FEATURE_SET_PDAF:
 	case SENSOR_FEATURE_SET_SHUTTER_FRAME_TIME:
@@ -2427,19 +2483,81 @@ static long imgsensor_ioctl(
 		break;
 
 	/*mmdvfs start*/
-#ifdef IMGSENSOR_DFS_CTRL_ENABLE
+	case KDIMGSENSORIOC_DFS_CTRL:
+	{
+		static unsigned int camsys_qos;
+
+		if (*(unsigned int *)pBuff == MTRUE) {
+			if (++camsys_qos == 1) {
+				pm_qos_add_request(
+					&imgsensor_qos, PM_QOS_CAM_FREQ, 0);
+				pr_debug("CAMSYS PMQoS turn on");
+			}
+		} else {
+			if (--camsys_qos == 0) {
+				pm_qos_remove_request(&imgsensor_qos);
+				pr_debug("CAMSYS PMQoS turn off");
+			}
+		}
+		pr_debug("camsys_qos:%d", camsys_qos);
+	}
+	break;
 	case KDIMGSENSORIOC_DFS_UPDATE:
-		i4RetValue = imgsensor_dfs_ctrl(DFS_UPDATE, pBuff);
-		break;
+	{
+		pm_qos_update_request(&imgsensor_qos, *(unsigned int *)pBuff);
+		pr_debug("Set isp clock level:%d", *(unsigned int *)pBuff);
+
+	}
+	break;
+
 	case KDIMGSENSORIOC_GET_SUPPORTED_ISP_CLOCKS:
-		i4RetValue = imgsensor_dfs_ctrl(
-						DFS_SUPPORTED_ISP_CLOCKS,
-						pBuff);
-		break;
+	{
+		int result = 0;
+		uint64_t freq_steps[ISP_CLK_LEVEL_CNT];
+		struct IMAGESENSOR_GET_SUPPORTED_ISP_CLK *pIspclks;
+		unsigned int lv = 0;
+
+		pIspclks = (struct IMAGESENSOR_GET_SUPPORTED_ISP_CLK *) pBuff;
+
+		/* Call mmdvfs_qos_get_freq_steps
+		 * to get supported frequency
+		 */
+		result = mmdvfs_qos_get_freq_steps(
+			PM_QOS_CAM_FREQ,
+			freq_steps, (u32 *)&pIspclks->clklevelcnt);
+
+		if (result < 0) {
+			pr_debug(
+				"ERR: get MMDVFS freq steps failed, result: %d\n",
+				result);
+			i4RetValue = -EFAULT;
+			break;
+		}
+
+		if (pIspclks->clklevelcnt > ISP_CLK_LEVEL_CNT) {
+			pr_debug("ERR: clklevelcnt is exceeded");
+			i4RetValue = -EFAULT;
+			break;
+		}
+
+		for (; lv < pIspclks->clklevelcnt; lv++) {
+		/* Save clk from low to high */
+			pIspclks->clklevel[lv] = freq_steps[lv];
+			pr_debug("ERR: DFS Clk level[%d]:%d",
+				lv, pIspclks->clklevel[lv]);
+		}
+	}
+	break;
 	case KDIMGSENSORIOC_GET_CUR_ISP_CLOCK:
-		i4RetValue = imgsensor_dfs_ctrl(DFS_CUR_ISP_CLOCK, pBuff);
+		{
+			unsigned int *pGetIspclk;
+
+			pGetIspclk = (unsigned int *) pBuff;
+
+			*pGetIspclk = (u32)mmdvfs_qos_get_freq(PM_QOS_CAM_FREQ);
+			pr_debug("current isp clock:%d", *pGetIspclk);
+		}
 		break;
-#endif
 	/*mmdvfs end*/
 	case KDIMGSENSORIOC_T_OPEN:
 	case KDIMGSENSORIOC_T_CLOSE:
@@ -2501,30 +2619,6 @@ static int imgsensor_release(struct inode *a_pstInode, struct file *a_pstFile)
 		}
 
 		imgsensor_hw_release_all(&pgimgsensor->hw);
-#ifdef IMGSENSOR_DFS_CTRL_ENABLE
-		imgsensor_dfs_ctrl(DFS_RELEASE, NULL);
-#endif
-		pr_info("%s after imgsensor_hw_release_all\n", __func__);
-		msleep(32);
-#ifdef CONFIG_MACH_MT6765
-		switch_emi_dcm(1);
-		switch_mem_dcm(1);
-		pr_info("%s after emi, mem dcm on\n", __func__);
-		smi_dcm_enable(1, "imgsensor");
-		dcm_restore(0x4);
-#else
-		smi_dcm_enable(1, "imgsensor");
-#endif
-	} else if (atomic_read(&pgimgsensor->imgsensor_open_cnt) == 1) {
-#ifdef CONFIG_MACH_MT6765
-		switch_emi_dcm(0);
-		switch_mem_dcm(0);
-		pr_info("%s after emi, mem dcm off\n", __func__);
-		smi_dcm_enable(0, "imgsensor");
-		dcm_disable(0x4);
-#else
-		smi_dcm_enable(0, "imgsensor");
-#endif
 	}
 	pr_info(
 	    "%s %d\n",
@@ -2706,10 +2800,6 @@ static int __init imgsensor_init(void)
 
 	schedule_delayed_work(&cam_temperature_wq, HZ);
 #endif
-#ifdef IMGSENSOR_DFS_CTRL_ENABLE
-	imgsensor_dfs_ctrl(DFS_CTRL_ENABLE, NULL);
-#endif
-
 	return 0;
 }
 
@@ -2718,9 +2808,6 @@ static int __init imgsensor_init(void)
  */
 static void __exit imgsensor_exit(void)
 {
-#ifdef IMGSENSOR_DFS_CTRL_ENABLE
-	imgsensor_dfs_ctrl(DFS_CTRL_DISABLE, NULL);
-#endif
 	platform_driver_unregister(&gimgsensor_platform_driver);
 }
 

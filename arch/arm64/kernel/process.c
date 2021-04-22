@@ -2,6 +2,7 @@
  * Based on arch/arm/kernel/process.c
  *
  * Original Copyright (C) 1995  Linus Torvalds
+ * Copyright (C) 2018 XiaoMi, Inc.
  * Copyright (C) 1996-2000 Russell King - Converted to ARM.
  * Copyright (C) 2012 ARM Ltd.
  *
@@ -182,7 +183,7 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 	 * don't attempt to dump non-kernel addresses or
 	 * values that are probably just small negative numbers
 	 */
-	if (!pfn_valid(__pa(addr) >> PAGE_SHIFT) || addr > -256UL)
+	if (addr < PAGE_OFFSET || addr > -256UL)
 		return;
 
 	printk("\n%s: %#lx:\n", name, addr);

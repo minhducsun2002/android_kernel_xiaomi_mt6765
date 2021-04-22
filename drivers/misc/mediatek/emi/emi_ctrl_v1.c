@@ -18,8 +18,6 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/printk.h>
-#include <mt-plat/sync_write.h>
-#include <mt-plat/mtk_io.h>
 
 #include <mt_emi.h>
 #include "emi_ctrl_v1.h"
@@ -229,39 +227,6 @@ unsigned int get_rank_size(unsigned int rank_index)
 		return emi_info.rank_size[rank_index];
 
 	return 0;
-}
-
-void switch_emi_dcm(unsigned int on)
-{
-	if (on) {
-		// enable CEN EMI DCM
-		mt_reg_sync_writel(readl(IOMEM(CEN_EMI_BASE + 0x60)) &
-			0x00ffffff, CEN_EMI_BASE + 0x60);
-		mt_reg_sync_writel(readl(IOMEM(CEN_EMI_BASE + 0x68)) &
-			0x00ffffff, CEN_EMI_BASE + 0x68);
-
-		// enable CHN0 EMI DCM
-		mt_reg_sync_writel(readl(IOMEM(CHN_EMI_BASE[0] + 0x8)) &
-			0x00ffffff, CHN_EMI_BASE[0] + 0x8);
-
-		// enable CHN1 EMI DCM
-		mt_reg_sync_writel(readl(IOMEM(CHN_EMI_BASE[1] + 0x8)) &
-			0x00ffffff, CHN_EMI_BASE[1] + 0x8);
-	} else {
-		// disable CEN EMI DCM
-		mt_reg_sync_writel(readl(IOMEM(CEN_EMI_BASE + 0x60)) |
-			0xff000000, CEN_EMI_BASE + 0x60);
-		mt_reg_sync_writel(readl(IOMEM(CEN_EMI_BASE + 0x68)) |
-			0xff000000, CEN_EMI_BASE + 0x68);
-
-		// disable CHN0 EMI DCM
-		mt_reg_sync_writel(readl(IOMEM(CHN_EMI_BASE[0] + 0x8)) |
-			0xff000000, CHN_EMI_BASE[0] + 0x8);
-
-		// disable CHN1 EMI DCM
-		mt_reg_sync_writel(readl(IOMEM(CHN_EMI_BASE[1] + 0x8)) |
-			0xff000000, CHN_EMI_BASE[1] + 0x8);
-	}
 }
 
 void __iomem *mt_cen_emi_base_get(void)

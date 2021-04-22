@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -33,3 +34,6 @@ extern int display_set_wait_idle_time(unsigned int wait_idle_time);
 #ifdef CONFIG_SCHED_TUNE
 extern int prefer_idle_for_perf_idx(int idx, int prefer_idle);
 #endif
+
+extern unsigned int sched_tiny_task_force_filter;
+extern unsigned int sched_tiny_task_thresh;

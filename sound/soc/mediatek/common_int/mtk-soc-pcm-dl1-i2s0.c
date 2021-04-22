@@ -79,7 +79,7 @@ const char *const i2s0_SIDEGEN[] = {"Off",     "On8000",  "On16000",
 				    "On32000", "On44100", "On48000",
 				    "On96000", "On192000"};
 const char *const i2s0_HD_output[] = {"Off", "On"};
-const char *const ExtCodec_EchoRef_Routing[] = {"Off", "MD1", "MD3", "SCP"};
+const char *const ExtCodec_EchoRef_Routing[] = {"Off", "MD1", "MD3"};
 
 static const struct soc_enum Audio_i2s0_Enum[] = {
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(i2s0_SIDEGEN), i2s0_SIDEGEN),
@@ -153,13 +153,6 @@ static int Audio_i2s0_SideGen_Set(struct snd_kcontrol *kcontrol,
 				Soc_Aud_InterCon_Connection,
 				Soc_Aud_AFE_IO_Block_I2S0_CH2,
 				Soc_Aud_AFE_IO_Block_MODEM_PCM_1_O_CH4);
-			break;
-		case 3:
-			/* SCP IV data */
-			SetIntfConnection(Soc_Aud_InterCon_Connection,
-					  Soc_Aud_AFE_IO_Block_I2S0,
-					  get_usage_digital_block_io
-					  (AUDIO_USAGE_SCP_SPK_IV_DATA));
 			break;
 		default:
 			break;
@@ -275,10 +268,6 @@ static int Audio_i2s0_SideGen_Set(struct snd_kcontrol *kcontrol,
 				Soc_Aud_AFE_IO_Block_MODEM_PCM_2_O_CH4);
 			SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_IN_2,
 					    false);
-			SetIntfConnection(Soc_Aud_InterCon_DisConnect,
-					  Soc_Aud_AFE_IO_Block_I2S0,
-					  get_usage_digital_block_io
-					  (AUDIO_USAGE_SCP_SPK_IV_DATA));
 		}
 
 		SetMemoryPathEnable(Soc_Aud_Digital_Block_I2S_OUT_2, false);

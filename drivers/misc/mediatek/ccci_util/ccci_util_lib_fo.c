@@ -151,6 +151,10 @@ static int s_g_curr_ccci_fo_version;
 						|MD_CAP_FDD_LTE\
 						|MD_CAP_CDMA2000)
 #define MD_CAP_BIT_NUM		(6)
+enum {
+	INVALID_MD_VIEW_MD_TYPE = 1,
+	INVALID_AP_VIEW_MD_TYPE,
+};
 
 /*------------------------------------------*/
 /* Bit map defination at MD side diff to AP */
@@ -1797,21 +1801,23 @@ int check_md_type(int data)
 	unsigned int val = (unsigned int)data;
 	int i;
 
+	/* check md view md type */
+	if ((val & MD_CAP_ENHANCE) == MD_CAP_ENHANCE) {
+		val &= MD_CAP_MASK;
+		val = compatible_convert(val);
+		for (i = 0;
+			 i < (sizeof(legacy_ubin_rat_map)/sizeof(unsigned int));
+			 i++) {
+			if (val == legacy_ubin_rat_map[i])
+				return LEGACY_UBIN_START_ID + i;
+		}
+		return -INVALID_MD_VIEW_MD_TYPE;
+	}
 	/* check ap view md type */
 	if (val >= LEGACY_UBIN_START_ID && val <= LEGACY_UBIN_END_ID)
 		return val;
-	/* check md view md type */
-	if ((val >> 8) == (MD_CAP_ENHANCE >> 8)) {
-			val &= MD_CAP_MASK;
-			val = compatible_convert(val);
-			for (i = 0;
-			i < (sizeof(legacy_ubin_rat_map)/sizeof(unsigned int));
-			i++) {
-				if (val == legacy_ubin_rat_map[i])
-					return LEGACY_UBIN_START_ID + i;
-			}
-	}
-	return 0;
+	else
+		return -INVALID_AP_VIEW_MD_TYPE;
 }
 
 int get_legacy_md_type(int md_id)

@@ -44,7 +44,6 @@
 #include <linux/compat.h>
 #include <scp_helper.h>
 #include <scp_ipi.h>
-#include <audio_ipi_platform.h>
 
 #ifdef CONFIG_MTK_AUDIO_SCP_SPKPROTECT_SUPPORT
 #include "audio_ipi_client_spkprotect.h"
@@ -72,14 +71,14 @@ void init_spkscp_reserved_dram(void)
 		resv_dram_spkprotect.phy_addr, resv_dram_spkprotect.vir_addr,
 		resv_dram_spkprotect.size);
 
-	if (audio_ipi_check_scp_status()) {
+	if (is_scp_ready(SCP_B_ID)) {
 		AUDIO_ASSERT(resv_dram_spkprotect.phy_addr != NULL);
 		AUDIO_ASSERT(resv_dram_spkprotect.vir_addr != NULL);
 		AUDIO_ASSERT(resv_dram_spkprotect.size > 0);
 	}
 }
 
-struct audio_resv_dram_t *get_reserved_dram_spkprotect(void)
+audio_resv_dram_t *get_reserved_dram_spkprotect(void)
 {
 	return &resv_dram_spkprotect;
 }
@@ -128,12 +127,6 @@ void spkproc_service_ipicmd_send(uint8_t data_type, uint8_t ack_type,
 	int send_result = 0;
 	int retry_count;
 	const int k_max_try_count = 200; /* maximum wait 20ms */
-
-
-	if (atomic_read(&stop_send_ipi_flag)) {
-		pr_err("%s(), scp reset...\n", __func__);
-		return;
-	}
 
 	memset((void *)&ipi_msg, 0, sizeof(struct ipi_msg_t));
 	for (retry_count = 0; retry_count < k_max_try_count; retry_count++) {

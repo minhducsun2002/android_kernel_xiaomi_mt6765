@@ -161,11 +161,9 @@ struct sbch {
 	unsigned int height;
 	unsigned int width;
 	int phy_layer;
-	int const_bld;
 	enum UNIFIED_COLOR_FMT fmt;
 	unsigned long long sbch_en_cnt;
 	int full_trans_en;
-	unsigned int trans_invalid;
 };
 
 struct disp_rect {
@@ -368,8 +366,6 @@ struct disp_ddp_path_config {
 	unsigned int lcm_bpp;
 	unsigned int dst_w;
 	unsigned int dst_h;
-	struct disp_rect rsz_src_roi;
-	struct disp_rect rsz_dst_roi;
 	unsigned int fps;
 	struct golden_setting_context *p_golden_setting_context;
 	void *path_handle;

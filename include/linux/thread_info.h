@@ -1,6 +1,7 @@
 /* thread_info.h: common low-level thread information accessors
  *
  * Copyright (C) 2002  David Howells (dhowells@redhat.com)
+ * Copyright (C) 2018 XiaoMi, Inc.
  * - Incorporating suggestions made by Linus Torvalds
  */
 

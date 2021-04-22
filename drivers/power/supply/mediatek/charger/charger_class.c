@@ -17,6 +17,7 @@
 #include <linux/ctype.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <mt-plat/upmu_common.h>
 
 #include "charger_class.h"
 
@@ -366,6 +367,23 @@ int charger_dev_enable_termination(struct charger_device *chg_dev, bool en)
 }
 EXPORT_SYMBOL(charger_dev_enable_termination);
 
+int charger_dev_enable_rst(struct charger_device *chg_dev, bool en)
+{
+	if (chg_dev != NULL && chg_dev->ops != NULL &&
+	    chg_dev->ops->enable_rst){
+		if (!!en) {
+			pmic_config_interface(0x14c, 0x3221, 0xFFFF, 0x0);
+		} else {
+			pmic_config_interface(0x14c, 0x3021, 0xFFFF, 0x0);
+		}
+
+		return chg_dev->ops->enable_rst(chg_dev, en);
+	}
+
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL(charger_dev_enable_rst);
+
 int charger_dev_get_mivr_state(struct charger_device *chg_dev, bool *in_loop)
 {
 	if (chg_dev != NULL && chg_dev->ops != NULL &&
@@ -519,6 +537,15 @@ int charger_dev_reset_eoc_state(struct charger_device *chg_dev)
 	return -ENOTSUPP;
 }
 EXPORT_SYMBOL(charger_dev_reset_eoc_state);
+
+int charger_dev_enable_hz(struct charger_device *charger_dev, bool en)
+{
+             if (charger_dev != NULL && charger_dev->ops != NULL && charger_dev->ops->enable_hz)
+                             return charger_dev->ops->enable_hz(charger_dev, en);
+
+             return -ENOTSUPP;
+}
+EXPORT_SYMBOL(charger_dev_enable_hz);
 
 int charger_dev_safety_check(struct charger_device *chg_dev)
 {

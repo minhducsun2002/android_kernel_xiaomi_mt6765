@@ -111,7 +111,7 @@ int update_eas_boost_value(int kicker, int cgroup_idx, int value)
 
 	boost_value[cgroup_idx][kicker] = value;
 	len += snprintf(msg + len, sizeof(msg) - len, "[%d] [%d] [%d]",
-			kicker, cgroup_idx, value);
+		 kicker, cgroup_idx, value);
 
 	/*ptr return error EIO:I/O error */
 	if (len < 0)
@@ -124,7 +124,7 @@ int update_eas_boost_value(int kicker, int cgroup_idx, int value)
 		}
 
 		if (boost_value[cgroup_idx][i] == 1100 ||
-				boost_value[cgroup_idx][i] == 100) {
+			boost_value[cgroup_idx][i] == 100) {
 			first_prio_boost_value =
 				MAX(boost_value[cgroup_idx][i],
 						first_prio_boost_value);
@@ -152,13 +152,13 @@ int update_eas_boost_value(int kicker, int cgroup_idx, int value)
 	current_boost_value[cgroup_idx] = check_boost_value(final_boost_value);
 
 	len += snprintf(msg + len, sizeof(msg) - len, "{%d} ",
-			final_boost_value);
+			 final_boost_value);
 	/*ptr return error EIO:I/O error */
 	if (len < 0)
 		return -EIO;
 
 	len1 += snprintf(msg1 + len1, sizeof(msg1) - len1, "[0x %lx] ",
-			policy_mask[cgroup_idx]);
+			 policy_mask[cgroup_idx]);
 
 	if (len1 < 0)
 		return -EIO;
@@ -239,8 +239,8 @@ static ssize_t perfmgr_debug_fg_boost_proc_write(
 	debug = debug_boost_value[CGROUP_FG] > 0 ? 1:0;
 
 #ifdef CONFIG_CGROUP_SCHEDTUNE
-	boost_write_for_perf_idx(CGROUP_FG,
-			debug_boost_value[CGROUP_FG]);
+		boost_write_for_perf_idx(CGROUP_FG,
+			 debug_boost_value[CGROUP_FG]);
 #endif
 	return cnt;
 }
@@ -253,7 +253,7 @@ static int perfmgr_debug_fg_boost_proc_show(struct seq_file *m, void *v)
 }
 /******************************************************/
 static ssize_t perfmgr_perfserv_bg_boost_proc_write(struct file *filp,
-		const char *ubuf, size_t cnt, loff_t *pos)
+		 const char *ubuf, size_t cnt, loff_t *pos)
 {
 	int data = 0;
 
@@ -302,8 +302,8 @@ static ssize_t perfmgr_debug_bg_boost_proc_write(
 	debug = debug_boost_value[CGROUP_BG] > 0 ? 1:0;
 
 #ifdef CONFIG_CGROUP_SCHEDTUNE
-	boost_write_for_perf_idx(CGROUP_BG,
-			debug_boost_value[CGROUP_BG]);
+		boost_write_for_perf_idx(CGROUP_BG,
+		 debug_boost_value[CGROUP_BG]);
 #endif
 
 	return cnt;
@@ -318,7 +318,7 @@ static int perfmgr_debug_bg_boost_proc_show(struct seq_file *m, void *v)
 /************************************************/
 static ssize_t perfmgr_perfserv_ta_boost_proc_write(
 		struct file *filp, const char *ubuf,
-		size_t cnt, loff_t *pos)
+		 size_t cnt, loff_t *pos)
 {
 	int data = 0;
 	int rv = check_proc_write(&data, ubuf, cnt);
@@ -334,7 +334,7 @@ static ssize_t perfmgr_perfserv_ta_boost_proc_write(
 }
 
 static int perfmgr_perfserv_ta_boost_proc_show(
-		struct seq_file *m, void *v)
+	struct seq_file *m, void *v)
 {
 	seq_printf(m, "%d\n", boost_value[CGROUP_TA][EAS_KIR_PERF]);
 
@@ -383,7 +383,7 @@ static int perfmgr_current_ta_boost_proc_show(struct seq_file *m, void *v)
 
 /**********************************/
 static ssize_t perfmgr_debug_ta_boost_proc_write(
-		struct file *filp, const char *ubuf,
+	struct file *filp, const char *ubuf,
 		size_t cnt, loff_t *pos)
 {
 	int data = 0;
@@ -397,8 +397,8 @@ static ssize_t perfmgr_debug_ta_boost_proc_write(
 	debug = debug_boost_value[CGROUP_TA] > 0 ? 1:0;
 
 #ifdef CONFIG_CGROUP_SCHEDTUNE
-	boost_write_for_perf_idx(CGROUP_TA,
-			debug_boost_value[CGROUP_TA]);
+		boost_write_for_perf_idx(CGROUP_TA,
+		 debug_boost_value[CGROUP_TA]);
 #endif
 
 	return cnt;
@@ -434,7 +434,7 @@ static ssize_t perfmgr_perfserv_ext_launch_mon_proc_write(struct file *filp,
 	return cnt;
 }
 
-	static int
+static int
 perfmgr_perfserv_ext_launch_mon_proc_show(
 		struct seq_file *m, void *v)
 {
@@ -538,16 +538,16 @@ int eas_ctrl_init(struct proc_dir_entry *parent)
 	/* create procfs */
 	for (i = 0; i < ARRAY_SIZE(entries); i++) {
 		if (!proc_create(entries[i].name, 0644,
-					boost_dir, entries[i].fops)) {
+			boost_dir, entries[i].fops)) {
 			pr_debug("%s(), create /eas_ctrl%s failed\n",
-					__func__, entries[i].name);
+				__func__, entries[i].name);
 			ret = -EINVAL;
 			goto out;
 		}
 	}
-	for (i = 0; i < NR_CGROUP; i++)
-		for (j = 0; j < EAS_MAX_KIR; j++)
-			boost_value[i][j] = 0;
+		for (i = 0; i < NR_CGROUP; i++)
+			for (j = 0; j < EAS_MAX_KIR; j++)
+				boost_value[i][j] = 0;
 out:
 	return ret;
 }

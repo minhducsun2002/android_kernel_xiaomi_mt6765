@@ -1,6 +1,7 @@
 /* SCP sensor hub driver
  *
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -852,10 +853,6 @@ static void SCP_sensorHub_init_sensor_state(void)
 	mSensorState[ID_FLOOR_COUNTER].sensorType = ID_FLOOR_COUNTER;
 	mSensorState[ID_FLOOR_COUNTER].rate = SENSOR_RATE_ONCHANGE;
 	mSensorState[ID_FLOOR_COUNTER].timestamp_filter = false;
-
-	mSensorState[ID_FLAT].sensorType = ID_FLAT;
-	mSensorState[ID_FLAT].rate = SENSOR_RATE_ONESHOT;
-	mSensorState[ID_FLAT].timestamp_filter = false;
 }
 
 static void init_sensor_config_cmd(struct ConfigCmd *cmd, int handle)
@@ -1124,7 +1121,7 @@ static int sensor_send_dram_info_to_hub(void)
 	struct SCP_sensorHub_data *obj = obj_data;
 	SCP_SENSOR_HUB_DATA data;
 	unsigned int len = 0;
-	int err = 0, retry = 0, total = 3;
+	int err = 0, retry = 0, total = 10;
 
 	obj->shub_dram_phys = scp_get_reserve_mem_phys(SENS_MEM_ID);
 	obj->shub_dram_virt = scp_get_reserve_mem_virt(SENS_MEM_ID);
@@ -2050,8 +2047,7 @@ void sensorHub_power_up_loop(void *data)
 	WRITE_ONCE(obj->SCP_sensorFIFO->wp, 0);
 	WRITE_ONCE(obj->SCP_sensorFIFO->rp, 0);
 	WRITE_ONCE(obj->SCP_sensorFIFO->FIFOSize,
-		((long)scp_get_reserve_mem_size(SENS_MEM_ID) -
-		offsetof(struct sensorFIFO, data)) /
+		(SCP_SENSOR_HUB_FIFO_SIZE - offsetof(struct sensorFIFO, data)) /
 		SENSOR_DATA_SIZE * SENSOR_DATA_SIZE);
 	pr_debug("obj->SCP_sensorFIFO =%p, wp =%d, rp =%d, size =%d\n",
 		READ_ONCE(obj->SCP_sensorFIFO),

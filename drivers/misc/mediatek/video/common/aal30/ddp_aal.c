@@ -41,7 +41,7 @@
 	defined(CONFIG_MACH_ELBRUS) || defined(CONFIG_MACH_MT6799) || \
 	defined(CONFIG_MACH_MT6759) || defined(CONFIG_MACH_MT6758) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6739) || \
-	defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761)
+	defined(CONFIG_MACH_MT6765)
 #include <ddp_clkmgr.h>
 #endif
 #endif
@@ -60,16 +60,14 @@
 #if defined(CONFIG_MACH_ELBRUS) || defined(CONFIG_MACH_MT6757) || \
 	defined(CONFIG_MACH_KIBOPLUS) || defined(CONFIG_MACH_MT6799) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6758) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 #define AAL0_MODULE_NAMING (DISP_MODULE_AAL0)
 #else
 #define AAL0_MODULE_NAMING (DISP_MODULE_AAL)
 #endif
 
 #if defined(CONFIG_MACH_MT6799) || defined(CONFIG_MACH_MT6763) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 #define AAL0_CLK_NAMING (DISP0_DISP_AAL0)
 #else
 #define AAL0_CLK_NAMING (DISP0_DISP_AAL)
@@ -78,7 +76,7 @@
 #if defined(CONFIG_MACH_MT6757) || defined(CONFIG_MACH_KIBOPLUS) || \
 	defined(CONFIG_MACH_MT6799) || defined(CONFIG_MACH_MT6763) || \
 	defined(CONFIG_MACH_MT6758) || defined(CONFIG_MACH_MT6739) || \
-	defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761)
+	defined(CONFIG_MACH_MT6765)
 #define AAL_SUPPORT_PARTIAL_UPDATE
 #endif
 
@@ -157,8 +155,6 @@ static atomic_t g_aal_dirty_frame_retrieved[AAL_TOTAL_MODULE_NUM] = {
 	ATOMIC_INIT(1)};
 static atomic_t g_aal_is_clock_on[AAL_TOTAL_MODULE_NUM] = {ATOMIC_INIT(0)};
 #endif
-
-static atomic_t g_aal_force_relay = ATOMIC_INIT(0);
 
 static DEFINE_SPINLOCK(g_aal0_hist_lock);
 static DEFINE_SPINLOCK(g_aal1_hist_lock);
@@ -362,15 +358,10 @@ static int disp_aal_init(enum DISP_MODULE_ENUM module, int width, int height,
 {
 	const int index = index_of_aal(module);
 
-	if (disp_aal_is_support() == true &&
-		atomic_read(&g_aal_force_relay) != 1) {
+	if (disp_aal_is_support() == true) {
 		/* Enable AAL histogram, engine */
 		DISP_REG_MASK(cmdq, DISP_AAL_CFG + aal_get_offset(module),
 		    0x3 << 1, (0x3 << 1) | 0x1);
-	} else {
-		/* Disable AAL histogram, engine */
-		DISP_REG_MASK(cmdq, DISP_AAL_CFG + aal_get_offset(module),
-		    0x0 << 1, (0x3 << 1) | 0x1);
 	}
 
 #if defined(CONFIG_MACH_MT6757) || defined(CONFIG_MACH_KIBOPLUS)
@@ -413,9 +404,7 @@ static void disp_aal_set_interrupt_by_module(enum DISP_MODULE_ENUM module,
 		return;
 	}
 
-	if (enabled &&
-		disp_aal_is_support() == true &&
-		atomic_read(&g_aal_force_relay) != 1) {
+	if (enabled && disp_aal_is_support() == true) {
 		if (DISP_REG_GET(DISP_AAL_EN + offset) == 0)
 			AAL_DBG("[WARNING] module(%d) DISP_AAL_EN not enabled!",
 				module);
@@ -1332,11 +1321,6 @@ void disp_aal_on_end_of_frame_by_module(enum disp_aal_id_t id)
 	if (id < DISP_AAL0 || id >= DISP_AAL0 + AAL_TOTAL_MODULE_NUM)
 		return;
 
-	if (atomic_read(&g_aal_force_relay) == 1) {
-		disp_aal_clear_irq_only(module, true, false);
-		return;
-	}
-
 #ifdef CONFIG_MTK_DRE30_SUPPORT
 	disp_aal_dre3_irq_handle(module, update_method);
 #else
@@ -1455,8 +1439,7 @@ void disp_aal_notify_backlight_changed(int bl_1024)
 		/* we have to let AALService can turn on backlight */
 		/* on phone resumption */
 		service_flags = AAL_SERVICE_FORCE_UPDATE;
-	} else if (atomic_read(&g_aal_is_init_regs_valid) == 0 ||
-		atomic_read(&g_aal_force_relay) == 1) {
+	} else if (atomic_read(&g_aal_is_init_regs_valid) == 0) {
 		/* AAL Service is not running */
 		if (atomic_read(&g_led_mode) == MT65XX_LED_MODE_CUST_LCM)
 			backlight_brightness_set_with_lock(bl_1024);
@@ -1734,8 +1717,7 @@ static int disp_aal_write_dre_to_reg(enum DISP_MODULE_ENUM module,
 
 	gain = param->DREGainFltStatus;
 #if defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6758) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 	DISP_REG_MASK(cmdq, DISP_AAL_DRE_FLT_FORCE(0) + offset,
 	    DRE_REG_2(gain[0], 0, gain[1], 14), ~0);
 	DISP_REG_MASK(cmdq, DISP_AAL_DRE_FLT_FORCE(1) + offset,
@@ -1935,13 +1917,8 @@ static int aal_config(enum DISP_MODULE_ENUM module,
 		DISP_REG_SET(cmdq, DISP_AAL_SIZE + offset,
 			(width << 16) | height);
 
-		if (atomic_read(&g_aal_force_relay) == 1) {
-			/* Set relay mode */
-			DISP_REG_MASK(cmdq, DISP_AAL_CFG + offset, 1, 0x1);
-		} else {
-			/* Disable relay mode */
-			DISP_REG_MASK(cmdq, DISP_AAL_CFG + offset, 0, 0x1);
-		}
+	/* Disable relay mode */
+		DISP_REG_MASK(cmdq, DISP_AAL_CFG + offset, 0x0, 0x1);
 
 		disp_aal_init(module, width, height, cmdq);
 
@@ -1964,8 +1941,7 @@ static int aal_config(enum DISP_MODULE_ENUM module,
  * AAL Backup / Restore function
  *****************************************************************************/
 #if defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6758) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 #define DRE_FLT_NUM	(13)
 #elif defined(CONFIG_MACH_MT6799)
 #define DRE_FLT_NUM	(12)
@@ -2048,8 +2024,7 @@ static void ddp_aal_dre_backup(void)
 	}
 
 #if defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6758) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 	g_aal_backup.DRE_FLT_FORCE[11] =
 		DISP_REG_GET(DISP_AAL_DRE_FLT_FORCE_11);
 	g_aal_backup.DRE_FLT_FORCE[12] =
@@ -2148,8 +2123,7 @@ static void ddp_aal_dre_restore(enum DISP_MODULE_ENUM module, void *cmq_handle)
 	}
 
 #if defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6758) || \
-	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765) || \
-	defined(CONFIG_MACH_MT6761)
+	defined(CONFIG_MACH_MT6739) || defined(CONFIG_MACH_MT6765)
 	DISP_REG_SET(cmq_handle, DISP_AAL_DRE_FLT_FORCE_11 + offset,
 	    g_aal_backup.DRE_FLT_FORCE[11]);
 	DISP_REG_SET(cmq_handle, DISP_AAL_DRE_FLT_FORCE_12 + offset,
@@ -2215,7 +2189,7 @@ static int aal_clock_on(enum DISP_MODULE_ENUM module, void *cmq_handle)
 	/* aal is DCM , do nothing */
 #elif defined(CONFIG_MACH_MT6759) || defined(CONFIG_MACH_MT6758) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6739) || \
-	defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761)
+	defined(CONFIG_MACH_MT6765)
 	ddp_clk_prepare_enable(ddp_get_module_clk_id(module));
 #else
 #ifdef ENABLE_CLK_MGR
@@ -2270,7 +2244,7 @@ static int aal_clock_off(enum DISP_MODULE_ENUM module, void *cmq_handle)
 	/* aal is DCM , do nothing */
 #elif defined(CONFIG_MACH_MT6759) || defined(CONFIG_MACH_MT6758) || \
 	defined(CONFIG_MACH_MT6763) || defined(CONFIG_MACH_MT6739) || \
-	defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761)
+	defined(CONFIG_MACH_MT6765)
 	ddp_clk_disable_unprepare(ddp_get_module_clk_id(module));
 #else
 #ifdef ENABLE_CLK_MGR
@@ -2827,18 +2801,10 @@ void aal_test(const char *cmd, char *debug_output)
 	} else if (strncmp(cmd, "bypass:", 7) == 0) {
 		int bypass = (cmd[7] == '1');
 
-		atomic_set(&g_aal_force_relay, bypass);
-#if 0
 		for (i = 0; i < config_module_num; i++) {
 			module += i;
 			aal_bypass(module, bypass);
 		}
-#else
-		disp_aal_trigger_refresh(AAL_REFRESH_17MS);
-#endif
-	} else if (strncmp(cmd, "getBypass:", 10) == 0) {
-		sprintf(debug_output, "AAL HW Relay: %d\n",
-			atomic_read(&g_aal_force_relay));
 	} else if (strncmp(cmd, "ut:", 3) == 0) { /* debug command for UT */
 		aal_ut_cmd(cmd + 3);
 	} else if (strncmp(cmd, "dre", 3) == 0) {

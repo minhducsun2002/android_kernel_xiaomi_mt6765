@@ -677,9 +677,6 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 #if defined(NT35521_HD720_DSI_VIDEO_TM)
 	&nt35521_hd720_tm_lcm_drv,
 #endif
-#if defined(NT35521_HD_DSI_VDO_TRULY_RT5081)
-	&nt35521_hd_dsi_vdo_truly_rt5081_lcm_drv,
-#endif
 #if defined(R69338_HD720_DSI_VDO_JDI_DW8755A)
 	&r69338_hd720_dsi_vdo_jdi_dw8755a_drv,
 #endif
@@ -938,11 +935,6 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 #if defined(NT35695_FHD_DSI_VDO_TRULY_RT5081_HDP)
 	&nt35695_fhd_dsi_vdo_truly_rt5081_hdp_lcm_drv,
 #endif
-
-#if defined(NT35695_FHD_DSI_VDO_TRULY_RT5081_HDP_19_9)
-	&nt35695_fhd_dsi_vdo_truly_rt5081_hdp_19_9_lcm_drv,
-#endif
-
 #if defined(NT35695_FHD_DSI_VDO_TRULY_RT5081_720P)
 	&nt35695_fhd_dsi_vdo_truly_rt5081_720p_lcm_drv,
 #endif
@@ -1033,11 +1025,6 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 #if defined(NT35695B_FHD_DSI_CMD_AUO_RT5081_HDP)
 	&nt35695B_fhd_dsi_cmd_auo_rt5081_hdp_lcm_drv,
 #endif
-
-#if defined(NT35695B_FHD_DSI_CMD_AUO_RT5081_HDP_19_9)
-	&nt35695B_fhd_dsi_cmd_auo_rt5081_hdp_19_9_lcm_drv,
-#endif
-
 #if defined(NT35695B_FHD_DSI_VDO_AUO_RT5081)
 	&nt35695B_fhd_dsi_vdo_auo_rt5081_lcm_drv,
 #endif
@@ -1050,11 +1037,6 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 #if defined(NT35695B_FHD_DSI_VDO_AUO_RT5081_HDP)
 	&nt35695B_fhd_dsi_vdo_auo_rt5081_hdp_lcm_drv,
 #endif
-
-#if defined(NT35695B_FHD_DSI_VDO_AUO_RT5081_HDP_19_9)
-	&nt35695B_fhd_dsi_vdo_auo_rt5081_hdp_19_9_lcm_drv,
-#endif
-
 #if defined(CLAA101FP01_DSI_VDO)
 	&claa101fp01_dsi_vdo_lcm_drv,
 #endif
@@ -1097,9 +1079,19 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 #if defined(ILI9881C_HDP_DSI_VDO_ILITEK_RT5081_EBBG)
 	&ili9881c_hdp_dsi_vdo_ilitek_rt5081_lcm_drv_ebbg,
 #endif
+
+#if defined(ILI9881C_HDP_DSI_VDO_ILITEK_RT5081_BOE)
+	&ili9881c_hdp_dsi_vdo_ilitek_rt5081_lcm_drv_boe,
+#endif
+
 #if defined(HX8394F_HD720_DSI_VDO_TIANMA)
 	&hx8394f_hd720_dsi_vdo_tianma_lcm_drv,
 #endif
+
+#if defined(VIRTUAL_DSI_VDO_DEFAULT)
+	 &virtual_dsi_vdo_default,
+#endif
+
 #if defined(NT36672_FHDP_DSI_VDO_AUO)
 	&nt36672_fhdp_dsi_vdo_auo_lcm_drv,
 #endif
@@ -1159,17 +1151,6 @@ unsigned char lcm_name_list[][128] = {
 
 #if defined(NT36380_WQHD_VDO_OK)
 	"nt36380_wqhd_vdo_lcm_drv",
-#endif
-#if defined(NT35521_HD_DSI_VDO_TRULY_RT5081)
-	"nt35521_hd_dsi_vdo_truly_rt5081_drv",
-#endif
-
-#if defined(ILI9881C_HDP_DSI_VDO_ILITEK_RT5081)
-	"ili9881c_hdp_dsi_vdo_ilitek_rt5081_drv",
-#endif
-
-#if defined(NT35695B_FHD_DSI_VDO_AUO_RT5081_HDP)
-	"nt35695B_fhd_dsi_vdo_auo_rt5081_hdp_drv",
 #endif
 };
 

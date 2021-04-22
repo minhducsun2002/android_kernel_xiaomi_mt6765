@@ -13,6 +13,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include "teei_keymaster.h"
 #include "teei_client_transfer_data.h"
 #define IMSG_TAG "[tz_driver]"
@@ -29,9 +30,9 @@ unsigned long create_keymaster_fdrv(int buff_size)
 		IMSG_ERROR("Wrong buffer size %d:", buff_size);
 		return 0;
 	}
-	addr = (unsigned long) kmalloc(buff_size, GFP_KERNEL);
+	addr = (unsigned long) vmalloc(buff_size);
 	if (addr == 0) {
-		IMSG_ERROR("kmalloc buffer failed");
+		IMSG_ERROR("vmalloc buffer failed");
 		return 0;
 	}
 	memset((void *)addr, 0, buff_size);

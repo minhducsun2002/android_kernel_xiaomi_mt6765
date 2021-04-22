@@ -199,7 +199,7 @@ unsigned long hpf_get_power_md1(void)
 	struct hpf *hpfmgr = &hpf_ctrl;
 
 	if (hpfmgr->switch_md1)
-		hpfmgr->loading_md1 = get_md1_power(MAX_POWER, true);
+		hpfmgr->loading_md1 = get_md1_power(MAX_POWER);
 	else
 		hpfmgr->loading_md1 = 0;
 
@@ -511,8 +511,6 @@ static int pbm_thread_handle(void *data)
 			continue;
 		}
 
-		set_current_state(TASK_RUNNING);
-
 		mutex_lock(&pbm_mutex);
 		if (g_dlpt_need_do == 1) {
 			if (g_dlpt_stop == 0) {
@@ -532,6 +530,8 @@ static int pbm_thread_handle(void *data)
 		atomic_dec(&kthread_nreq);
 		mutex_unlock(&pbm_mutex);
 	}
+
+	__set_current_state(TASK_RUNNING);
 
 	return 0;
 }

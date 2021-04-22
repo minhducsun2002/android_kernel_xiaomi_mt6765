@@ -783,8 +783,6 @@ u32 cmdq_event_get_table_size(void);
 
 /* CMDQ core feature functions */
 
-bool cmdq_core_check_pkt_valid(struct cmdq_pkt *pkt);
-
 void cmdq_core_deinit_group_cb(void);
 
 s32 cmdqCoreRegisterCB(enum CMDQ_GROUP_ENUM engGroup,
@@ -933,7 +931,7 @@ s32 cmdq_core_resume_notifier(void);
 struct cmdq_dts_setting *cmdq_core_get_dts_setting(void);
 struct ContextStruct *cmdq_core_get_context(void);
 struct CmdqCBkStruct *cmdq_core_get_group_cb(void);
-void cmdq_core_release_active_handle(void *file_node);
+void cmdq_core_release_handle_by_file_node(void *file_node);
 unsigned long cmdq_get_tracing_mark(void);
 const struct cmdq_controller *cmdq_core_get_controller(void);
 

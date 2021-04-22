@@ -261,7 +261,6 @@ struct display_primary_path_context {
 	cmdqBackupSlotHandle rdma_buff_info;
 	cmdqBackupSlotHandle ovl_status_info;
 	cmdqBackupSlotHandle ovl_dummy_info;
-	cmdqBackupSlotHandle ovl_sbch_trans_invalid;
 	cmdqBackupSlotHandle ovl_config_time;
 	cmdqBackupSlotHandle dither_status_info;
 	cmdqBackupSlotHandle dsi_vfp_line;
@@ -483,6 +482,9 @@ int primary_display_config_full_roi(struct disp_ddp_path_config *pconfig,
 int primary_display_set_scenario(int scenario);
 enum DISP_MODULE_ENUM _get_dst_module_by_lcm(struct disp_lcm_handle *plcm);
 extern void check_mm0_clk_sts(void);
+
+int primary_display_set_cabc(unsigned int enable);
+int primary_display_get_cabc(int *status);
 
 extern unsigned int dump_output;
 extern unsigned int dump_output_comp;

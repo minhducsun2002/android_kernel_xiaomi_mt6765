@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -570,7 +571,7 @@ unsigned int _mt_cpufreq_get_cpu_level(void)
 		lv = CPU_LEVEL_3;
 	else if ((val == 0x1) || (val == 0x7))
 		lv = CPU_LEVEL_4;
-	else if ((val == 0x8) || (val == 0x9) || (val == 0xF))
+	else if ((val == 0x8) || (val == 0xF))
 		lv = CPU_LEVEL_4;
 	else
 		lv = CPU_LEVEL_3;

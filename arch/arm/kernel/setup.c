@@ -2,6 +2,7 @@
  *  linux/arch/arm/kernel/setup.c
  *
  *  Copyright (C) 1995-2001 Russell King
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -32,6 +33,7 @@
 #include <linux/compiler.h>
 #include <linux/sort.h>
 #include <linux/psci.h>
+#include <linux/cpumask.h>
 
 #include <asm/unified.h>
 #include <asm/cp15.h>
@@ -1280,6 +1282,11 @@ static int c_show(struct seq_file *m, void *v)
 		}
 		seq_printf(m, "CPU revision\t: %d\n\n", cpuid & 15);
 	}
+
+	if (num_possible_cpus() == 4)
+		strcpy(machine_name, "mt6762m");
+	else
+		strcpy(machine_name, "mt6762");
 
 	seq_printf(m, "Hardware\t: %s\n", machine_name);
 	seq_printf(m, "Revision\t: %04x\n", system_rev);

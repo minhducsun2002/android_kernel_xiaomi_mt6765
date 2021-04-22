@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2015 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  * Author: Biao Huang <biao.huang@mediatek.com>
  *
  * This program is free software; you can redistribute it and/or modify

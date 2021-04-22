@@ -122,7 +122,6 @@
 			drive-strength = /bits/ 8 <4>;
 		};
 	};
-
 	msdc0_pins_hs200: msdc0@hs200 {
 		pins_cmd {
 			drive-strength = /bits/ 8 <3>;
@@ -140,7 +139,6 @@
 			drive-strength = /bits/ 8 <4>;
 		};
 	};
-
 	msdc0_register_setting_default: msdc0@register_default {
 		cmd_edge = /bits/ 8 <MSDC_SMPL_RISING>;
 		rdata_edge = /bits/ 8 <MSDC_SMPL_RISING>;

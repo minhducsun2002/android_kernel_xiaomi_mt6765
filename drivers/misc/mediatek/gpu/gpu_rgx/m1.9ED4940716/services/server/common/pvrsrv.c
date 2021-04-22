@@ -2,6 +2,7 @@
 @File
 @Title          core services functions
 @Copyright      Copyright (c) Imagination Technologies Ltd. All Rights Reserved
+ * Copyright (C) 2018 XiaoMi, Inc.
 @Description    Main APIs for core services functions
 @License        Dual MIT/GPLv2
 
@@ -798,7 +799,7 @@ PVRSRVDriverInit(void)
 							"pvr_defer_free",
 							CleanupThread,
 							gpsPVRSRVData,
-							OS_THREAD_LOWEST_PRIORITY);
+							OS_THREAD_HIGHEST_PRIORITY);
 	if (eError != PVRSRV_OK)
 	{
 		PVR_DPF((PVR_DBG_ERROR, "%s: Failed to create deferred cleanup thread",

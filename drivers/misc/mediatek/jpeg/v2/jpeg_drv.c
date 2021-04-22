@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -427,12 +428,14 @@ static int jpeg_drv_dec_init(void)
 static void jpeg_drv_dec_deinit(void)
 {
 	if (dec_status != 0) {
+
 		spin_lock(&jpeg_dec_lock);
 		dec_status = 0;
 		dec_ready = 0;
 		spin_unlock(&jpeg_dec_lock);
 
 		jpeg_drv_dec_reset();
+
 		jpeg_drv_dec_power_off();
 	}
 }
@@ -787,10 +790,6 @@ static int jpeg_enc_ioctl(unsigned int cmd, unsigned long arg, struct file *file
 	unsigned int jpeg_enc_wait_timeout = 0;
 	unsigned int cycle_count;
 	unsigned int ret;
-	/* No spec, considering [picture size] x [target fps] */
-	unsigned int cshot_spec = 0xffffffff;
-	/* limiting FPS, Upper Bound FPS = 20 */
-	unsigned int target_fps = 20;
 
 	unsigned int *pStatus;
 
@@ -830,16 +829,6 @@ static int jpeg_enc_ioctl(unsigned int cmd, unsigned long arg, struct file *file
 		break;
 
 	case JPEG_ENC_IOCTL_WARM_RESET:
-		if (*pStatus != JPEG_ENC_PROCESS) {
-			JPEG_WRN("Permission Denied!");
-			return -EFAULT;
-		}
-		if (enc_status == 0) {
-			JPEG_WRN("Encoder status is available");
-			*pStatus = 0;
-			return -EFAULT;
-		}
-
 		JPEG_MSG("[JPEGDRV][IOCTL] JPEG Encoder Warm Reset\n");
 		enc_result_code = jpeg_drv_enc_warm_reset();
 		if (enc_result_code == 0)
@@ -893,19 +882,12 @@ static int jpeg_enc_ioctl(unsigned int cmd, unsigned long arg, struct file *file
 		else
 			picCost = ((picSize * 3/2) * 8/5) + 1;
 
-#ifdef QOS_MT6765_SUPPORT
-		/* on mt6765, 16MP = 14.5 FPS */
-		cshot_spec = 232;
-#endif
-#ifdef QOS_MT6761_SUPPORT
-		/* on mt6761, lpddr4: 26MP = 5 FPS , lpddr3: 16MP = 10 FPS*/
-		cshot_spec = 160;
-#endif
-
-		if ((picCost * target_fps) < cshot_spec) {
-			emi_bw = picCost * target_fps;
+		/* considering FPS, 16MP = 14.5 FPS */
+		if ((picCost * 20) < 232) {
+			/* limiting FPS, Upper Bound FPS = 20 */
+			emi_bw = picCost * 20;
 		} else {
-			emi_bw = cshot_spec / picCost;
+			emi_bw = 232 / picCost;
 			emi_bw = (emi_bw + 1) * picCost;
 		}
 
@@ -1335,6 +1317,7 @@ static ssize_t jpeg_read(struct file *file, char __user *data, size_t len, loff_
 
 static int jpeg_release(struct inode *inode, struct file *file)
 {
+/*
 	if (enc_status != 0) {
 		JPEG_WRN("Error! Enable error handling for jpeg encoder");
 		jpeg_drv_enc_deinit();
@@ -1346,6 +1329,7 @@ static int jpeg_release(struct inode *inode, struct file *file)
 		jpeg_drv_dec_deinit();
 	}
 #endif
+*/
 
 	if (file->private_data != NULL) {
 		kfree(file->private_data);

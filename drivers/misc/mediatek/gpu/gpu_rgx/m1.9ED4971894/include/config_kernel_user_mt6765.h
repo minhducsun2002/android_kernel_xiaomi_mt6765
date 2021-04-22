@@ -126,5 +126,4 @@
 #define PVR_ANDROID_SYNC_HEADER "linux/sync.h"
 #define MTK_DEBUG_PROC_PRINT
 #define MTK_CONFIG_OF
-#define MTK_USE_HW_APM
 #define ENABLE_COMMON_DVFS

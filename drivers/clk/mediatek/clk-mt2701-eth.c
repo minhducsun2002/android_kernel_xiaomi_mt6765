@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  * Author: Shunli Wang <shunli.wang@mediatek.com>
  *
  * This program is free software; you can redistribute it and/or modify

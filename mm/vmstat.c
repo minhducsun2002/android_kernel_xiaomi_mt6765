@@ -3,6 +3,7 @@
  *
  *  Manages VM statistics
  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
+ *  Copyright (C) 2018 XiaoMi, Inc.
  *
  *  zoned VM statistics
  *  Copyright (C) 2006 Silicon Graphics, Inc.,
@@ -996,7 +997,6 @@ const char * const vmstat_text[] = {
 
 	"pgfault",
 	"pgmajfault",
-	"pgfmfault",
 	"pglazyfreed",
 
 	"pgrefill",

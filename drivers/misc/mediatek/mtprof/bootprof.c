@@ -24,7 +24,9 @@
 #include <log_store_kernel.h>
 
 #include "internal.h"
+#ifdef CONFIG_MTK_SCHED_MON_DEFAULT_ENABLE
 #include "mtk_sched_mon.h"
+#endif
 
 #define BOOT_STR_SIZE 256
 #define BUF_COUNT 12
@@ -66,7 +68,7 @@ void log_boot(char *str)
 	if (!enabled)
 		return;
 	ts = sched_clock();
-	pr_info("BOOTPROF:%10lld.%06ld:%s\n", msec_high(ts), msec_low(ts), str);
+	pr_info("BOOTPROF:%10lld.%06ld:%s\n", nsec_high(ts), nsec_low(ts), str);
 
 	mutex_lock(&bootprof_lock);
 	if (log_count >= (LOGS_PER_BUF * BUF_COUNT)) {
@@ -183,7 +185,7 @@ static void mt_bootprof_switch(int on)
 		unsigned long long ts = sched_clock();
 
 		pr_info("BOOTPROF:%10lld.%06ld: %s\n",
-		       msec_high(ts), msec_low(ts), on ? "ON" : "OFF");
+		       nsec_high(ts), nsec_low(ts), on ? "ON" : "OFF");
 
 		if (on) {
 			enabled = 1;
@@ -254,7 +256,7 @@ static int mt_bootprof_show(struct seq_file *m, void *v)
 	}
 
 	SEQ_printf(m, "%10lld.%06ld : ON\n",
-		   msec_high(timestamp_on), msec_low(timestamp_on));
+		   nsec_high(timestamp_on), nsec_low(timestamp_on));
 
 	for (i = 0; i < log_count; i++) {
 		p = &bootprof[i / LOGS_PER_BUF][i % LOGS_PER_BUF];
@@ -265,8 +267,8 @@ static int mt_bootprof_show(struct seq_file *m, void *v)
 #else
 #define FMT "%10lld.%06ld : %s\n"
 #endif
-		SEQ_printf(m, FMT, msec_high(p->timestamp),
-			   msec_low(p->timestamp),
+		SEQ_printf(m, FMT, nsec_high(p->timestamp),
+			   nsec_low(p->timestamp),
 #ifdef TRACK_TASK_COMM
 			   p->pid, p->comm_event, p->comm_event + TASK_COMM_LEN
 #else
@@ -276,7 +278,7 @@ static int mt_bootprof_show(struct seq_file *m, void *v)
 	}
 
 	SEQ_printf(m, "%10lld.%06ld : OFF\n",
-		   msec_high(timestamp_off), msec_low(timestamp_off));
+		   nsec_high(timestamp_off), nsec_low(timestamp_off));
 	SEQ_printf(m, "----------------------------------------\n");
 	return 0;
 }

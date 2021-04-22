@@ -175,7 +175,7 @@ static int cmdq_release(struct inode *pInode, struct file *pFile)
 	/* scan through tasks that created by
 	 * this file node and release them
 	 */
-	cmdq_mdp_release_active_task((void *)pNode);
+	cmdq_mdp_release_task_by_file_node((void *)pNode);
 
 	kfree(pFile->private_data);
 	pFile->private_data = NULL;

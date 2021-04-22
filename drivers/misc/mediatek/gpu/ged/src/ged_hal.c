@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -47,6 +48,7 @@ static struct dentry* gpsDvfsPreFreqEntry = NULL;
 static struct dentry* gpsDvfsGpuUtilizationEntry = NULL;
 static struct dentry* gpsFpsUpperBoundEntry = NULL;
 static struct dentry* gpsIntegrationReportReadEntry = NULL;
+static struct dentry *gpsSystraceGPUInfoEntry;
 #ifdef GED_FDVFS_ENABLE
 static struct dentry *gpsGpuFreqHintEntry;
 #endif
@@ -94,7 +96,8 @@ int tokenizer(char* pcSrc, int i32len, int* pi32IndexArray, int i32NumToken)
 
 
 //-----------------------------------------------------------------------------
-static void* ged_total_gpu_freq_level_count_seq_start(struct seq_file *psSeqFile, loff_t *puiPosition)
+static void *ged_total_gpu_freq_level_count_seq_start(
+		struct seq_file *psSeqFile, loff_t *puiPosition)
 {
 	if (0 == *puiPosition)
 	{
@@ -935,6 +938,79 @@ static const struct seq_operations gsKpi_info_ReadOps = {
 };
 #endif
 
+/*---------------------- Systrace GPU Info entry------------------------------*/
+static u32 gpuinfo_stauts;
+void ged_hal_set_systrace_gpuinfo_status(u32 *status)
+{
+	if (status)
+		gpuinfo_stauts = *status;
+}
+
+void ged_hal_get_systrace_gpuinfo_status(u32 *status)
+{
+	if (status)
+		*status = gpuinfo_stauts;
+}
+
+static ssize_t ged_systrace_gpuinfo_write_entry(const char __user *pszBuffer,
+		size_t uiCount, loff_t uiPosition, void *pvData)
+{
+#define GED_HAL_DEBUGFS_SIZE 64
+	char acBuffer[GED_HAL_DEBUGFS_SIZE];
+	u32 value;
+
+	if ((uiCount > 0) && (uiCount < GED_HAL_DEBUGFS_SIZE)) {
+		if (ged_copy_from_user(acBuffer, pszBuffer, uiCount) == 0) {
+			acBuffer[uiCount] = '\0';
+			if (kstrtou32(acBuffer, 0, &value) == 0)
+				ged_hal_set_systrace_gpuinfo_status(&value);
+		}
+	}
+
+	return uiCount;
+}
+
+static void *ged_systrace_gpuinfo_seq_start(struct seq_file *psSeqFile,
+	loff_t *puiPosition)
+{
+	if (*puiPosition == 0)
+		return SEQ_START_TOKEN;
+
+	return NULL;
+}
+
+static void ged_systrace_gpuinfo_seq_stop(struct seq_file *psSeqFile,
+					void *pvData)
+{
+
+}
+
+static void *ged_systrace_gpuinfo_seq_next(struct seq_file *psSeqFile,
+				void *pvData, loff_t *puiPosition)
+{
+	return NULL;
+}
+
+static int ged_systrace_gpuinfo_seq_show(struct seq_file *psSeqFile,
+					void *pvData)
+{
+	if (pvData != NULL) {
+		u32 gpuinfo_status;
+
+		ged_hal_get_systrace_gpuinfo_status(&gpuinfo_status);
+		seq_printf(psSeqFile, "%u\n", gpuinfo_status);
+	}
+
+	return 0;
+}
+static const struct seq_operations gssystrace_gpuinfo_ReadOps = {
+	.start = ged_systrace_gpuinfo_seq_start,
+	.stop = ged_systrace_gpuinfo_seq_stop,
+	.next = ged_systrace_gpuinfo_seq_next,
+	.show = ged_systrace_gpuinfo_seq_show,
+};
+/*-----------------------Systrace GPU Info entry------------------------------*/
+
 static struct notifier_block ged_fb_notifier;
 
 static int ged_fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
@@ -1235,6 +1311,15 @@ GED_ERROR ged_hal_init(void)
 		goto ERROR;
 	}
 
+	/* Enable/Disable print out gpu info in systrace */
+	err = ged_debugFS_create_entry(
+			"systrace_gpu_info",
+			gpsHALDir,
+			&gssystrace_gpuinfo_ReadOps,
+			ged_systrace_gpuinfo_write_entry,
+			NULL,
+			&gpsSystraceGPUInfoEntry);
+
 	return err;
 
 ERROR:
@@ -1256,6 +1341,7 @@ void ged_hal_exit(void)
 	ged_debugFS_remove_entry(gpsDvfsCurFreqEntry);
 	ged_debugFS_remove_entry(gpsDvfsPreFreqEntry);
 	ged_debugFS_remove_entry(gpsDvfsGpuUtilizationEntry);
+	ged_debugFS_remove_entry(gpsSystraceGPUInfoEntry);
 #ifdef MTK_GED_KPI
 	ged_debugFS_remove_entry(gpsGedInfoKPIEntry);
 #endif

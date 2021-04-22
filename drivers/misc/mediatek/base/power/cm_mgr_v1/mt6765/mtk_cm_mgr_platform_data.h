@@ -30,7 +30,7 @@
 		.release		= single_release,		\
 		.write		  = name ## _proc_write,		\
 	}
-#endif /* PROC_FOPS_RW */
+#endif
 
 #ifndef PROC_FOPS_RO
 #define PROC_FOPS_RO(name)					\
@@ -47,11 +47,21 @@
 		.llseek		 = seq_lseek,				\
 		.release		= single_release,		\
 	}
-#endif /* PROC_FOPS_RO */
+#endif
 
 #ifndef PROC_ENTRY
 #define PROC_ENTRY(name)	{__stringify(name), &name ## _proc_fops}
-#endif /* PROC_ENTRY */
+#endif
+
+struct cm_mgr_met_data {
+	unsigned int cm_mgr_power[14];
+	unsigned int cm_mgr_count[4];
+	unsigned int cm_mgr_opp[6];
+	unsigned int cm_mgr_loading[12];
+	unsigned int cm_mgr_ratio[12];
+	unsigned int cm_mgr_bw;
+	unsigned int cm_mgr_valid;
+};
 
 static int light_load_cps = 1000;
 static int cm_mgr_loop_count = 15;
@@ -61,30 +71,20 @@ int cpu_power_ratio_up[CM_MGR_EMI_OPP] = {100, 100};
 int cpu_power_ratio_down[CM_MGR_EMI_OPP] = {100, 100};
 int vcore_power_ratio_up[CM_MGR_EMI_OPP] = {100, 100};
 int vcore_power_ratio_down[CM_MGR_EMI_OPP] = {100, 100};
-static int gpu_power_ratio_up[CM_MGR_EMI_OPP] = {100, 100};
-static int gpu_power_ratio_down[CM_MGR_EMI_OPP] = {100, 100};
 int debounce_times_up_adb[CM_MGR_EMI_OPP] = {0, 3};
 int debounce_times_down_adb[CM_MGR_EMI_OPP] = {0, 3};
 static int debounce_times_reset_adb;
-int debounce_times_perf_down;
-int debounce_times_perf_force_down = 100;
+int debounce_times_perf_down = 100;
 static int update;
 static int update_v2f_table = 1;
 static int cm_mgr_opp_enable = 1;
 int cm_mgr_enable = 1;
-#if defined(CONFIG_MTK_TINYSYS_SSPM_SUPPORT) && defined(USE_CM_MGR_AT_SSPM)
-int cm_mgr_sspm_enable = 1;
-#endif /* CONFIG_MTK_TINYSYS_SSPM_SUPPORT */
-int cm_mgr_gpu_enable;
 #ifdef USE_TIMER_CHECK
 int cm_mgr_timer_enable = 1;
 #endif /* USE_TIMER_CHECK */
 int cm_mgr_ratio_timer_enable;
 int cm_mgr_disable_fb = 1;
 int cm_mgr_blank_status;
-int cm_mgr_perf_enable = 1;
-int cm_mgr_perf_timer_enable;
-int cm_mgr_perf_force_enable;
 
 static unsigned int vcore_power_gain_0[][VCORE_ARRAY_SIZE] = {
 	{64, 165},
@@ -182,6 +182,7 @@ static unsigned int _v2f_all[][CM_MGR_CPU_CLUSTER] = {
 	{29, 29},
 };
 
+#ifndef ATF_SECURE_SMC
 static unsigned int cpu_power_gain_UpLow0[][CM_MGR_CPU_ARRAY_SIZE] = {
 	{2, 2, 2, 1},
 	{5, 4, 4, 3},
@@ -454,5 +455,6 @@ int cpu_power_gain_opp(int bw, int is_up, int opp, int ratio_idx, int idx)
 	else
 		return cpu_power_gain(cpu_power_gain_down, ratio_idx, idx);
 }
+#endif
 
 #endif	/* __MTK_CM_MGR_PLATFORM_DATA_H__ */

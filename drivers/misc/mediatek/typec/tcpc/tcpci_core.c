@@ -28,12 +28,14 @@
 #ifdef CONFIG_USB_POWER_DELIVERY
 #include "pd_dpm_prv.h"
 #include "inc/tcpm.h"
-#ifdef CONFIG_RECV_BAT_ABSENT_NOTIFY
 #include "mtk_battery.h"
-#endif /* CONFIG_RECV_BAT_ABSENT_NOTIFY */
 #endif /* CONFIG_USB_POWER_DELIVERY */
 
-#define TCPC_CORE_VERSION		"2.0.10_MTK"
+#define TCPC_CORE_VERSION		"2.0.9_MTK"
+
+#ifdef CONFIG_USB_POWER_DELIVERY
+static struct tcpc_device *tcpc_dev;
+#endif
 
 static ssize_t tcpc_show_property(struct device *dev,
 				  struct device_attribute *attr, char *buf);
@@ -359,16 +361,6 @@ struct tcpc_device *tcpc_device_register(struct device *parent,
 		return NULL;
 	}
 
-	for (i = 0; i < TCP_NOTIFY_IDX_NR; i++)
-		srcu_init_notifier_head(&tcpc->evt_nh[i]);
-
-	mutex_init(&tcpc->access_lock);
-	mutex_init(&tcpc->typec_lock);
-	mutex_init(&tcpc->timer_lock);
-	mutex_init(&tcpc->mr_lock);
-	sema_init(&tcpc->timer_enable_mask_lock, 1);
-	spin_lock_init(&tcpc->timer_tick_lock);
-
 	tcpc->dev.class = tcpc_class;
 	tcpc->dev.type = &tcpc_dev_type;
 	tcpc->dev.parent = parent;
@@ -390,8 +382,17 @@ struct tcpc_device *tcpc_device_register(struct device *parent,
 		return ERR_PTR(ret);
 	}
 
+	for (i = 0; i < TCP_NOTIFY_IDX_NR; i++)
+		srcu_init_notifier_head(&tcpc->evt_nh[i]);
 	INIT_DELAYED_WORK(&tcpc->init_work, tcpc_init_work);
 	INIT_DELAYED_WORK(&tcpc->event_init_work, tcpc_event_init_work);
+
+	mutex_init(&tcpc->access_lock);
+	mutex_init(&tcpc->typec_lock);
+	mutex_init(&tcpc->timer_lock);
+	mutex_init(&tcpc->mr_lock);
+	sema_init(&tcpc->timer_enable_mask_lock, 1);
+	spin_lock_init(&tcpc->timer_tick_lock);
 
 	/* If system support "WAKE_LOCK_IDLE",
 	 * please use it instead of "WAKE_LOCK_SUSPEND"
@@ -839,36 +840,33 @@ static void __exit tcpc_class_exit(void)
 subsys_initcall(tcpc_class_init);
 module_exit(tcpc_class_exit);
 
-
-#ifdef CONFIG_TCPC_NOTIFIER_LATE_SYNC
-#ifdef CONFIG_RECV_BAT_ABSENT_NOTIFY
-static int fg_bat_notifier_call(struct notifier_block *nb,
+#ifdef CONFIG_USB_POWER_DELIVERY
+static int bat_notifier_call(struct notifier_block *nb,
 				unsigned long event, void *data)
 {
-	struct pd_port *pd_port = container_of(nb, struct pd_port, fg_bat_nb);
-	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
+	int ret;
 
 	switch (event) {
 	case EVENT_BATTERY_PLUG_OUT:
-		dev_info(&tcpc_dev->dev, "%s: fg battery absent\n", __func__);
-		schedule_work(&pd_port->fg_bat_work);
+		ret = tcpm_shutdown(tcpc_dev);
+		if (ret < 0)
+			pr_notice("%s: tcpm shutdown fail\n", __func__);
 		break;
 	default:
 		break;
 	}
 	return NOTIFY_OK;
 }
-#endif /* CONFIG_RECV_BAT_ABSENT_NOTIFY */
-#endif /* CONFIG_TCPC_NOTIFIER_LATE_SYNC */
+#endif
 
 #ifdef CONFIG_TCPC_NOTIFIER_LATE_SYNC
 static int __tcpc_class_complete_work(struct device *dev, void *data)
 {
 	struct tcpc_device *tcpc = dev_get_drvdata(dev);
-#ifdef CONFIG_RECV_BAT_ABSENT_NOTIFY
-	struct notifier_block *fg_bat_nb = &tcpc->pd_port.fg_bat_nb;
-	int ret = 0;
-#endif /* CONFIG_RECV_BAT_ABSENT_NOTIFY */
+#ifdef CONFIG_USB_POWER_DELIVERY
+	struct notifier_block *bat_nb = &tcpc->pd_port.bat_nb;
+	int ret;
+#endif
 
 	if (tcpc != NULL) {
 		pr_info("%s = %s\n", __func__, dev_name(dev));
@@ -879,14 +877,22 @@ static int __tcpc_class_complete_work(struct device *dev, void *data)
 			msecs_to_jiffies(1000));
 #endif
 
-#ifdef CONFIG_RECV_BAT_ABSENT_NOTIFY
-		fg_bat_nb->notifier_call = fg_bat_notifier_call;
-		ret = register_battery_notifier(fg_bat_nb);
+#ifdef CONFIG_USB_POWER_DELIVERY
+		tcpc_dev = tcpc_dev_get_by_name("type_c_port0");
+		if (!tcpc_dev) {
+			pr_notice("%s get tcpc device type_c_port0 fail\n",
+				__func__);
+			return -ENODEV;
+		}
+
+		bat_nb->notifier_call = bat_notifier_call;
+		ret = register_battery_notifier(bat_nb);
 		if (ret < 0) {
 			pr_notice("%s: register bat notifier fail\n", __func__);
 			return -EINVAL;
 		}
-#endif /* CONFIG_RECV_BAT_ABSENT_NOTIFY */
+#endif
+
 	}
 	return 0;
 }
@@ -900,7 +906,7 @@ static int __init tcpc_class_complete_init(void)
 	return 0;
 }
 late_initcall_sync(tcpc_class_complete_init);
-#endif /* CONFIG_TCPC_NOTIFIER_LATE_SYNC */
+#endif
 
 MODULE_DESCRIPTION("Richtek TypeC Port Control Core");
 MODULE_AUTHOR("Jeff Chang <jeff_chang@richtek.com>");
@@ -908,10 +914,6 @@ MODULE_VERSION(TCPC_CORE_VERSION);
 MODULE_LICENSE("GPL");
 
 /* Release Version
- * 2.0.10_MTK
- * (1) fix battery noitifier plug out cause recursive locking detected in
- *     nh->srcu.
- *
  * 2.0.9_MTK
  * (1) fix 10k A-to-C legacy cable workaround side effect when
  *     cable plug in at worakround flow.

@@ -240,7 +240,6 @@ enum ACDK_SENSOR_FEATURE_ENUM {
 	SENSOR_FEATURE_GET_4CELL_DATA,
 	SENSOR_FEATURE_SET_WAKE_LOCK,
 	SENSOR_FEATURE_GET_MIPI_PIXEL_RATE,
-	SENSOR_FEATURE_GET_PIXEL_RATE,
 	SENSOR_FEATURE_MAX
 };
 
@@ -573,7 +572,8 @@ struct ACDK_SENSOR_INFO_STRUCT {
 	MUINT16 SensorHorFOV;
 	MUINT16 SensorVerFOV;
 	MUINT16 SensorOrientation;
-
+    MUINT32 SensorModuleID; //litao@wt  add it for keeping same with user
+    MUINT8  efuseID[64]; //litao@wt  add it for efuse id
 };
 
 #define ACDK_SENSOR_INFO2_STRUCT struct ACDK_SENSOR_INFO_STRUCT

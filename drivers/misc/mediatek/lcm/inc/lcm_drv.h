@@ -581,10 +581,7 @@ struct LCM_DSI_PARAMS {
 	unsigned int rg_bir;
 	unsigned int rg_bic;
 	unsigned int rg_bp;
-	/* PLL_CLOCK = (int) PLL_CLOCK */
 	unsigned int PLL_CLOCK;
-	/* data_rate = PLL_CLOCK x 2 */
-	unsigned int data_rate;
 	unsigned int PLL_CK_VDO;
 	unsigned int PLL_CK_CMD;
 	unsigned int dsi_clock;
@@ -678,6 +675,9 @@ struct LCM_PARAMS {
 	unsigned int corner_pattern_height;
 	unsigned int corner_pattern_height_bot;
 #endif
+	unsigned use_gpioID;
+	unsigned gpioID_value;
+	unsigned int vbias_level;
 };
 
 
@@ -886,6 +886,8 @@ struct LCM_DRIVER {
 	void (*set_pwm_for_mix)(int enable);
 
 	void (*aod)(int enter);
+	void (*set_cabc_cmdq)(void *handle, unsigned int enable);
+	void (*get_cabc_status)(int *status);
 };
 
 /* LCM Driver Functions */

@@ -2,6 +2,7 @@
  * Block multiqueue core code
  *
  * Copyright (C) 2013-2014 Jens Axboe
+ * Copyright (C) 2018 XiaoMi, Inc.
  * Copyright (C) 2013-2014 Christoph Hellwig
  */
 #include <linux/kernel.h>

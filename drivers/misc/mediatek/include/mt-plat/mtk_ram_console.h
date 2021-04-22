@@ -205,8 +205,6 @@ extern void aee_rr_rec_hps_cb_cpu_bitmask(unsigned int val);
 extern void aee_rr_rec_hps_cb_footprint(unsigned int val);
 extern void aee_rr_rec_hps_cb_fp_times(unsigned long long val);
 extern void aee_rr_rec_last_init_func(unsigned long val);
-extern void aee_rr_rec_last_sync_func(unsigned long val);
-extern void aee_rr_rec_last_async_func(unsigned long val);
 extern void aee_rr_rec_set_bit_pmic_ext_buck(int bit, int loc);
 extern void aee_rr_init_thermal_temp(int num);
 extern void aee_rr_rec_thermal_temp(int index, s8 val);
@@ -901,14 +899,6 @@ static inline void aee_rr_rec_hps_cb_fp_times(unsigned long long val)
 }
 
 static inline void aee_rr_rec_last_init_func(unsigned long val)
-{
-}
-
-static inline void aee_rr_rec_last_sync_func(unsigned long val)
-{
-}
-
-static inline void aee_rr_rec_last_async_func(unsigned long val)
 {
 }
 

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -239,10 +240,9 @@ struct ddrphy_golden_cfg {
 };
 
 enum {
-	SPMFW_LP4_2CH_3200 = 0,
+	SPMFW_LP4X_2CH_3733 = 0,
 	SPMFW_LP4X_2CH_3200,
 	SPMFW_LP3_1CH_1866,
-	SPMFW_LP4_2CH_2400,
 };
 
 int spm_get_spmfw_idx(void);

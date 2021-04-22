@@ -92,7 +92,6 @@ enum TX_RESULT {
 };
 
 extern void __iomem *mt_emi_base_get(void);
-extern void switch_mem_dcm(unsigned int on);
 unsigned int mt_dramc_chn_get(unsigned int emi_cona);
 unsigned int mt_dramc_chp_get(unsigned int emi_cona);
 phys_addr_t mt_dramc_rankbase_get(unsigned int rank);

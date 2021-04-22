@@ -70,10 +70,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pvr_gputrace.h"
 #endif
 
-#if defined(MTK_MFG_COUNTER_SUPPORT)
-#include "mtk_mfg_counter.h"
-#endif
-
 /* This is defined by default to enable producer callbacks.
  * Clients of the TL interface can disable the use of the callback
  * with PVRSRV_STREAM_FLAG_DISABLE_PRODUCER_CALLBACK. */
@@ -2514,35 +2510,6 @@ static void RGXHWPerfFTraceGPUSwitchEvent(PVRSRV_RGXDEV_INFO *psDevInfo,
 	PVR_DPF((PVR_DBG_VERBOSE, "RGXHWPerfFTraceGPUSwitchEvent: %s ui32ExtJobRef=%d, ui32IntJobRef=%d, eSwType=%d",
 			pszWorkName, psHWPerfPktData->ui32DMContext, psHWPerfPktData->ui32IntJobRef, eSwType));
 
-#if defined(MTK_MFG_COUNTER_SUPPORT)
-    // <<MTK add: when 3D job comes, update counter
-    JOB_TYPE jobType = JOB_NONE;
-    if (strcmp(pszWorkName, "3D") == 0) {
-        jobType = JOB_3D;
-    } else if (strcmp(pszWorkName, "TA") == 0) {
-        jobType = JOB_TA;
-    }
-    if (jobType == JOB_3D || jobType == JOB_TA) {
-        int time_s;
-        int time_us;
-
-        IMG_UINT64 t = ui64Timestamp + (NSEC_PER_USEC / 2);
-        do_div(t, NSEC_PER_SEC);
-        time_s = t;
-
-        t = ui64Timestamp + (NSEC_PER_USEC / 2);
-        do_div(t, NSEC_PER_USEC);
-        time_us = do_div(t, USEC_PER_SEC);
-
-        if (eSwType == PVR_GPUTRACE_SWITCH_TYPE_END) {
-            jobType++; // switch to JOB_xx_END
-        }
-
-        mtk_inner_get_gpu_pmu_swapnreset(time_s, time_us,
-            jobType, psHWPerfPktData->ui32FrameNum);
-    }
-    // MTK>>
-#endif
 	PVRGpuTraceWorkSwitch(ui64Timestamp, psHWPerfPktData->ui32DMContext, psHWPerfPktData->ui32CtxPriority,
 	                      psHWPerfPktData->ui32IntJobRef, pszWorkName, eSwType);
 

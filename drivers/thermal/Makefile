@@ -1,6 +1,7 @@
 #
 # Makefile for sensor chip drivers.
 #
+ccflags-y  += -I$(srctree)/drivers/misc/mediatek/thermal/common/inc/
 
 obj-$(CONFIG_THERMAL)		+= thermal_sys.o
 thermal_sys-y			+= thermal_core.o

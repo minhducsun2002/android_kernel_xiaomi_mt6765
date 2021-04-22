@@ -324,15 +324,32 @@ int emmc_rpmb_switch(struct mmc_card *card, struct emmc_rpmb_blk_data *md)
 
 		card->ext_csd.part_config = part_config;
 	}
+#ifdef CONFIG_MTK_EMMC_CQ_SUPPORT
+       /* enable cmdq at boot1/boot2/user partition */
+       if ((!card->ext_csd.cmdq_mode_en)
+       && (md->part_type <= 2)) {
+               ret = mmc_blk_cmdq_switch(card, 1);
+               if (ret) {
+                       MSG(ERR,
+                       "%s enable cmdq error %d, so just work without cmdq\n",
+                               mmc_hostname(card->host), ret);
+                       return ret;
+               }
+       }
+#endif
+
 
 #ifdef CONFIG_MTK_EMMC_CQ_SUPPORT
-	/* enable cmdq at user partition */
+	/* enable cmdq at boot1/boot2/user partition */
 	if ((!card->ext_csd.cmdq_mode_en)
-	&& (md->part_type <= 0)) {
+	&& (md->part_type <= 2)) {
 		ret = mmc_blk_cmdq_switch(card, 1);
-		if (ret)
-			pr_notice("%s enable CMDQ error %d, so just work without CMDQ\n",
-					mmc_hostname(card->host), ret);
+		if (ret) {
+			MSG(ERR,
+			"%s enable cmdq error %d, so just work without cmdq\n",
+				mmc_hostname(card->host), ret);
+			return ret;
+		}
 	}
 #endif
 	main_md->part_curr = md->part_type;
@@ -1857,6 +1874,23 @@ int ut_rpmb_req_get_max_wr_size(struct mmc_card *card,
 
 	return 0;
 }
+
+int ut_rpmb_req_set_key(struct mmc_card *card, struct s_rpmb *param)
+{
+       struct emmc_rpmb_req rpmb_req;
+       int ret;
+
+       rpmb_req.type = RPMB_PROGRAM_KEY;
+       rpmb_req.blk_cnt = 1;
+       rpmb_req.data_frame = (u8 *)param;
+
+       ret = emmc_rpmb_req_handle(card, &rpmb_req);
+       if (ret)
+               MSG(ERR, "%s, rpmb_req_handle IO err(%x)\n", __func__, ret);
+
+       return ret;
+}
+
 int ut_rpmb_req_get_wc(struct mmc_card *card, unsigned int *wc)
 {
 	struct emmc_rpmb_req rpmb_req;
@@ -2510,8 +2544,9 @@ long rpmb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 #if (defined(CONFIG_MICROTRUST_TEE_SUPPORT))
-	if ((cmd == RPMB_IOCTL_SOTER_WRITE_DATA) ||
-		(cmd == RPMB_IOCTL_SOTER_READ_DATA)) {
+       if ((cmd == RPMB_IOCTL_SOTER_WRITE_DATA)
+                       || (cmd == RPMB_IOCTL_SOTER_READ_DATA)
+                       || (cmd == RPMB_IOCTL_SOTER_SET_KEY)) {
 		if (rpmb_buffer == NULL) {
 			MSG(ERR, "%s, rpmb_buffer is NULL!\n", __func__);
 			return -1;
@@ -2693,6 +2728,24 @@ long rpmb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		break;
 
+       case RPMB_IOCTL_SOTER_SET_KEY:
+
+               ret = ut_rpmb_req_set_key(card,
+                               (struct s_rpmb *)(rpmbinfor.data_frame));
+               if (ret) {
+                       MSG(ERR, "%s, Microtrust rpmb set key req err(%x)\n",
+                                       __func__, ret);
+                       return ret;
+               }
+               ret = copy_to_user((void *)arg, rpmb_buffer,
+                               4 + rpmbinfor.size);
+               if (ret) {
+                       MSG(ERR, "%s, copy to user user failed: %x\n",
+                                       __func__, ret);
+                       return -EFAULT;
+               }
+               break;
+
 #endif
 	default:
 		MSG(ERR, "%s, wrong ioctl code (%d)!!!\n", __func__, cmd);
@@ -2705,16 +2758,11 @@ long rpmb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #else	/* eMMC */
 long rpmb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-#if defined(RPMB_IOCTL_UT) || defined(CONFIG_MICROTRUST_TEE_SUPPORT)
 	int err = 0;
-#endif
 	struct mmc_card *card;
-	int ret = 0;
-#if defined(RPMB_IOCTL_UT)
 	struct rpmb_ioc_param param;
-	unsigned char *ukey, *udata;
-#endif
-
+	int ret = 0;
+	unsigned char *udata=NULL;
 #if (defined(CONFIG_MICROTRUST_TEE_SUPPORT))
 	u32 arg_k;
 	u32 rpmb_size = 0;
@@ -2731,12 +2779,12 @@ long rpmb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	card = mtk_msdc_host[0]->mmc->card;
 
-#if defined(RPMB_IOCTL_UT)
 	err = copy_from_user(&param, (void *)arg, sizeof(param));
 	if (err) {
 		MSG(ERR, "%s, copy from user failed: %x\n", __func__, err);
 		return -EFAULT;
 	}
+#if (!defined(CONFIG_MICROTRUST_TEE_SUPPORT))
 
 	/* limit R/W arguments : less than RPMB area size
 	 * follow block.c: limit transfer size 128K(don't use
@@ -2787,8 +2835,9 @@ long rpmb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #endif
 
 #if (defined(CONFIG_MICROTRUST_TEE_SUPPORT))
-	if ((cmd == RPMB_IOCTL_SOTER_WRITE_DATA) ||
-		(cmd == RPMB_IOCTL_SOTER_READ_DATA)) {
+       if ((cmd == RPMB_IOCTL_SOTER_WRITE_DATA)
+                       || (cmd == RPMB_IOCTL_SOTER_READ_DATA)
+                       || (cmd == RPMB_IOCTL_SOTER_SET_KEY)) {
 		if (rpmb_buffer == NULL) {
 			MSG(ERR, "%s, rpmb_buffer is NULL!\n", __func__);
 			ret = -1;
@@ -2828,7 +2877,7 @@ long rpmb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 #endif
 
 	switch (cmd) {
-#if defined(RPMB_IOCTL_UT)
+
 	case RPMB_IOCTL_PROGRAM_KEY:
 
 		MSG(INFO, "%s, cmd = RPMB_IOCTL_PROGRAM_KEY!!!!!!!!!!!!!!\n",
@@ -2862,7 +2911,6 @@ long rpmb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = rpmb_req_ioctl_write_data(card, &param);
 
 		break;
-#endif
 
 #if (defined(CONFIG_MICROTRUST_TEE_SUPPORT))
 	case RPMB_IOCTL_SOTER_WRITE_DATA:
@@ -2957,6 +3005,24 @@ long rpmb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		break;
 
+       case RPMB_IOCTL_SOTER_SET_KEY:
+
+               ret = ut_rpmb_req_set_key(card,
+                               (struct s_rpmb *)(rpmbinfor.data_frame));
+               if (ret) {
+                       MSG(ERR, "%s, Microtrust rpmb set key req err(%x)\n",
+                                       __func__, ret);
+                       return ret;
+               }
+               ret = copy_to_user((void *)arg, rpmb_buffer,
+                               4 + rpmbinfor.size);
+               if (ret) {
+                       MSG(ERR, "%s, copy to user user failed: %x\n",
+                                       __func__, ret);
+                       return -EFAULT;
+               }
+               break;
+
 #endif
 	default:
 		MSG(ERR, "%s, wrong ioctl code (%d)!!!\n", __func__, cmd);
@@ -2964,10 +3030,11 @@ long rpmb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		goto end;
 	}
 end:
-#if defined(RPMB_IOCTL_UT)
+#if (!defined(CONFIG_MICROTRUST_TEE_SUPPORT))
 	kfree(param.data);
 	kfree(param.key);
 #endif
+
 	return ret;
 }
 

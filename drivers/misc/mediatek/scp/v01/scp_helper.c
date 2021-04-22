@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -84,17 +85,15 @@ unsigned int scp_recovery_flag[SCP_CORE_TOTAL];
 atomic_t scp_reset_status = ATOMIC_INIT(RESET_STATUS_STOP);
 unsigned int scp_reset_by_cmd;
 struct scp_region_info_st *scp_region_info;
-/* shadow it due to sram may not access during sleep */
-struct scp_region_info_st scp_region_info_copy;
 struct completion scp_sys_reset_cp;
 struct scp_work_struct scp_sys_reset_work;
 struct wakeup_source scp_reset_lock;
+phys_addr_t scp_loader_base_phys;
 phys_addr_t scp_loader_base_virt;
+phys_addr_t scp_fw_base_phys;
+uint32_t scp_loader_size;
+uint32_t scp_fw_size;
 DEFINE_SPINLOCK(scp_reset_spinlock);
-
-/* l1c enable */
-
-void __iomem *scp_l1c_start_virt;
 #endif
 
 phys_addr_t scp_mem_base_phys;
@@ -365,10 +364,10 @@ static void scp_A_notify_ws(struct work_struct *ws)
 #if SCP_RECOVERY_SUPPORT
 	/*clear reset status and unlock wake lock*/
 	pr_debug("[SCP] clear scp reset flag and unlock\n");
+	__pm_relax(&scp_reset_lock);
 	spm_resource_req(SPM_RESOURCE_USER_SCP, SPM_RESOURCE_RELEASE);
 	/* register scp dvfs*/
-	msleep(2000);
-	__pm_relax(&scp_reset_lock);
+	mdelay(2000);
 	scp_register_feature(RTOS_FEATURE_ID);
 #endif
 
@@ -911,8 +910,69 @@ static int create_files(void)
 #define SCP_MEM_RESERVED_KEY "mediatek,reserve-memory-scp_share"
 int scp_reserve_mem_of_init(struct reserved_mem *rmem)
 {
+	enum scp_reserve_mem_id_t id;
+	phys_addr_t accumlate_memory_size = 0;
+	unsigned int num = 0;
+
+	scp_mem_base_phys = (phys_addr_t) 0;
+	scp_mem_size = (phys_addr_t) 0;
+
+	num = (unsigned int)(sizeof(scp_reserve_mblock)
+			/ sizeof(scp_reserve_mblock[0]));
+	if (num != NUMS_MEM_ID) {
+		pr_err("[SCP] number of entries of reserved memory %u / %u\n",
+			num,
+			NUMS_MEM_ID);
+
+		return -1;
+	}
+
+	for (id = 0; id < NUMS_MEM_ID; id++)
+		accumlate_memory_size += scp_reserve_mblock[id].size;
+
+	if (accumlate_memory_size > rmem->size) {
+		pr_err("[SCP] accumlated memory size = %llu / %llu\n"
+			, (unsigned long long)accumlate_memory_size
+			, (unsigned long long)rmem->size);
+
+		return -1;
+	}
+
 	scp_mem_base_phys = (phys_addr_t) rmem->base;
 	scp_mem_size = (phys_addr_t) rmem->size;
+	if ((scp_mem_base_phys >= (0x90000000ULL)) ||
+				 (scp_mem_base_phys <= 0x0)) {
+		/*The scp remap region is fixed, only
+		 * 0x4000_0000ULL~0x8FFF_FFFFULL
+		 * can be accessible
+		 */
+		pr_err("[SCP]allocated memory(0x%llx)is larger than expected\n",
+			    (unsigned long long)scp_mem_base_phys);
+		/*should not call WARN_ON() here or there is no log, return -1
+		 * instead.
+		 */
+		return -1;
+	}
+
+	pr_debug("[SCP] phys:0x%llx - 0x%llx (0x%llx)\n",
+		(unsigned long long)(phys_addr_t)rmem->base,
+		(unsigned long long)((phys_addr_t)rmem->base +
+			(phys_addr_t)rmem->size),
+		(unsigned long long)(phys_addr_t)rmem->size);
+
+	accumlate_memory_size = 0;
+	for (id = 0; id < NUMS_MEM_ID; id++) {
+		scp_reserve_mblock[id].start_phys = scp_mem_base_phys +
+							accumlate_memory_size;
+		accumlate_memory_size += scp_reserve_mblock[id].size;
+
+		pr_debug("[SCP][reserve_mem:%d]:phys:0x%llx - 0x%llx (0x%llx)\n",
+			id,
+			(unsigned long long)scp_reserve_mblock[id].start_phys,
+			(unsigned long long)(scp_reserve_mblock[id].start_phys +
+				scp_reserve_mblock[id].size),
+			(unsigned long long)scp_reserve_mblock[id].size);
+	}
 
 	return 0;
 }
@@ -954,63 +1014,53 @@ EXPORT_SYMBOL_GPL(scp_get_reserve_mem_size);
 #if SCP_RESERVED_MEM
 static int scp_reserve_memory_ioremap(void)
 {
-	unsigned int num = (unsigned int)(sizeof(scp_reserve_mblock)
-			/ sizeof(scp_reserve_mblock[0]));
 	enum scp_reserve_mem_id_t id;
-	phys_addr_t accumlate_memory_size = 0;
+	phys_addr_t accumlate_memory_size;
+
 
 	if ((scp_mem_base_phys >= (0x90000000ULL)) ||
-			 (scp_mem_base_phys <= 0x0)) {
-		/* The scp remapped region is fixed, only
-		 * 0x4000_0000ULL ~ 0x8FFF_FFFFULL is accessible.
+				(scp_mem_base_phys <= 0x0)) {
+		/*The scp remap region is fixed, only
+		 * 0x4000_0000ULL~0x8FFF_FFFFULL
+		 * can be accessible
 		 */
-		pr_err("[SCP] Error: Wrong Address (0x%llx)\n",
-			    (uint64_t)scp_mem_base_phys);
-		BUG_ON(1);
+		pr_err("[SCP]allocated memory(0x%llx)is larger than expected\n",
+			(unsigned long long)scp_mem_base_phys);
+		/*call WARN_ON() to assert the unexpected memory allocation
+		 */
+		WARN_ON(1);
 		return -1;
 	}
-
-	if (num != NUMS_MEM_ID) {
-		pr_err("[SCP] number of entries of reserved memory %u / %u\n",
-			num, NUMS_MEM_ID);
-		BUG_ON(1);
-		return -1;
-	}
-
-	scp_mem_base_virt = (phys_addr_t)(size_t)ioremap_wc(scp_mem_base_phys,
-		scp_mem_size);
-	pr_debug("[SCP] rsrv_phy_base = 0x%llx, len:0x%llx\n",
-		(uint64_t)scp_mem_base_phys, (uint64_t)scp_mem_size);
-	pr_debug("[SCP] rsrv_vir_base = 0x%llx, len:0x%llx\n",
-		(uint64_t)scp_mem_base_virt, (uint64_t)scp_mem_size);
+	accumlate_memory_size = 0;
+	scp_mem_base_virt = (phys_addr_t)(size_t)ioremap_wc(scp_mem_base_phys
+							, scp_mem_size);
+	pr_debug("[SCP]reserve mem: virt:0x%llx - 0x%llx (0x%llx)\n",
+		(unsigned long long)scp_mem_base_virt,
+		(unsigned long long)scp_mem_base_virt + scp_mem_size,
+		(unsigned long long)scp_mem_size);
 
 	for (id = 0; id < NUMS_MEM_ID; id++) {
-		scp_reserve_mblock[id].start_phys = scp_mem_base_phys +
-			accumlate_memory_size;
 		scp_reserve_mblock[id].start_virt = scp_mem_base_virt +
-			accumlate_memory_size;
+							accumlate_memory_size;
 		accumlate_memory_size += scp_reserve_mblock[id].size;
-#ifdef DEBUG
-		pr_debug("[SCP] [%d] phys:0x%llx, virt:0x%llx, len:0x%llx\n",
-			id, (uint64_t)scp_reserve_mblock[id].start_phys,
-			(uint64_t)scp_reserve_mblock[id].start_virt,
-			(uint64_t)scp_reserve_mblock[id].size);
-#endif  // DEBUG
 	}
-	BUG_ON(accumlate_memory_size > scp_mem_size);
-
+	/* the reserved memory should be larger then expected memory
+	 * or scp_reserve_mblock does not match dts
+	 */
+	WARN_ON(accumlate_memory_size > scp_mem_size);
 #ifdef DEBUG
 	for (id = 0; id < NUMS_MEM_ID; id++) {
-		uint64_t start_phys = (uint64_t)scp_get_reserve_mem_phys(id);
-		uint64_t start_virt = (uint64_t)scp_get_reserve_mem_virt(id);
-		uint64_t len = (uint64_t)scp_get_reserve_mem_size(id);
-
-		pr_debug("[SCP][rsrv_mem-%d] phy:0x%llx - 0x%llx, len:0x%llx\n",
-			id, start_phys, start_phys + len - 1, len);
-		pr_debug("[SCP][rsrv_mem-%d] vir:0x%llx - 0x%llx, len:0x%llx\n",
-			id, start_virt, start_virt + len - 1, len);
+		pr_debug("[SCP][mem_reserve-%d] phys:0x%llx\n",
+			id,
+			(unsigned long long)scp_get_reserve_mem_phys(id));
+		pr_debug("[SCP][mem_reserve-%d] virt:0x%llx\n",
+			id,
+			(unsigned long long)scp_get_reserve_mem_virt(id));
+		pr_debug("[SCP][mem_reserve-%d] size:0x%llx\n",
+			id,
+			(unsigned long long)scp_get_reserve_mem_size(id));
 	}
-#endif  // DEBUG
+#endif
 	return 0;
 }
 #endif
@@ -1032,8 +1082,8 @@ void set_scp_mpu(void)
 
 	pr_debug("[SCP]MPU protect SCP Share region<%d:%08llx:%08llx> %x, %x\n",
 			MPU_REGION_ID_SCP_SMEM,
-			(uint64_t)region_info.start,
-			(uint64_t)region_info.end,
+			region_info.start,
+			region_info.end,
 			region_info.apc[1], region_info.apc[1]);
 
 	emi_mpu_set_protection(&region_info);
@@ -1370,8 +1420,7 @@ void scp_send_reset_wq(enum SCP_RESET_TYPE type)
 {
 	scp_sys_reset_work.flags = (unsigned int) type;
 	scp_sys_reset_work.id = SCP_A_ID;
-	if (scp_ee_enable != 3646633)
-		scp_schedule_reset_work(&scp_sys_reset_work);
+	scp_schedule_reset_work(&scp_sys_reset_work);
 }
 #endif
 
@@ -1401,48 +1450,6 @@ int scp_check_resource(void)
 #endif
 
 	return scp_resource_status;
-}
-
-void scp_region_info_init(void)
-{
-	/*get scp loader/firmware info from scp sram*/
-	scp_region_info = (SCP_TCM + SCP_REGION_INFO_OFFSET);
-	pr_debug("[SCP]scp_region_info=%p\n", scp_region_info);
-	memcpy_from_scp(&scp_region_info_copy, scp_region_info,
-		sizeof(scp_region_info_copy));
-}
-
-void scp_recovery_init(void)
-{
-#if SCP_RECOVERY_SUPPORT
-	/*create wq for scp reset*/
-	scp_reset_workqueue = create_workqueue("SCP_RESET_WQ");
-	/*init reset work*/
-	INIT_WORK(&scp_sys_reset_work.work, scp_sys_reset_ws);
-	/*init completion for identify scp aed finished*/
-	init_completion(&scp_sys_reset_cp);
-
-	scp_loader_base_virt = (phys_addr_t)(size_t)ioremap_wc(
-		scp_region_info_copy.ap_loader_start,
-		scp_region_info_copy.ap_loader_size);
-	pr_debug("[SCP]loader image mem:virt:0x%llx - 0x%llx\n",
-		(uint64_t)(phys_addr_t)scp_loader_base_virt,
-		(uint64_t)(phys_addr_t)scp_loader_base_virt +
-		(phys_addr_t)scp_region_info_copy.ap_loader_size);
-	/*init wake,
-	 *this is for prevent scp pll cpu clock disabled during reset flow
-	 */
-	wakeup_source_init(&scp_reset_lock, "scp reset wakelock");
-	/* init reset by cmd flag*/
-	scp_reset_by_cmd = 0;
-
-	if ((int)(scp_region_info_copy.ap_dram_size) > 0) {
-		/*if l1c enable, map it */
-		scp_l1c_start_virt = ioremap_wc(
-		scp_region_info_copy.ap_dram_start,
-		scp_region_info_copy.ap_dram_size);
-	}
-#endif
 }
 
 static int scp_device_probe(struct platform_device *pdev)
@@ -1477,14 +1484,6 @@ static int scp_device_probe(struct platform_device *pdev)
 		return -1;
 	}
 	pr_debug("[SCP] clkctrl base=0x%p\n", scpreg.clkctrl);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
-	scpreg.l1cctrl = devm_ioremap_resource(dev, res);
-	if (IS_ERR((void const *) scpreg.l1cctrl)) {
-		pr_debug("[SCP] scpreg.clkctrl error\n");
-		return -1;
-	}
-	pr_debug("[SCP] l1cctrl base=0x%p\n", scpreg.l1cctrl);
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	scpreg.irq = res->start;
@@ -1601,6 +1600,15 @@ static int __init scp_init(void)
 		return -1;
 	}
 
+	/* scp platform initialise */
+	pr_debug("[SCP] platform init\n");
+	scp_awake_init();
+	scp_workqueue = create_workqueue("SCP_WQ");
+	ret = scp_excep_init();
+	if (ret) {
+		pr_err("[SCP]Excep Init Fail\n");
+		goto err;
+	}
 	if (platform_driver_register(&mtk_scp_device))
 		pr_err("[SCP] scp probe fail\n");
 
@@ -1612,17 +1620,6 @@ static int __init scp_init(void)
 		pr_err("[SCP] scp disabled!!\n");
 		goto err;
 	}
-	/* scp platform initialise */
-	scp_region_info_init();
-	pr_debug("[SCP] platform init\n");
-	scp_awake_init();
-	scp_workqueue = create_workqueue("SCP_WQ");
-	ret = scp_excep_init();
-	if (ret) {
-		pr_debug("[SCP]Excep Init Fail\n");
-		goto err;
-	}
-
 	/* scp ipi initialise */
 	scp_send_buff[SCP_A_ID] = kmalloc((size_t) SHARE_BUF_SIZE, GFP_KERNEL);
 	if (!scp_send_buff[SCP_A_ID])
@@ -1692,7 +1689,43 @@ static int __init scp_init(void)
 	set_scp_mpu();
 #endif
 
-	scp_recovery_init();
+#if SCP_RECOVERY_SUPPORT
+	/*create wq for scp reset*/
+	scp_reset_workqueue = create_workqueue("SCP_RESET_WQ");
+	/*init reset work*/
+	INIT_WORK(&scp_sys_reset_work.work, scp_sys_reset_ws);
+	/*init completion for identify scp aed finished*/
+	init_completion(&scp_sys_reset_cp);
+	/*get scp loader/firmware info from scp sram*/
+	scp_region_info = (SCP_TCM + 0x400);
+	pr_debug("[SCP]scp_region_info=%p\n", scp_region_info);
+
+	scp_loader_base_phys = scp_region_info->ap_loader_start;
+	scp_loader_size = scp_region_info->ap_loader_size;
+	scp_fw_base_phys = scp_region_info->ap_firmware_start;
+	scp_fw_size = scp_region_info->ap_firmware_size;
+	pr_debug("[SCP]loader_addr=0x%llx,_sz=0x%x,fw_addr=0x%llx,sz=0x%x\n",
+		scp_loader_base_phys,
+		scp_loader_size,
+		scp_fw_base_phys,
+		scp_fw_size);
+
+
+	scp_loader_base_virt =
+			(phys_addr_t)(size_t)ioremap_wc(scp_loader_base_phys
+			, scp_loader_size);
+	pr_debug("[SCP]loader image mem:virt:0x%llx - 0x%llx (0x%x)\n",
+		(phys_addr_t)scp_loader_base_virt,
+		(phys_addr_t)scp_loader_base_virt +
+		(phys_addr_t)scp_loader_size,
+		scp_loader_size);
+	/*init wake,
+	 *this is for prevent scp pll cpu clock disabled during reset flow
+	 */
+	wakeup_source_init(&scp_reset_lock, "scp reset wakelock");
+	/* init reset by cmd flag*/
+	scp_reset_by_cmd = 0;
+#endif
 
 #if SCP_DVFS_INIT_ENABLE
 	wait_scp_dvfs_init_done();

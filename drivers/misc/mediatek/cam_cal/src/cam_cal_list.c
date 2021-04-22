@@ -42,48 +42,16 @@ unsigned int mtkCidList[MTK_MAX_CID_NUM] = {
 };
 
 struct stCAM_CAL_LIST_STRUCT g_camCalList[] = {
-/*Below is commom sensor */
-	{IMX230_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{S5K2T7SP_SENSOR_ID, 0xA4, CMD_AUTO, cam_cal_check_double_eeprom},
-	{IMX338_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{S5K4E6_SENSOR_ID, 0xA8, CMD_AUTO, cam_cal_check_mtk_cid},
-	{IMX386_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{S5K3M3_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{S5K2L7_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{IMX398_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_double_eeprom},
-	{IMX318_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{OV8858_SENSOR_ID, 0xA8, CMD_AUTO, cam_cal_check_mtk_cid},
-	{IMX386_MONO_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-/*B+B*/
-	{S5K2P7_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_double_eeprom},
-	{OV8856_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-/*61*/
-	{IMX499_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{S5K3L8_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{S5K5E8YX_SENSOR_ID, 0xA2, CMD_AUTO, cam_cal_check_mtk_cid},
-/*99*/
-	{IMX258_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{IMX258_MONO_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-/*97*/
-	{OV23850_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{OV23850_SENSOR_ID, 0xA8, CMD_AUTO, cam_cal_check_mtk_cid},
-	{S5K3M2_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-/*55*/
-	{S5K2P8_SENSOR_ID, 0xA2, CMD_AUTO, cam_cal_check_mtk_cid},
-	{S5K2P8_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{OV8858_SENSOR_ID, 0xA2, CMD_AUTO, cam_cal_check_mtk_cid},
-/* Others */
-	{S5K2X8_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{IMX377_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{IMX214_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{IMX214_MONO_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{IMX486_SENSOR_ID, 0xA8, CMD_AUTO, cam_cal_check_mtk_cid},
-	{OV12A10_SENSOR_ID, 0xA8, CMD_AUTO, cam_cal_check_mtk_cid},
-	{OV13855_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{S5K3L8_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
-	{HI556_SENSOR_ID, 0x51, CMD_AUTO, cam_cal_check_mtk_cid},
-	{S5K5E8YX_SENSOR_ID, 0x5a, CMD_AUTO, cam_cal_check_mtk_cid},
-	{S5K5E8YXREAR2_SENSOR_ID, 0x5a, CMD_AUTO, cam_cal_check_mtk_cid},
+	{CACTUS_OV13855_OFILM_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
+	{CACTUS_S5K3L8_SUNNY_SENSOR_ID, 0xA0, CMD_AUTO, cam_cal_check_mtk_cid},
+	{CEREUS_OV12A10_OFILM_SENSOR_ID, 0xA8, CMD_AUTO, cam_cal_check_mtk_cid},
+	{CEREUS_IMX486_SUNNY_SENSOR_ID, 0xA8, CMD_AUTO, cam_cal_check_mtk_cid},
+	{CACTUS_HI556_SUNNY_SENSOR_ID, 0x51, CMD_AUTO, cam_cal_check_mtk_cid},
+	{CACTUS_S5K5E8YX_OFILM_SENSOR_ID, 0x5a, CMD_AUTO, cam_cal_check_mtk_cid},
+	{CEREUS_S5K5E8YX_SUNNY_SENSOR_ID, 0x5a, CMD_AUTO, cam_cal_check_mtk_cid},
+	{CEREUS_S5K5E8YX_OFILM_SENSOR_ID, 0x5a, CMD_AUTO, cam_cal_check_mtk_cid},
+	{CEREUS_S5K5E8YXAUX_SUNNY_SENSOR_ID, 0x5a, CMD_AUTO, cam_cal_check_mtk_cid},
+	{CEREUS_S5K5E8YXAUX_OFILM_SENSOR_ID, 0x5a, CMD_AUTO, cam_cal_check_mtk_cid},
 	/*  ADD before this line */
 	{0, 0, CMD_NONE, 0}	/*end of list */
 };

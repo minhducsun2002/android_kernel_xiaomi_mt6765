@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,6 +15,10 @@
 #include "regulator.h"
 #include "upmu_common.h"
 
+#include <mt-plat/aee.h>
+#include <asm/siginfo.h>  //siginfo
+#include <linux/rcupdate.h>   //rcu_read_lock
+#include <linux/sched.h>  //find_task_by_pid_type
 
 static const int regulator_voltage[] = {
 	REGULATOR_VOLTAGE_0,
@@ -53,6 +58,11 @@ static void imgsensor_oc_handler1(void)
 		__func__,
 		gimgsensor.status.oc);
 	gimgsensor.status.oc = 1;
+	aee_kernel_warning("Imgsensor OC", "Over current");
+	if (reg_instance.pid != -1)
+		force_sig(SIGTERM,
+				pid_task(find_get_pid(reg_instance.pid),
+						PIDTYPE_PID));
 }
 static void imgsensor_oc_handler2(void)
 {
@@ -60,7 +70,11 @@ static void imgsensor_oc_handler2(void)
 		__func__,
 		gimgsensor.status.oc);
 	gimgsensor.status.oc = 1;
-
+	aee_kernel_warning("Imgsensor OC", "Over current");
+	if (reg_instance.pid != -1)
+		force_sig(SIGKILL,
+				pid_task(find_get_pid(reg_instance.pid),
+						PIDTYPE_PID));
 }
 static void imgsensor_oc_handler3(void)
 {
@@ -68,29 +82,86 @@ static void imgsensor_oc_handler3(void)
 		__func__,
 		gimgsensor.status.oc);
 	gimgsensor.status.oc = 1;
+	aee_kernel_warning("Imgsensor OC", "Over current");
+	if (reg_instance.pid != -1)
+		force_sig(SIGKILL,
+				pid_task(find_get_pid(reg_instance.pid),
+						PIDTYPE_PID));
 }
 
 
 enum IMGSENSOR_RETURN imgsensor_oc_interrupt(
 	enum IMGSENSOR_SENSOR_IDX sensor_idx, bool enable)
 {
-	pr_debug("[regulator] %s %d\n", __func__, enable);
-
-	mdelay(5);
+	struct regulator *preg = NULL;
+	struct device *pdevice = gimgsensor_device;
 
 	gimgsensor.status.oc = 0;
 
 	if (enable) {
+		mdelay(5);
 		/* enable interrupt after power on */
-		/* At least delay 3ms after power for recommendation */
-		pmic_enable_interrupt(INT_VCAMA_OC, 1, "camera");
-		pmic_enable_interrupt(INT_VCAMD_OC, 1, "camera");
-		pmic_enable_interrupt(INT_VCAMIO_OC, 1, "camera");
+		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN ||
+			sensor_idx == IMGSENSOR_SENSOR_IDX_SUB) {
+			preg = regulator_get(pdevice, "vcama");
+			if (preg && regulator_is_enabled(preg)) {
+			pmic_enable_interrupt(INT_VCAMA_OC, 1, "camera");
+				regulator_put(preg);
+				pr_debug("[regulator] %s INT_VCAMA_OC %d\n",
+					__func__, enable);
+			}
+
+		}
+		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN ||
+			sensor_idx == IMGSENSOR_SENSOR_IDX_SUB) {
+			preg = regulator_get(pdevice, "vcamd");
+			if (preg && regulator_is_enabled(preg)) {
+			pmic_enable_interrupt(INT_VCAMD_OC, 1, "camera");
+				regulator_put(preg);
+				pr_debug("[regulator] %s INT_VCAMD_OC %d\n",
+					__func__, enable);
+			}
+		}
+
+		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN ||
+			sensor_idx == IMGSENSOR_SENSOR_IDX_SUB ||
+			sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN2) {
+
+			preg = regulator_get(pdevice, "vcamio");
+			if (preg && regulator_is_enabled(preg)) {
+			pmic_enable_interrupt(INT_VCAMIO_OC, 1, "camera");
+				regulator_put(preg);
+				pr_debug("[regulator] %s INT_VCAMIO_OC %d\n",
+					__func__, enable);
+			}
+		}
+
+		rcu_read_lock();
+		reg_instance.pid = current->tgid;
+		rcu_read_unlock();
 	} else {
+		reg_instance.pid = -1;
+
 		/* Disable interrupt before power off */
-		pmic_enable_interrupt(INT_VCAMA_OC, 0, "camera");
-		pmic_enable_interrupt(INT_VCAMD_OC, 0, "camera");
-		pmic_enable_interrupt(INT_VCAMIO_OC, 0, "camera");
+		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN ||
+			sensor_idx == IMGSENSOR_SENSOR_IDX_SUB) {
+			pmic_enable_interrupt(INT_VCAMA_OC, 0, "camera");
+			pr_debug("[regulator] %s INT_VCAMA_OC %d\n",
+			__func__,  enable);
+		}
+		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN ||
+			sensor_idx == IMGSENSOR_SENSOR_IDX_SUB) {
+			pmic_enable_interrupt(INT_VCAMD_OC, 0, "camera");
+			pr_debug("[regulator] %s INT_VCAMD_OC %d\n",
+			__func__,  enable);
+		}
+		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN ||
+			sensor_idx == IMGSENSOR_SENSOR_IDX_SUB ||
+			sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN2) {
+			pmic_enable_interrupt(INT_VCAMIO_OC, 0, "camera");
+			pr_debug("[regulator] %s INT_VCAMIO_OC %d\n",
+			__func__,  enable);
+		}
 	}
 
 	return IMGSENSOR_RETURN_SUCCESS;
@@ -105,6 +176,7 @@ enum IMGSENSOR_RETURN imgsensor_oc_init(void)
 
 	gimgsensor.status.oc  = 0;
 	gimgsensor.imgsensor_oc_irq_enable = imgsensor_oc_interrupt;
+	reg_instance.pid = -1;
 
 	return IMGSENSOR_RETURN_SUCCESS;
 }
@@ -172,7 +244,7 @@ static enum IMGSENSOR_RETURN regulator_set(
 	atomic_t	*enable_cnt;
 
 
-	if (pin > IMGSENSOR_HW_PIN_AFVDD   ||
+	if (pin > IMGSENSOR_HW_PIN_DOVDD   ||
 		pin < IMGSENSOR_HW_PIN_AVDD    ||
 		pin_state < IMGSENSOR_HW_PIN_STATE_LEVEL_0 ||
 		pin_state >= IMGSENSOR_HW_PIN_STATE_LEVEL_HIGH)

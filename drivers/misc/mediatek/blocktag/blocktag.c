@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -177,9 +178,6 @@ void mtk_btag_pidlog_map_sg(struct request_queue *q, struct bio *bio,
 	ppl = ((struct page_pid_logger *)mtk_btag_pagelogger) + page_offset;
 	tmp.pid1 = ppl->pid1;
 	tmp.pid2 = ppl->pid2;
-
-	ppl->pid1 = 0xFFFF;
-	ppl->pid2 = 0xFFFF;
 	spin_unlock_irqrestore(&mtk_btag_pagelogger_lock, flags);
 
 	mtk_btag_pidlog_add(q, bio, tmp.pid1, bvec->bv_len);

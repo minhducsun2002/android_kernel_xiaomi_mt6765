@@ -20,4 +20,7 @@ GED_ERROR ged_hal_init(void);
 
 void ged_hal_exit(void);
 
+void ged_hal_get_systrace_gpuinfo_status(u32 *status);
+void ged_hal_set_systrace_gpuinfo_status(u32 *status);
+
 #endif

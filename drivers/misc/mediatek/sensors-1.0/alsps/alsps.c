@@ -682,6 +682,7 @@ static ssize_t ps_store_active(struct device *dev,
 	err = ps_enable_and_batch();
 #endif
 	atomic_set(&prox_state, PROX_STATE_FAR);
+	ps_data_report(1,3); //MTK Modi
 err_out:
 	mutex_unlock(&alsps_context_obj->alsps_op_mutex);
 	pr_debug(" ps_store_active done\n");

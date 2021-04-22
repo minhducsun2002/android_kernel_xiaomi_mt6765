@@ -10,6 +10,8 @@ struct vm_struct;
 
 #ifdef CONFIG_KASAN
 
+#define KASAN_SHADOW_SCALE_SHIFT 3
+
 #include <asm/kasan.h>
 #include <asm/pgtable.h>
 

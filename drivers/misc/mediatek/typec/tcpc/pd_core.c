@@ -544,24 +544,10 @@ static void pd_core_power_flags_init(struct pd_port *pd_port)
 	src_cap->pdos[0] |= src_flag;
 }
 
-#ifdef CONFIG_RECV_BAT_ABSENT_NOTIFY
-static void fg_bat_absent_work(struct work_struct *work)
-{
-	struct pd_port *pd_port = container_of(work, struct pd_port,
-					       fg_bat_work);
-	struct tcpc_device *tcpc_dev = pd_port->tcpc_dev;
-	int ret = 0;
-
-	ret = tcpm_shutdown(tcpc_dev);
-	if (ret < 0)
-		pr_notice("%s: tcpm shutdown fail\n", __func__);
-}
-#endif /* ONFIG_RECV_BAT_ABSENT_NOTIFY */
-
 int pd_core_init(struct tcpc_device *tcpc_dev)
 {
-	struct pd_port *pd_port = &tcpc_dev->pd_port;
 	int ret;
+	struct pd_port *pd_port = &tcpc_dev->pd_port;
 
 	mutex_init(&pd_port->pd_lock);
 
@@ -580,10 +566,6 @@ int pd_core_init(struct tcpc_device *tcpc_dev)
 	pd_core_power_flags_init(pd_port);
 
 	pd_dpm_core_init(pd_port);
-
-#ifdef CONFIG_RECV_BAT_ABSENT_NOTIFY
-	INIT_WORK(&pd_port->fg_bat_work, fg_bat_absent_work);
-#endif /* CONFIG_RECV_BAT_ABSENT_NOTIFY */
 
 	PE_INFO("%s\r\n", __func__);
 	return 0;

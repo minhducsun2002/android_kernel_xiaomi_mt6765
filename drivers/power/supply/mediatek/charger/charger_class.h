@@ -101,6 +101,7 @@ struct charger_ops {
 
 	/* enable term */
 	int (*enable_termination)(struct charger_device *, bool en);
+	int (*enable_rst)(struct charger_device *, bool en);
 
 	/* direct charging */
 	int (*enable_direct_charging)(struct charger_device *, bool en);
@@ -132,6 +133,7 @@ struct charger_ops {
 	int (*get_tchg_adc)(struct charger_device *, int *tchg_min,
 		int *tchg_max);
 	int (*get_zcv)(struct charger_device *, u32 *uV);
+	 int (*enable_hz)(struct charger_device *, bool en);
 };
 
 static inline
@@ -195,6 +197,7 @@ extern int charger_dev_is_safety_timer_enabled(struct charger_device *chg_dev,
 					bool *en);
 extern int charger_dev_enable_termination(struct charger_device *chg_dev,
 					bool en);
+extern int charger_dev_enable_rst(struct charger_device *chg_dev, bool en);
 extern int charger_dev_is_charging_done(struct charger_device *chg_dev,
 					bool *done);
 extern int charger_dev_enable_powerpath(struct charger_device *chg_dev,
@@ -212,6 +215,7 @@ extern int charger_dev_get_zcv(struct charger_device *chg_dev, u32 *uV);
 extern int charger_dev_run_aicl(struct charger_device *chg_dev, u32 *uA);
 extern int charger_dev_reset_eoc_state(struct charger_device *chg_dev);
 extern int charger_dev_safety_check(struct charger_device *chg_dev);
+extern int charger_dev_enable_hz(struct charger_device *charger_dev, bool en);
 
 /* PE+/PE+2.0 */
 extern int charger_dev_send_ta_current_pattern(struct charger_device *chg_dev,

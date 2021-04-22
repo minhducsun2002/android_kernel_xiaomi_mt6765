@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -95,12 +96,13 @@ enum IMGSENSOR_RETURN imgsensor_oc_interrupt(
 	struct regulator *preg = NULL;
 	struct device *pdevice = gimgsensor_device;
 
-
 	gimgsensor.status.oc = 0;
 
 	if (enable) {
 		mdelay(5);
-		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN) {
+		/* enable interrupt after power on */
+		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN ||
+			sensor_idx == IMGSENSOR_SENSOR_IDX_SUB) {
 			preg = regulator_get(pdevice, "vcama");
 			if (preg && regulator_is_enabled(preg)) {
 			pmic_enable_interrupt(INT_VCAMA_OC, 1, "camera");
@@ -110,7 +112,8 @@ enum IMGSENSOR_RETURN imgsensor_oc_interrupt(
 			}
 
 		}
-		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN2) {
+		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN ||
+			sensor_idx == IMGSENSOR_SENSOR_IDX_SUB) {
 			preg = regulator_get(pdevice, "vcamd");
 			if (preg && regulator_is_enabled(preg)) {
 			pmic_enable_interrupt(INT_VCAMD_OC, 1, "camera");
@@ -138,12 +141,14 @@ enum IMGSENSOR_RETURN imgsensor_oc_interrupt(
 	} else {
 		reg_instance.pid = -1;
 		/* Disable interrupt before power off */
-		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN) {
+		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN ||
+			sensor_idx == IMGSENSOR_SENSOR_IDX_SUB) {
 			pmic_enable_interrupt(INT_VCAMA_OC, 0, "camera");
 			pr_debug("[regulator] %s INT_VCAMA_OC %d\n",
 			__func__,  enable);
 		}
-		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN2) {
+		if (sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN ||
+			sensor_idx == IMGSENSOR_SENSOR_IDX_SUB) {
 			pmic_enable_interrupt(INT_VCAMD_OC, 0, "camera");
 			pr_debug("[regulator] %s INT_VCAMD_OC %d\n",
 			__func__,  enable);
@@ -237,7 +242,7 @@ static enum IMGSENSOR_RETURN regulator_set(
 	atomic_t	*enable_cnt;
 
 
-	if (pin > IMGSENSOR_HW_PIN_DOVDD   ||
+	if (pin > IMGSENSOR_HW_PIN_AFVDD   ||
 		pin < IMGSENSOR_HW_PIN_AVDD    ||
 		pin_state < IMGSENSOR_HW_PIN_STATE_LEVEL_0 ||
 		pin_state >= IMGSENSOR_HW_PIN_STATE_LEVEL_HIGH)

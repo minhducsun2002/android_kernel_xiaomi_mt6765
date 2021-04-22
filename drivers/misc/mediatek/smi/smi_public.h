@@ -41,7 +41,6 @@ void smi_debug_dump_status(const unsigned int reg_indx);
 int smi_debug_bus_hang_detect(unsigned int reg_indx, const bool dump,
 	const bool gce, const bool m4u);
 struct smi_bwc_scen_cb *smi_bwc_scen_cb_register(struct smi_bwc_scen_cb *cb);
-void smi_dcm_enable(const bool en, const char *user);
 #else
 #define smi_base_addr_get(reg_indx) ((void)0)
 #define smi_bus_prepare_enable(reg_indx, user_name, mtcmos) ((void)0)
@@ -49,7 +48,6 @@ void smi_dcm_enable(const bool en, const char *user);
 #define smi_debug_dump_status(reg_indx) ((void)0)
 #define smi_debug_bus_hang_detect(larb_indx, dump, gce, m4u) ((void)0)
 #define smi_bwc_scen_cb_register(cb) ((void)0)
-#define smi_dcm_enable(en, user) ((void)0)
 #endif
 
 #endif

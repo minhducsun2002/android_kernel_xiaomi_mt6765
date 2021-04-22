@@ -83,8 +83,7 @@ ifeq ($(CONFIG_HAVE_MTK_IN_HOUSE_TEE_SUPPORT),y)
 obj-$(CONFIG_TRUSTY) += gcpu/
 endif
 obj-$(CONFIG_TRUSTONIC_TEE_SUPPORT) += gud/
-obj-$(CONFIG_MTK_LEGACY_SECMEM_SUPPORT) += secmem/
-obj-$(CONFIG_MTK_TRUSTED_MEMORY_SUBSYSTEM) += trusted_mem/
+obj-$(CONFIG_TRUSTONIC_TEE_SUPPORT) += secmem/
 obj-y += sspm/
 obj-$(CONFIG_MMPROFILE) += mmp/
 obj-$(CONFIG_MTK_M4U)	+= m4u/
@@ -98,7 +97,6 @@ obj-$(CONFIG_MTK_RTC)	+= rtc/
 obj-y += mtprintk/
 obj-$(CONFIG_MTK_XO)	+= xo/
 obj-$(CONFIG_MICROTRUST_TEE_SUPPORT) += teei/
-obj-$(CONFIG_WATCHDATA_TEE_SUPPORT) += watchtrust/
 obj-$(CONFIG_MTK_RAM_CONSOLE) += ram_console/
 obj-$(CONFIG_MTK_DRAM_LOG_STORE)    += log_store/
 obj-$(CONFIG_MEDIATEK_SOLUTION)	+= aee/

@@ -83,7 +83,7 @@ static const unsigned char LCD_MODULE_ID = 0x01;
 /* physical size in um */
 #define LCM_PHYSICAL_WIDTH (74520)
 #define LCM_PHYSICAL_HEIGHT (132480)
-#define LCM_DENSITY (320)
+#define LCM_DENSITY (480)
 
 #define REGFLAG_DELAY		0xFFFC
 #define REGFLAG_UDELAY	0xFFFB
@@ -1283,6 +1283,7 @@ static void lcm_get_params(struct LCM_PARAMS *params)
 
 	params->virtual_width = VIRTUAL_WIDTH;
 	params->virtual_height = VIRTUAL_HEIGHT;
+
 	params->physical_width = LCM_PHYSICAL_WIDTH/1000;
 	params->physical_height = LCM_PHYSICAL_HEIGHT/1000;
 	params->physical_width_um = LCM_PHYSICAL_WIDTH;
@@ -1299,7 +1300,7 @@ static void lcm_get_params(struct LCM_PARAMS *params)
 	lcm_dsi_mode = SYNC_PULSE_VDO_MODE;
 #endif
 	pr_debug("[LCM]lcm_get_params lcm_dsi_mode %d\n", lcm_dsi_mode);
-	params->dsi.switch_mode_enable = 0;
+	params->dsi.switch_mode_enable = 1;
 
 	/* DSI */
 	/* Command mode setting */
@@ -1320,12 +1321,12 @@ static void lcm_get_params(struct LCM_PARAMS *params)
 	params->dsi.vertical_backporch = 8;
 	params->dsi.vertical_frontporch = 40;
 	params->dsi.vertical_frontporch_for_low_power = 620;
-	params->dsi.vertical_active_line = VIRTUAL_HEIGHT;
+	params->dsi.vertical_active_line = FRAME_HEIGHT;
 
 	params->dsi.horizontal_sync_active = 10;
 	params->dsi.horizontal_backporch = 20;
 	params->dsi.horizontal_frontporch = 40;
-	params->dsi.horizontal_active_pixel = VIRTUAL_WIDTH;
+	params->dsi.horizontal_active_pixel = FRAME_WIDTH;
 	params->dsi.ssc_disable = 0;
 #ifndef CONFIG_FPGA_EARLY_PORTING
 #if (LCM_DSI_CMD_MODE)
@@ -1364,9 +1365,6 @@ static void lcm_get_params(struct LCM_PARAMS *params)
 	params->dsi.lane_swap[MIPITX_PHY_PORT_0][MIPITX_PHY_LANE_RX] =
 		MIPITX_PHY_LANE_1;
 #endif
-	/* for ARR 2.0 */
-	params->max_refresh_rate = 60;
-	params->min_refresh_rate = 45;
 
 #ifdef CONFIG_MTK_ROUND_CORNER_SUPPORT
 	params->round_corner_en = 1;
@@ -1630,7 +1628,7 @@ static void lcm_validate_roi(int *x, int *y, int *width, int *height)
 	unsigned int x1, w, h;
 
 	x1 = 0;
-	w = VIRTUAL_WIDTH;
+	w = FRAME_WIDTH;
 
 	y1 = round_down(y1, 16);
 	h = y2 - y1 + 1;
@@ -1644,12 +1642,12 @@ static void lcm_validate_roi(int *x, int *y, int *width, int *height)
 	h = round_up(h, 16);
 
 	/* check height again */
-	if (y1 >= VIRTUAL_HEIGHT || y1 + h > VIRTUAL_HEIGHT) {
+	if (y1 >= FRAME_HEIGHT || y1 + h > FRAME_HEIGHT) {
 		/* assign full screen roi */
 		pr_info("%s calc error,assign full roi:y=%d,h=%d\n",
 			__func__, *y, *height);
 		y1 = 0;
-		h = VIRTUAL_HEIGHT;
+		h = FRAME_HEIGHT;
 	}
 
 	*x = x1;

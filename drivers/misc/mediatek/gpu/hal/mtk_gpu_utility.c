@@ -17,9 +17,7 @@
 #include <linux/mutex.h>
 
 #include <mt-plat/mtk_gpu_utility.h>
-#if 0
-#include "ged_monitor_3D_fence.h"
-#endif
+#include "mtk_gpufreq.h"
 
 unsigned int (*mtk_get_gpu_memory_usage_fp)(void) = NULL;
 EXPORT_SYMBOL(mtk_get_gpu_memory_usage_fp);
@@ -731,18 +729,6 @@ EXPORT_SYMBOL(mtk_get_gpu_pmu_swapnreset);
 
 /* ----------------------------------------------------------------------------- */
 
-int (*mtk_register_gpu_pmu_change_fp)(gpu_pmu_change_notify_fp callback);
-EXPORT_SYMBOL(mtk_register_gpu_pmu_change_fp);
-
-bool mtk_register_gpu_pmu_change(gpu_pmu_change_notify_fp callback)
-{
-	if (mtk_register_gpu_pmu_change_fp != NULL)
-		return mtk_register_gpu_pmu_change_fp(callback) == 0;
-	return false;
-}
-EXPORT_SYMBOL(mtk_register_gpu_pmu_change);
-
-/* ------------------------------------------------------------------- */
 typedef struct {
 	 gpu_power_change_notify_fp callback;
 	 char name[128];
@@ -822,3 +808,59 @@ void mtk_notify_gpu_power_change(int power_on)
 	mutex_unlock(&g_power_change.lock);
 }
 EXPORT_SYMBOL(mtk_notify_gpu_power_change);
+
+bool mtk_gpu_systrace_c(pid_t pid, int val, const char *fmt, ...)
+{
+	static unsigned long __read_mostly mark_addr;
+	char log[256];
+	va_list args;
+	bool ret = true;
+
+	if (!mark_addr)
+		mark_addr = kallsyms_lookup_name("tracing_mark_write");
+	if (!mark_addr)
+		return false;
+
+	memset(log, ' ', sizeof(log));
+	va_start(args, fmt);
+	vsnprintf(log, sizeof(log), fmt, args);
+	va_end(args);
+
+	preempt_disable();
+	event_trace_printk(mark_addr, "C|%d|%s|%d\n", pid, log, val);
+	preempt_enable();
+
+	return ret;
+}
+EXPORT_SYMBOL(mtk_gpu_systrace_c);
+
+bool mtk_get_gpuinfo(struct gpu_info *info)
+{
+	bool ret = true;
+	unsigned int loading, thermal_limit_freq;
+	unsigned long freq;
+	MTK_GPU_DVFS_TYPE dvfs_type;
+
+	if (!info)
+		return false;
+
+	loading = thermal_limit_freq = freq = 0;
+	mtk_get_gpu_loading(&loading);
+	thermal_limit_freq = mt_gpufreq_get_thermal_limit_freq();
+	if (mtk_get_gpu_dvfs_from_fp)
+		mtk_get_gpu_dvfs_from_fp(&dvfs_type, &freq);
+	else {
+		freq = mt_gpufreq_get_cur_freq();
+		dvfs_type = MTK_GPU_DVFS_TYPE_NONE;
+	}
+	freq /= 1000;
+	thermal_limit_freq /= 1000;
+
+	info->freq = (u32)freq;
+	info->loading = (u32)loading;
+	info->dvfs_type = (u32)dvfs_type;
+	info->thermal_limit_freq = thermal_limit_freq;
+
+	return ret;
+}
+EXPORT_SYMBOL(mtk_get_gpuinfo);

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010 MediaTek, Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * Author: Terry Chang <terry.chang@mediatek.com>
  *

@@ -47,3 +47,4 @@ obj-$(CONFIG_THERMAL) += ap_thermal_limit.o
 obj-y += thermal_zones/
 obj-y += coolers/
 obj-y += mtk_thermal_timer.o
+obj-y += mtk_thermal_policy.o

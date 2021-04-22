@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -34,6 +35,12 @@ struct IMGSENSOR {
 			(enum IMGSENSOR_SENSOR_IDX sensor_idx, bool enable);
 };
 
+struct match_hardwareinfo{
+    char *psensor_name;
+    char *hardwareinfo_set_name;
+    char *sensor_id;
+};
+
 MINT32
 imgsensor_sensor_open(struct IMGSENSOR_SENSOR *psensor);
 
@@ -63,9 +70,6 @@ MUINT32
 imgsensor_sensor_control(
 	struct IMGSENSOR_SENSOR *psensor,
 	enum MSDK_SCENARIO_ID_ENUM ScenarioId);
-extern void switch_emi_dcm(unsigned int on);
-extern void switch_mem_dcm(unsigned int on);
-
 
 #endif
 

@@ -15,6 +15,8 @@
 #define __MTK_GPU_UTILITY_H__
 
 #include <linux/types.h>
+#include <linux/preempt.h>
+#include <linux/trace_events.h>
 
   #define MTK_GPU_DVFS_TYPE_LIST {\
 MTK_GPU_DVFS_TYPE_ITEM(NONE) \
@@ -34,7 +36,13 @@ MTK_GPU_DVFS_TYPE_LIST
 #undef MTK_GPU_DVFS_TYPE_ITEM
 MTK_GPU_DVFS_TYPE;
 
-typedef void (*gpu_pmu_change_notify_fp)(void);
+/* gpu info*/
+struct gpu_info {
+	u32 freq;
+	u32 loading;
+	u32 dvfs_type;
+	u32 thermal_limit_freq;
+};
 
 #ifdef __cplusplus
 extern "C"
@@ -96,9 +104,6 @@ typedef struct {
 bool mtk_get_gpu_pmu_init(GPU_PMU *pmus, int pmu_size, int *ret_size);
 bool mtk_get_gpu_pmu_swapnreset(GPU_PMU *pmus, int pmu_size);
 
-typedef void (*gpu_pmu_change_notify_fp)(void);
-bool mtk_register_gpu_pmu_change(gpu_pmu_change_notify_fp callback);
-
 typedef void (*gpu_power_change_notify_fp)(int power_on);
 
 bool mtk_register_gpu_power_change(const char *name,
@@ -107,6 +112,12 @@ bool mtk_unregister_gpu_power_change(const char *name);
 
 /* GPU POWER NOTIFY should be called by GPU only */
 void mtk_notify_gpu_power_change(int power_on);
+
+/* ftrace */
+bool mtk_gpu_systrace_c(pid_t pid, int val, const char *fmt, ...);
+
+/*  gpu  info */
+bool mtk_get_gpuinfo(struct gpu_info *info);
 
 #ifdef __cplusplus
 }

@@ -29,19 +29,7 @@
 #include <linux/sched_clock.h>
 #include <linux/slab.h>
 
-#define CONFIG_MTK_TIMER_AEE_DUMP
-
-#ifdef CONFIG_MTK_TIMER_AEE_DUMP
-#ifdef CONFIG_MTK_RAM_CONSOLE
-#include <mt-plat/mtk_ram_console.h>
-
-static char gpt_clkevt_aee_dump_buf[128];
-#endif
-#endif
-
 #define GPT_IRQ_EN_REG		0x00
-#define GPT_IRQ_STA_REG         0x04
-
 #define GPT_IRQ_ENABLE(val)	BIT((val) - 1)
 #define GPT_IRQ_ACK_REG		0x08
 #define GPT_IRQ_ACK(val)	BIT((val) - 1)
@@ -73,97 +61,11 @@ struct mtk_clock_event_device {
 	u32 ticks_per_jiffy;
 	struct clock_event_device dev;
 };
-static struct mtk_clock_event_device *gpt_devs;
 
 static inline struct mtk_clock_event_device *to_mtk_clk(
 				struct clock_event_device *c)
 {
 	return container_of(c, struct mtk_clock_event_device, dev);
-}
-#if defined(CONFIG_MTK_TIMER_AEE_DUMP)
-static uint64_t gpt_clkevt_last_interrupt_time;
-static uint64_t gpt_clkevt_last_setting_next_event_time;
-#endif
-
-void mt_gpt_clkevt_aee_dump(void)
-{
-#if defined(CONFIG_MTK_RAM_CONSOLE) && defined(CONFIG_MTK_TIMER_AEE_DUMP)
-
-	/*
-	 * Notice: printk cannot be used during AEE flow to avoid lock issues.
-	 */
-	struct clock_event_device dev = gpt_devs->dev;
-	/* last interrupt time */
-
-	memset(gpt_clkevt_aee_dump_buf, 0, sizeof(gpt_clkevt_aee_dump_buf));
-	snprintf(gpt_clkevt_aee_dump_buf, sizeof(gpt_clkevt_aee_dump_buf),
-		"[GPT] last interrupt time: %llu\n",
-		gpt_clkevt_last_interrupt_time);
-	aee_sram_fiq_log(gpt_clkevt_aee_dump_buf);
-
-	/* last time of setting next event */
-
-	memset(gpt_clkevt_aee_dump_buf, 0, sizeof(gpt_clkevt_aee_dump_buf));
-	snprintf(gpt_clkevt_aee_dump_buf, sizeof(gpt_clkevt_aee_dump_buf),
-		"[GPT] last setting next event time: %llu\n",
-		gpt_clkevt_last_setting_next_event_time);
-	aee_sram_fiq_log(gpt_clkevt_aee_dump_buf);
-
-	/* global gpt status */
-
-	memset(gpt_clkevt_aee_dump_buf, 0, sizeof(gpt_clkevt_aee_dump_buf));
-	snprintf(gpt_clkevt_aee_dump_buf, sizeof(gpt_clkevt_aee_dump_buf),
-		"[GPT] IRQEN: 0x%x\n",
-		__raw_readl(gpt_devs->gpt_base + GPT_IRQ_EN_REG));
-	aee_sram_fiq_log(gpt_clkevt_aee_dump_buf);
-
-	memset(gpt_clkevt_aee_dump_buf, 0, sizeof(gpt_clkevt_aee_dump_buf));
-	snprintf(gpt_clkevt_aee_dump_buf, sizeof(gpt_clkevt_aee_dump_buf),
-		"[GPT] IRQSTA: 0x%x\n",
-		__raw_readl(gpt_devs->gpt_base + GPT_IRQ_STA_REG));
-	aee_sram_fiq_log(gpt_clkevt_aee_dump_buf);
-
-	/* gpt1 status */
-
-	memset(gpt_clkevt_aee_dump_buf, 0, sizeof(gpt_clkevt_aee_dump_buf));
-	snprintf(gpt_clkevt_aee_dump_buf, sizeof(gpt_clkevt_aee_dump_buf),
-		"[GPT1] CON: 0x%x\n",
-		__raw_readl(gpt_devs->gpt_base + TIMER_CTRL_REG(GPT_CLK_EVT)));
-	aee_sram_fiq_log(gpt_clkevt_aee_dump_buf);
-
-	memset(gpt_clkevt_aee_dump_buf, 0, sizeof(gpt_clkevt_aee_dump_buf));
-	snprintf(gpt_clkevt_aee_dump_buf, sizeof(gpt_clkevt_aee_dump_buf),
-		"[GPT1] CLK: 0x%x\n",
-		__raw_readl(gpt_devs->gpt_base + TIMER_CLK_REG(GPT_CLK_EVT)));
-	aee_sram_fiq_log(gpt_clkevt_aee_dump_buf);
-
-	memset(gpt_clkevt_aee_dump_buf, 0, sizeof(gpt_clkevt_aee_dump_buf));
-	snprintf(gpt_clkevt_aee_dump_buf, sizeof(gpt_clkevt_aee_dump_buf),
-		"[GPT1] CNT: 0x%x\n",
-		__raw_readl(gpt_devs->gpt_base + TIMER_CNT_REG(GPT_CLK_EVT)));
-	aee_sram_fiq_log(gpt_clkevt_aee_dump_buf);
-
-	memset(gpt_clkevt_aee_dump_buf, 0, sizeof(gpt_clkevt_aee_dump_buf));
-	snprintf(gpt_clkevt_aee_dump_buf, sizeof(gpt_clkevt_aee_dump_buf),
-		"[GPT1] CMP: 0x%x\n",
-		__raw_readl(gpt_devs->gpt_base + TIMER_CMP_REG(GPT_CLK_EVT)));
-	aee_sram_fiq_log(gpt_clkevt_aee_dump_buf);
-
-	memset(gpt_clkevt_aee_dump_buf, 0, sizeof(gpt_clkevt_aee_dump_buf));
-	snprintf(gpt_clkevt_aee_dump_buf, sizeof(gpt_clkevt_aee_dump_buf),
-		"[GPT1] irq affinity: %d\n", dev.irq_affinity_on);
-	aee_sram_fiq_log(gpt_clkevt_aee_dump_buf);
-
-	/*
-	 * TODO: dump apxgpt irq status
-	 *
-	 * Since printk cannot be used during AEE flow, we may need to
-	 * change printk way in mt_irq_dump_status().
-	 */
-
-	/* mt_irq_dump_status(xgpt_timers.tmr_irq); */
-
-#endif
 }
 
 static void mtk_clkevt_time_stop(struct mtk_clock_event_device *evt,
@@ -234,18 +136,13 @@ static int mtk_clkevt_next_event(unsigned long event,
 	mtk_clkevt_time_stop(evt, GPT_CLK_EVT);
 	mtk_clkevt_time_setup(evt, event, GPT_CLK_EVT);
 	mtk_clkevt_time_start(evt, false, GPT_CLK_EVT);
-#if defined(CONFIG_MTK_TIMER_AEE_DUMP)
-	gpt_clkevt_last_setting_next_event_time = sched_clock();
-#endif
+
 	return 0;
 }
 
 static irqreturn_t mtk_timer_interrupt(int irq, void *dev_id)
 {
 	struct mtk_clock_event_device *evt = dev_id;
-#if defined(CONFIG_MTK_TIMER_AEE_DUMP)
-	gpt_clkevt_last_interrupt_time = sched_clock();
-#endif
 
 	/* Acknowledge timer0 irq */
 	writel(GPT_IRQ_ACK(GPT_CLK_EVT), evt->gpt_base + GPT_IRQ_ACK_REG);
@@ -301,7 +198,7 @@ static int __init mtk_timer_init(struct device_node *node)
 	evt = kzalloc(sizeof(*evt), GFP_KERNEL);
 	if (!evt)
 		return -ENOMEM;
-	gpt_devs = evt;
+
 	evt->dev.name = "mtk_tick";
 	evt->dev.rating = 300;
 	evt->dev.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT |
@@ -326,31 +223,25 @@ static int __init mtk_timer_init(struct device_node *node)
 	}
 
 	clk_bus = of_clk_get_by_name(node, "bus");
-	if (!IS_ERR(clk_bus)) {
-		if (clk_prepare_enable(clk_bus)) {
-			pr_err("Can't prepare clk bus\n");
-			goto err_irq;
-		}
-	}
+	if (!IS_ERR(clk_bus))
+		clk_prepare_enable(clk_bus);
+
 	clk_src = of_clk_get(node, 0);
 	if (IS_ERR(clk_src)) {
 		pr_err("Can't get timer clock\n");
-		goto err_clk_disable_bus;
+		goto err_irq;
 	}
 
 	if (clk_prepare_enable(clk_src)) {
 		pr_err("Can't prepare clock\n");
-		goto err_clk_src;
+		goto err_clk_put_src;
 	}
 	rate_src = clk_get_rate(clk_src);
 
 	clk_evt = of_clk_get_by_name(node, "clk32k");
 	if (!IS_ERR(clk_evt)) {
 		clk32k_exist = true;
-		if (clk_prepare_enable(clk_evt)) {
-			pr_err("Can't prepare clk32k\n");
-			goto err_clk_evt;
-		}
+		clk_prepare_enable(clk_evt);
 		rate_evt = clk_get_rate(clk_evt);
 	} else {
 		rate_evt = rate_src;
@@ -390,23 +281,17 @@ static int __init mtk_timer_init(struct device_node *node)
 
 err_clk_disable_evt:
 	clk_disable_unprepare(clk_evt);
-err_clk_evt:
 	clk_put(clk_evt);
 err_clk_disable_src:
 	clk_disable_unprepare(clk_src);
-err_clk_src:
+
+err_clk_put_src:
 	clk_put(clk_src);
-err_clk_disable_bus:
-	clk_disable_unprepare(clk_bus);
 err_irq:
-	clk_put(clk_bus);
 	irq_dispose_mapping(evt->dev.irq);
 err_mem:
 	iounmap(evt->gpt_base);
-	if (of_address_to_resource(node, 0, &res)) {
-		pr_info("Failed to parse resource\n");
-		goto err_kzalloc;
-	}
+	of_address_to_resource(node, 0, &res);
 	release_mem_region(res.start, resource_size(&res));
 err_kzalloc:
 	kfree(evt);
@@ -415,5 +300,3 @@ err_kzalloc:
 }
 CLOCKSOURCE_OF_DECLARE(mtk_mt6577, "mediatek,mt6577-timer", mtk_timer_init);
 CLOCKSOURCE_OF_DECLARE(mtk_mt6758, "mediatek,mt6758-timer", mtk_timer_init);
-CLOCKSOURCE_OF_DECLARE(mtk_apxgpt, "mediatek,apxgpt", mtk_timer_init);
-

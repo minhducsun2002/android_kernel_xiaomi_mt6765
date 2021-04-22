@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,6 +25,8 @@
 #if defined(MTK_LCM_DEVICE_TREE_SUPPORT)
 #include <linux/of.h>
 #endif
+
+unsigned int g_Lcm_Vbias_Level = 0;
 
 /* This macro and arrya is designed for multiple LCM support */
 /* for multiple LCM, we should assign I/F Port id in lcm driver, */
@@ -1028,6 +1031,8 @@ void load_lcm_resources_from_DT(struct LCM_DRIVER *lcm_drv)
 }
 #endif
 
+#include <linux/hardware_info.h>
+extern char Lcm_name[HARDWARE_MAX_ITEM_LONGTH];
 struct disp_lcm_handle *disp_lcm_probe(char *plcm_name,
 	enum LCM_INTERFACE_ID lcm_id, int is_lcm_inited)
 {
@@ -1045,6 +1050,11 @@ struct disp_lcm_handle *disp_lcm_probe(char *plcm_name,
 
 	DISPFUNC();
 	DISPCHECK("plcm_name=%s is_lcm_inited %d\n", plcm_name, is_lcm_inited);
+
+	if (is_lcm_inited == 1) {
+		strncpy(Lcm_name, plcm_name, strlen(plcm_name) +1);
+	}
+
 
 #if defined(MTK_LCM_DEVICE_TREE_SUPPORT)
 	if (check_lcm_node_from_DT() == 0) {
@@ -1326,7 +1336,10 @@ struct LCM_PARAMS *disp_lcm_get_params(struct disp_lcm_handle *plcm)
 	/* DISPFUNC(); */
 
 	if (_is_lcm_inited(plcm))
+	{
+		g_Lcm_Vbias_Level = plcm->params->vbias_level;
 		return plcm->params;
+	}
 	else
 		return NULL;
 }
@@ -1520,6 +1533,49 @@ int disp_lcm_set_backlight(struct disp_lcm_handle *plcm,
 		lcm_drv->set_backlight_cmdq(handle, level);
 	} else {
 		DISPERR("FATAL ERROR, lcm_drv->set_backlight is null\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int disp_lcm_set_cabc(struct disp_lcm_handle *plcm,
+	void *handle, int enable)
+{
+	struct LCM_DRIVER *lcm_drv = NULL;
+
+	DISPFUNC();
+	if (!_is_lcm_inited(plcm)) {
+		DISPERR("lcm_drv is null\n");
+		return -1;
+	}
+
+	lcm_drv = plcm->drv;
+	if (lcm_drv->set_cabc_cmdq) {
+		lcm_drv->set_cabc_cmdq(handle, enable);
+	} else {
+		DISPERR("FATAL ERROR, lcm_drv->set_cabc_cmdq is null\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int disp_lcm_get_cabc(struct disp_lcm_handle *plcm, int *status)
+{
+	struct LCM_DRIVER *lcm_drv = NULL;
+
+	DISPFUNC();
+	if (!_is_lcm_inited(plcm)) {
+		DISPERR("lcm_drv is null\n");
+		return -1;
+	}
+
+	lcm_drv = plcm->drv;
+	if (lcm_drv->get_cabc_status) {
+		lcm_drv->get_cabc_status(status);
+	} else {
+		DISPERR("FATAL ERROR, lcm_drv->get_cabc_status is null\n");
 		return -1;
 	}
 

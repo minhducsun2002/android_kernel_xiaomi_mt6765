@@ -458,13 +458,19 @@ int m4u_pte_allocator_init(void)
 ************************************************************/
 int m4u_alloc_pte(m4u_domain_t *domain, imu_pgd_t *pgd, unsigned int pgprot)
 {
-	void *pte_new_va;
+	void *pte_new_va = NULL;
 	phys_addr_t pte_new;
+	unsigned int retry_cnt = 0;
 
 	/* pte_new_va = (unsigned int)kzalloc(IMU_BYTES_PER_PTE, GFP_KERNEL); */
 	/* pte_new_va = (unsigned int)get_zeroed_page(GFP_KERNEL); */
 	write_unlock_domain(domain);
-	pte_new_va = kmem_cache_zalloc(gM4u_pte_kmem, GFP_KERNEL | GFP_DMA);
+	for (retry_cnt = 0; retry_cnt < 5; retry_cnt++) {
+		pte_new_va = kmem_cache_zalloc(gM4u_pte_kmem,
+					       GFP_KERNEL | GFP_DMA);
+		if (likely(pte_new_va))
+			break;
+	}
 	write_lock_domain(domain);
 	if (unlikely(!pte_new_va)) {
 		m4u_aee_print("%s: fail, nomemory\n", __func__);

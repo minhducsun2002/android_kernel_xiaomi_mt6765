@@ -1286,7 +1286,16 @@ static ssize_t mt_gpufreq_fixed_freq_volt_proc_write(struct file *file,
 out:
 	return (ret < 0) ? ret : count;
 }
-
+//MTK wfq add for bugreport+
+static int mt_gpufreq_sum_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "gpu:%d,%d\n",
+			__mt_gpufreq_get_cur_freq()/1000,
+			__mt_gpufreq_get_cur_volt()/100);
+	return 0;
+}
+PROC_FOPS_RO(gpufreq_sum);
+//MTK wfq add for bugreport-
 /*
  * PROCFS : initialization
  */
@@ -1315,6 +1324,7 @@ static int __mt_gpufreq_create_procfs(void)
 		PROC_ENTRY(gpufreq_opp_freq),
 		PROC_ENTRY(gpufreq_var_dump),
 		PROC_ENTRY(gpufreq_fixed_freq_volt),
+		PROC_ENTRY(gpufreq_sum),//MTK wfq add for bugreport
 	};
 
 	dir = proc_mkdir("gpufreq", NULL);
@@ -2456,8 +2466,7 @@ static int __mt_gpufreq_pdrv_probe(struct platform_device *pdev)
 	if (g_efuse_id == 0x8 || g_efuse_id == 0xf) {
 		/* 6762M */
 		g_segment_id = MT6762M_SEGMENT;
-	} else if (g_efuse_id == 0x1 || g_efuse_id == 0x7
-		|| g_efuse_id == 0x9) {
+	} else if (g_efuse_id == 0x1 || g_efuse_id == 0x7) {
 		/* 6762 */
 		g_segment_id = MT6762_SEGMENT;
 	} else if (g_efuse_id == 0x2 || g_efuse_id == 0x5) {

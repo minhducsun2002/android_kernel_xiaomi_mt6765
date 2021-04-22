@@ -994,12 +994,6 @@ s32 cmdq_mdp_flush_async(struct cmdqCommandStruct *desc, bool user_space,
 			}
 		}
 
-		if (!cmdq_core_check_pkt_valid(handle->pkt)) {
-			cmdq_task_destroy(handle);
-			CMDQ_SYSTRACE_END();
-			return -EFAULT;
-		}
-
 		err = cmdq_task_append_backup_reg(handle,
 			desc->regRequest.count,
 			(u32 *)(unsigned long)desc->regRequest.regAddresses);
@@ -1026,12 +1020,6 @@ s32 cmdq_mdp_flush_async(struct cmdqCommandStruct *desc, bool user_space,
 			cmdq_task_destroy(handle);
 			CMDQ_SYSTRACE_END();
 			return err;
-		}
-
-		if (!cmdq_core_check_pkt_valid(handle->pkt)) {
-			cmdq_task_destroy(handle);
-			CMDQ_SYSTRACE_END();
-			return -EFAULT;
 		}
 	}
 
@@ -1178,11 +1166,11 @@ s32 cmdq_mdp_wait(struct cmdqRecStruct *handle,
 
 s32 cmdq_mdp_flush(struct cmdqCommandStruct *desc, bool user_space)
 {
-	struct cmdqRecStruct *handle = NULL;
+	struct cmdqRecStruct *handle;
 	s32 status;
 
 	status = cmdq_mdp_flush_async(desc, user_space, &handle);
-	if (!handle || status < 0) {
+	if (!handle) {
 		CMDQ_ERR("mdp flush async failed:%d\n", status);
 		return status;
 	}
@@ -1208,10 +1196,9 @@ void cmdq_mdp_resume(void)
 	cmdq_mdp_add_consume_item();
 }
 
-void cmdq_mdp_release_active_task(void *file_node)
-
+void cmdq_mdp_release_task_by_file_node(void *file_node)
 {
-	struct cmdqRecStruct *handle, *temp;
+	struct cmdqRecStruct *handle;
 
 	/* Since the file node is closed, there is no way
 	 * user space can issue further "wait_and_close" request,
@@ -1222,17 +1209,12 @@ void cmdq_mdp_release_active_task(void *file_node)
 	/* walk through active and waiting lists and release them */
 	mutex_lock(&mdp_task_mutex);
 
-	list_for_each_entry_safe(handle, temp, &mdp_ctx.tasks_wait,
-		list_entry) {
+	list_for_each_entry(handle, &mdp_ctx.tasks_wait, list_entry) {
 		if (!(handle->state != TASK_STATE_IDLE &&
+			handle->node_private == file_node &&
 			cmdq_mdp_is_request_from_user_space(
 			handle->scenario)))
 			continue;
-
-		/* file node null means remove all */
-		if (file_node && handle->node_private != file_node)
-			continue;
-
 		CMDQ_LOG(
 			"[warn]waiting handle 0x%p release because file node 0x%p closed\n",
 			handle, file_node);
@@ -1245,13 +1227,13 @@ void cmdq_mdp_release_active_task(void *file_node)
 		 * hold mdp_task_mutex.
 		 */
 		list_del_init(&handle->list_entry);
-		cmdq_task_destroy(handle);
+		cmdq_pkt_release_handle(handle);
 	}
 
 	/* ask core to auto release by file node
 	 * note the core may lock more mutex
 	 */
-	cmdq_core_release_active_handle(file_node);
+	cmdq_core_release_handle_by_file_node(file_node);
 
 	mutex_unlock(&mdp_task_mutex);
 }
@@ -1339,7 +1321,6 @@ static void cmdq_mdp_init_pmqos(void)
 	/* Call mmdvfs_qos_get_freq_steps to get supported frequency */
 	result = mmdvfs_qos_get_freq_steps(PM_QOS_MDP_FREQ, &g_freq_steps[0],
 			&step_size);
-
 	if (g_freq_steps[0] == 0)
 		g_freq_steps[0] = 457;
 	if (result < 0)
@@ -1837,9 +1818,6 @@ static void cmdq_mdp_begin_task_virtual(struct cmdqRecStruct *handle,
 	u32 mdp_curr_pixel_size = 0;
 	bool first_task = true;
 
-	/* check engine status */
-	cmdq_mdp_get_func()->CheckHwStatus(handle);
-
 	pmqos_curr_record =
 		kzalloc(sizeof(struct mdp_pmqos_record), GFP_KERNEL);
 	handle->user_private = pmqos_curr_record;
@@ -2269,11 +2247,6 @@ static void cmdq_mdp_end_task_virtual(struct cmdqRecStruct *handle,
 		max_throughput);
 }
 
-static void cmdq_mdp_check_hw_status_virtual(struct cmdqRecStruct *handle)
-{
-	/* Do nothing */
-}
-
 void cmdq_mdp_virtual_function_setting(void)
 {
 	struct cmdqMDPFuncStruct *pFunc;
@@ -2323,7 +2296,6 @@ void cmdq_mdp_virtual_function_setting(void)
 	pFunc->endTask = cmdq_mdp_end_task_virtual;
 	pFunc->beginISPTask = cmdq_mdp_isp_begin_task_virtual;
 	pFunc->endISPTask = cmdq_mdp_isp_end_task_virtual;
-	pFunc->CheckHwStatus = cmdq_mdp_check_hw_status_virtual;
 }
 
 struct cmdqMDPFuncStruct *cmdq_mdp_get_func(void)

@@ -372,11 +372,32 @@ void hal_rtc_get_alarm(struct rtc_time *tm, struct rtc_wkalrm *alm)
 	/* return Power-On Alarm bit */
 	alm->pending = !!(pdn2 & RTC_PDN2_PWRON_ALARM);
 }
+#ifdef WT_COMPILE_FACTORY_VERSION
+//wfq mtk alarm patch
+extern bool mtk_disable_rtc;
+void hal_rtc_dis_alarm(void)
+{
+	u16 irqsta, irqen, pdn2;
+
+	irqen = rtc_read(RTC_IRQ_EN) & ~RTC_IRQ_EN_AL;
+	pdn2 = rtc_read(RTC_PDN2) & ~RTC_PDN2_PWRON_ALARM;
+	rtc_write(RTC_IRQ_EN, irqen);
+	rtc_write(RTC_PDN2, pdn2);
+	rtc_write_trigger();
+	irqsta = rtc_read(RTC_IRQ_STA);	/* read clear */
+}
+//wfq mtk alarm patch
+#endif//WT_COMPILE_FACTORY_VERSION
 
 void hal_rtc_set_alarm(struct rtc_time *tm)
 {
 	u16 irqen;
-
+#ifdef WT_COMPILE_FACTORY_VERSION
+//wfq mtk alarm patch
+	if(mtk_disable_rtc)
+		return;
+//wfq mtk alarm patch
+#endif//WT_COMPILE_FACTORY_VERSION
 	hal_rtc_set_alarm_time(tm);
 
 	irqen = rtc_read(RTC_IRQ_EN) | RTC_IRQ_EN_ONESHOT_AL;

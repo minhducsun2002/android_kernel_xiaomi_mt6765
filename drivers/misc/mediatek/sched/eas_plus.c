@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -238,7 +239,7 @@ static ssize_t show_eas_info_attr(struct kobject *kobj,
 	len += snprintf(buf+len, max_len - len, "turning_point=%d\n",
 		cpu_eff_tp);
 	len += snprintf(buf+len, max_len - len, "tiny_thresh=%d\n",
-		tiny_thresh);
+		sched_tiny_task_thresh);
 
 #ifdef CONFIG_MTK_SCHED_RQAVG_KS
 	sched_max_util_task(&max_cpu, &max_pid, &max_util, &boost);

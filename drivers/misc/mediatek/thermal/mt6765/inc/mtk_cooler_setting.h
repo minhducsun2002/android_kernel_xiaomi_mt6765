@@ -34,7 +34,4 @@
 /* 1: turn on SPA; 0: turn off  */
 #define FEATURE_SPA			(0)
 
-#define FEATURE_MUTT_CA_CONTROL		(1)
-
-
 #endif				/* _MTK_COOLER_SETTING_H */

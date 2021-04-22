@@ -390,15 +390,13 @@ static int IMM_auxadc_GetOneChannelValue_Cali(int Channel, int *voltage)
 {
 	int ret = 0, data[4], rawvalue;
 	u_int64_t temp_vol;
-	int tmp;
 
 	ret = IMM_auxadc_GetOneChannelValue(Channel, data, &rawvalue);
 	if (ret) {
 		pr_err(TAG "get raw value error %d\n", ret);
 		return -1;
 	}
-	tmp = data[0] * 1000 + data[2];
-	temp_vol = (u_int64_t) tmp * 1000;
+	temp_vol = (u_int64_t) rawvalue * 1500000 / AUXADC_PRECISE;
 	*voltage = temp_vol;
 	return 0;
 }

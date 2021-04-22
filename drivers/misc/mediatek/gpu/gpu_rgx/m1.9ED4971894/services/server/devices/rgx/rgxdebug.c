@@ -2521,9 +2521,7 @@ static_assert((RGX_CR_MMU_FAULT_STATUS_TYPE_SHIFT == RGX_CR_MMU_FAULT_STATUS_MET
 
 
 #if !defined(NO_HARDWARE)
-static PVRSRV_ERROR _RGXMipsRequestDebugData(PVRSRV_RGXDEV_INFO *psDevInfo,
-                                             PVRSRV_DEVICE_CONFIG *psDevConfig,
-                                             RGX_MIPS_STATE *psMIPSState)
+static PVRSRV_ERROR _RGXMipsExtraDebug(PVRSRV_RGXDEV_INFO *psDevInfo, PVRSRV_DEVICE_CONFIG *psDevConfig, RGX_MIPS_STATE *psMIPSState)
 {
 	void *pvRegsBaseKM = psDevInfo->pvRegsBaseKM;
 	IMG_UINT32 ui32RegRead;
@@ -2541,7 +2539,7 @@ static PVRSRV_ERROR _RGXMipsRequestDebugData(PVRSRV_RGXDEV_INFO *psDevInfo,
 									 (void **)&pui32NMIMemoryPointer);
 	if (eError != PVRSRV_OK)
 	{
-		PVR_DPF((PVR_DBG_ERROR,"%s: Failed to acquire NMI shared memory area (%u)", __func__, eError));
+		PVR_DPF((PVR_DBG_ERROR,"_RGXMipsExtraDebug: Failed to acquire NMI shared memory area (%u)", eError));
 		goto map_error_fail;
 	}
 	else
@@ -2757,8 +2755,8 @@ static inline void _RGXMipsDumpTLBEntry(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrint
 	IMG_BOOL bDumpRemapEntries = (psRemapEntry0 != NULL && psRemapEntry1 != NULL) ? IMG_TRUE : IMG_FALSE;
 	IMG_UINT64 ui64PA0 = RGXMIPSFW_TLB_GET_PA(psTLBEntry->ui32TLBLo0);
 	IMG_UINT64 ui64PA1 = RGXMIPSFW_TLB_GET_PA(psTLBEntry->ui32TLBLo1);
-	IMG_UINT64 ui64Remap0AddrOut = 0, ui64Remap1AddrOut = 0;
-	IMG_UINT32 ui32Remap0AddrIn = 0, ui32Remap1AddrIn = 0;
+	IMG_UINT64 ui64Remap0AddrOut, ui64Remap1AddrOut;
+	IMG_UINT32 ui32Remap0AddrIn, ui32Remap1AddrIn;
 
 	static const IMG_CHAR * const apszPermissionInhibit[4] =
 	{
@@ -2802,7 +2800,9 @@ static inline void _RGXMipsDumpTLBEntry(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrint
 		ui64Remap0AddrOut = (IMG_UINT64)psRemapEntry0->ui32RemapAddrOut << 12;
 		ui64Remap1AddrOut = (IMG_UINT64)psRemapEntry1->ui32RemapAddrOut << 12;
 
-		/* If TLB and remap entries match, then merge them else, print them separately */
+		/* If TLB and remap entries match, then merge them
+		*  else, print them separately
+		*/
 		if ((IMG_UINT32)ui64PA0 == ui32Remap0AddrIn &&
 		    (IMG_UINT32)ui64PA1 == ui32Remap1AddrIn)
 		{
@@ -2835,100 +2835,11 @@ static inline void _RGXMipsDumpTLBEntry(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrint
 				  ui64Remap0AddrOut );
 
 		PVR_DUMPDEBUG_LOG("    Remap %2u : IN 0x%08X (%3uk) => OUT 0x%08" IMG_UINT64_FMTSPECX,
-		                  ui32Index + RGXMIPSFW_NUMBER_OF_TLB_ENTRIES,
+				  (ui32Index+16),
 				  ui32Remap1AddrIn,
 				  RGXMIPSFW_REMAP_GET_REGION_SIZE(psRemapEntry1->ui32RemapRegionSize),
 				  ui64Remap1AddrOut );
 	}
-}
-
-static void _RGXMipsDumpState(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
-                              void *pvDumpDebugFile,
-                              PVRSRV_RGXDEV_INFO *psDevInfo)
-{
-	RGX_MIPS_STATE sMIPSState;
-	PVRSRV_ERROR eError;
-
-	OSCachedMemSet((void *)&sMIPSState, 0x00, sizeof(RGX_MIPS_STATE));
-
-	eError = _RGXMipsRequestDebugData(psDevInfo, psDevInfo->psDeviceNode->psDevConfig, &sMIPSState);
-
-	PVR_DUMPDEBUG_LOG("---- [ MIPS internal state ] ----");
-
-	if (eError != PVRSRV_OK)
-	{
-		PVR_DUMPDEBUG_LOG("MIPS extra debug not available");
-	}
-	else
-	{
-		PVR_DUMPDEBUG_LOG("PC                      :0x%08X", sMIPSState.ui32ErrorEPC);
-		PVR_DUMPDEBUG_LOG("STATUS_REGISTER         :0x%08X", sMIPSState.ui32StatusRegister);
-		PVR_DUMPDEBUG_LOG("CAUSE_REGISTER          :0x%08X", sMIPSState.ui32CauseRegister);
-		_RGXMipsDumpCauseDecode(pfnDumpDebugPrintf, pvDumpDebugFile, sMIPSState.ui32CauseRegister);
-		PVR_DUMPDEBUG_LOG("BAD_REGISTER            :0x%08X", sMIPSState.ui32BadRegister);
-		PVR_DUMPDEBUG_LOG("EPC                     :0x%08X", sMIPSState.ui32EPC);
-		PVR_DUMPDEBUG_LOG("SP                      :0x%08X", sMIPSState.ui32SP);
-		PVR_DUMPDEBUG_LOG("BAD_INSTRUCTION         :0x%08X", sMIPSState.ui32BadInstr);
-		PVR_DUMPDEBUG_LOG("DEBUG                   :");
-		_RGXMipsDumpDebugDecode(pfnDumpDebugPrintf, pvDumpDebugFile, sMIPSState.ui32Debug, sMIPSState.ui32DEPC);
-
-		{
-			IMG_UINT32 i;
-
-			IMG_BOOL bCheckBRN63553WA =
-				OSReadHWReg32(psDevInfo->pvRegsBaseKM, RGX_CR_MIPS_ADDR_REMAP5_CONFIG1) ==
-				(0x0 | RGX_CR_MIPS_ADDR_REMAP5_CONFIG1_MODE_ENABLE_EN);
-
-			IMG_BOOL bCheckRemapRangeDump =
-				psDevInfo->sDevFeatureCfg.ui32PBW > 32 &&
-				RGXMIPSFW_REMAP_RANGE_DUMP_AVAILABLE(sMIPSState.ui32StatusRegister);
-
-			PVR_DUMPDEBUG_LOG("TLB                     :");
-
-			for (i = 0; i < IMG_ARR_NUM_ELEMS(sMIPSState.asTLB); i++)
-			{
-				RGX_MIPS_REMAP_ENTRY *psRemapEntry0 = NULL;
-				RGX_MIPS_REMAP_ENTRY *psRemapEntry1 = NULL;
-
-				if (bCheckRemapRangeDump)
-				{
-					psRemapEntry0 = &sMIPSState.asRemap[i];
-					psRemapEntry1 = &sMIPSState.asRemap[i+16];
-				}
-
-				_RGXMipsDumpTLBEntry(pfnDumpDebugPrintf,
-				                     pvDumpDebugFile,
-				                     &sMIPSState.asTLB[i],
-				                     psRemapEntry0,
-				                     psRemapEntry1,
-				                     i);
-
-				if (bCheckBRN63553WA)
-				{
-					const RGX_MIPS_TLB_ENTRY *psTLBEntry = &sMIPSState.asTLB[i];
-
-					#define BRN63553_TLB_IS_NUL(X)  (((X) & RGXMIPSFW_TLB_VALID) && (RGXMIPSFW_TLB_GET_PA(X) == 0x0))
-
-					if (BRN63553_TLB_IS_NUL(psTLBEntry->ui32TLBLo0) || BRN63553_TLB_IS_NUL(psTLBEntry->ui32TLBLo1))
-					{
-						PVR_DUMPDEBUG_LOG("BRN63553 WA present with a valid TLB entry mapping address 0x0.");
-					}
-				}
-			}
-
-			if (bCheckRemapRangeDump)
-			{
-				/* Dump unmapped address if it was dumped in FW, otherwise it will be 0 */
-				if (sMIPSState.ui32UnmappedAddress)
-				{
-					PVR_DUMPDEBUG_LOG("Remap unmapped address => 0x%08X",
-					                  sMIPSState.ui32UnmappedAddress);
-				}
-			}
-		}
-	}
-
-	PVR_DUMPDEBUG_LOG("--------------------------------");
 }
 
 #endif /* defined(RGX_FEATURE_MIPS) && !defined(NO_HARDWARE) */
@@ -4072,7 +3983,13 @@ void RGXDebugRequestProcess(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 #if !defined(NO_HARDWARE)
 				if(psDevInfo->sDevFeatureCfg.ui64Features & RGX_FEATURE_MIPS_BIT_MASK)
 				{
+					RGX_MIPS_STATE sMIPSState;
 					IMG_UINT32 i;
+					PVRSRV_ERROR eError;
+					OSCachedMemSet((void *)&sMIPSState, 0x00, sizeof(RGX_MIPS_STATE));
+					eError = _RGXMipsExtraDebug(psDevInfo, psDeviceNode->psDevConfig, &sMIPSState);
+					PVR_DUMPDEBUG_LOG("---- [ MIPS internal state ] ----");
+
 			PVR_DUMPDEBUG_LOG("REMAP1_CONFIG1: 0x%08X",
 				OSReadHWReg32(psDevInfo->pvRegsBaseKM,
 				RGX_CR_MIPS_ADDR_REMAP1_CONFIG1));
@@ -4139,7 +4056,65 @@ void RGXDebugRequestProcess(DUMPDEBUG_PRINTF_FUNC *pfnDumpDebugPrintf,
 		PVR_DUMPDEBUG_LOG("%02d) 0x%08llX", i, ui64RemapRegContents);
 	}
 
-					_RGXMipsDumpState(pfnDumpDebugPrintf, pvDumpDebugFile, psDevInfo);
+					if (eError != PVRSRV_OK)
+					{
+						PVR_DUMPDEBUG_LOG("MIPS extra debug not available");
+					}
+					else
+					{
+						PVR_DUMPDEBUG_LOG("PC                      :0x%08X", sMIPSState.ui32ErrorEPC);
+						PVR_DUMPDEBUG_LOG("STATUS_REGISTER         :0x%08X", sMIPSState.ui32StatusRegister);
+						PVR_DUMPDEBUG_LOG("CAUSE_REGISTER          :0x%08X", sMIPSState.ui32CauseRegister);
+						_RGXMipsDumpCauseDecode(pfnDumpDebugPrintf, pvDumpDebugFile, sMIPSState.ui32CauseRegister);
+						PVR_DUMPDEBUG_LOG("BAD_REGISTER            :0x%08X", sMIPSState.ui32BadRegister);
+						PVR_DUMPDEBUG_LOG("EPC                     :0x%08X", sMIPSState.ui32EPC);
+						PVR_DUMPDEBUG_LOG("SP                      :0x%08X", sMIPSState.ui32SP);
+						PVR_DUMPDEBUG_LOG("BAD_INSTRUCTION         :0x%08X", sMIPSState.ui32BadInstr);
+						PVR_DUMPDEBUG_LOG("DEBUG                   :");
+						_RGXMipsDumpDebugDecode(pfnDumpDebugPrintf, pvDumpDebugFile, sMIPSState.ui32Debug, sMIPSState.ui32DEPC);
+
+						{
+							IMG_UINT32 ui32Idx;
+
+							IMG_BOOL bCheckBRN63553WA = 
+							   (OSReadHWReg32(psDevInfo->pvRegsBaseKM, RGX_CR_MIPS_ADDR_REMAP5_CONFIG1) == (0x0 | RGX_CR_MIPS_ADDR_REMAP5_CONFIG1_MODE_ENABLE_EN));
+
+							PVR_DUMPDEBUG_LOG("TLB                     :");
+							for (ui32Idx = 0;
+									ui32Idx < IMG_ARR_NUM_ELEMS(sMIPSState.asTLB);
+									++ui32Idx)
+							{
+								RGX_MIPS_REMAP_ENTRY *psRemapEntry0 = NULL;
+								RGX_MIPS_REMAP_ENTRY *psRemapEntry1 = NULL;
+
+#if (RGX_FEATURE_PHYS_BUS_WIDTH > 32)
+								{
+									psRemapEntry0 = &sMIPSState.asRemap[ui32Idx];
+									psRemapEntry1 = &sMIPSState.asRemap[ui32Idx+16];
+								}
+#endif
+
+								_RGXMipsDumpTLBEntry(pfnDumpDebugPrintf,
+										     pvDumpDebugFile,
+										     &sMIPSState.asTLB[ui32Idx],
+										     psRemapEntry0,
+										     psRemapEntry1,
+										     ui32Idx);
+							}
+
+#if (RGX_FEATURE_PHYS_BUS_WIDTH > 32)
+							{
+								/* Dump unmapped address if it was dumped in FW, otherwise it will be 0 */
+								if(sMIPSState.ui32UnmappedAddress)
+								{
+									PVR_DUMPDEBUG_LOG("Remap unmapped address => 0x%08X",
+											  sMIPSState.ui32UnmappedAddress );
+								}
+							}
+#endif
+						}
+					}
+					PVR_DUMPDEBUG_LOG("--------------------------------");
 				}
 #endif
 			}

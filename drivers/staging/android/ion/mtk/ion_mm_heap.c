@@ -746,10 +746,10 @@ static int ion_mm_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 	ION_PRINT_LOG_OR_SEQ(s,
 			     "----------------------------------------------------\n");
 	ION_PRINT_LOG_OR_SEQ(s,
-			     "%18.s %8.s %4.s %3.s %3.s %3.s %7.s %3.s %4.s %s %s %4.s %4.s %4.s %4.s %4.s %s\n",
+			     "%18.s %8.s %4.s %3.s %3.s %3.s %7.s %3.s %4.s %s %s %4.s %4.s %4.s %4.s %s\n",
 			     "buffer", "size", "kmap", "ref", "hdl", "mod",
 			     "mva", "sec", "flag", "pid(alloc_pid)",
-			     "comm(client)", "heapid", "v1", "v2", "v3", "v4",
+			     "comm(client)", "v1", "v2", "v3", "v4",
 			     "dbg_name");
 
 	mutex_lock(&dev->buffer_lock);
@@ -762,15 +762,14 @@ static int ion_mm_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 		pdbg = &bug_info->dbg_info;
 
 		ION_PRINT_LOG_OR_SEQ(s,
-				     "0x%p %8zu %3d %3d %3d %3d %8x %3u %3lu %5d(%5d) %16s %3d 0x%x 0x%x 0x%x 0x%x %s\n",
+				     "0x%p %8zu %3d %3d %3d %3d %8x %3u %3lu %5d(%5d) %16s 0x%x 0x%x 0x%x 0x%x %s\n",
 				     buffer, buffer->size, buffer->kmap_cnt,
 				     atomic_read(&buffer->ref.refcount),
 				     buffer->handle_count, bug_info->module_id,
 				     bug_info->MVA, bug_info->security,
 				     buffer->flags, buffer->pid, bug_info->pid,
-				     buffer->task_comm, buffer->heap->id,
-				     pdbg->value1, pdbg->value2,
-				     pdbg->value3, pdbg->value4,
+				     buffer->task_comm, pdbg->value1,
+				     pdbg->value2, pdbg->value3, pdbg->value4,
 				     pdbg->dbg_name);
 		if (!buffer->handle_count)
 			has_orphaned = true;

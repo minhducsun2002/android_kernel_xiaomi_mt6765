@@ -85,7 +85,6 @@ static int handle_to_index(int handle)
 	return index;
 }
 
-#ifndef CONFIG_NANOHUB
 static int fusion_enable_and_batch(int index)
 {
 	struct fusion_context *cxt = fusion_context_obj;
@@ -137,8 +136,6 @@ static int fusion_enable_and_batch(int index)
 	}
 	return 0;
 }
-#endif
-
 static ssize_t fusion_store_active(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -167,24 +164,7 @@ static ssize_t fusion_store_active(struct device *dev,
 		err = -1;
 		goto err_out;
 	}
-#ifdef CONFIG_NANOHUB
-	if (cxt->fusion_context[index].enable == 1) {
-		err = cxt->fusion_context[index].fusion_ctl.enable_nodata(1);
-		if (err) {
-			pr_err("fusion turn on power err = %d\n", err);
-			goto err_out;
-		}
-	} else {
-		err = cxt->fusion_context[index].fusion_ctl.enable_nodata(0);
-		if (err) {
-			pr_err("fusion turn off power err = %d\n", err);
-			goto err_out;
-		}
-	}
-#else
 	err = fusion_enable_and_batch(index);
-#endif
-	pr_debug("%s done\n", __func__);
 err_out:
 	mutex_unlock(&fusion_context_obj->fusion_op_mutex);
 	return err;
@@ -245,26 +225,7 @@ static ssize_t fusion_store_batch(struct device *dev,
 	cxt->fusion_context[index].latency_ns = maxBatchReportLatencyNs;
 
 	mutex_lock(&fusion_context_obj->fusion_op_mutex);
-#ifdef CONFIG_NANOHUB
-	if (cxt->fusion_context[index].delay_ns >= 0) {
-		if (cxt->fusion_context[index].fusion_ctl.is_support_batch)
-			err = cxt->fusion_context[index].fusion_ctl.batch(0,
-				cxt->fusion_context[index].delay_ns,
-				cxt->fusion_context[index].latency_ns);
-		else
-			err = cxt->fusion_context[index].fusion_ctl.batch(0,
-				cxt->fusion_context[index].delay_ns, 0);
-		if (err) {
-			pr_err("fusion set batch(ODR) err %d\n", err);
-			goto err_out;
-		}
-	} else
-		pr_info("batch state no need change\n");
-#else
 	err = fusion_enable_and_batch(index);
-#endif
-	pr_debug("%s done\n", __func__);
-err_out:
 	mutex_unlock(&fusion_context_obj->fusion_op_mutex);
 	return err;
 }

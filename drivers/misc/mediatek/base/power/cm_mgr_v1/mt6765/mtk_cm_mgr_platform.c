@@ -60,123 +60,6 @@
 #include "mtk_idle.h"
 #endif /* USE_IDLE_NOTIFY */
 
-struct cm_mgr_met_data {
-	unsigned int cm_mgr_power[14];
-	unsigned int cm_mgr_count[4];
-	unsigned int cm_mgr_opp[6];
-	unsigned int cm_mgr_loading[12];
-	unsigned int cm_mgr_ratio[12];
-	unsigned int cm_mgr_bw;
-	unsigned int cm_mgr_valid;
-};
-
-/******************** MET BEGIN ********************/
-typedef void (*cm_mgr_value_handler_t) (unsigned int cnt, unsigned int *value);
-
-static struct cm_mgr_met_data met_data;
-static cm_mgr_value_handler_t cm_mgr_power_dbg_handler;
-static cm_mgr_value_handler_t cm_mgr_count_dbg_handler;
-static cm_mgr_value_handler_t cm_mgr_opp_dbg_handler;
-static cm_mgr_value_handler_t cm_mgr_loading_dbg_handler;
-static cm_mgr_value_handler_t cm_mgr_ratio_dbg_handler;
-static cm_mgr_value_handler_t cm_mgr_bw_dbg_handler;
-static cm_mgr_value_handler_t cm_mgr_valid_dbg_handler;
-
-#define CM_MGR_MET_REG_FN_VALUE(name)				\
-	void cm_mgr_register_##name(cm_mgr_value_handler_t handler)	\
-{								\
-	name##_dbg_handler = handler;				\
-}								\
-EXPORT_SYMBOL(cm_mgr_register_##name)
-
-CM_MGR_MET_REG_FN_VALUE(cm_mgr_power);
-CM_MGR_MET_REG_FN_VALUE(cm_mgr_count);
-CM_MGR_MET_REG_FN_VALUE(cm_mgr_opp);
-CM_MGR_MET_REG_FN_VALUE(cm_mgr_loading);
-CM_MGR_MET_REG_FN_VALUE(cm_mgr_ratio);
-CM_MGR_MET_REG_FN_VALUE(cm_mgr_bw);
-CM_MGR_MET_REG_FN_VALUE(cm_mgr_valid);
-/********************* MET END *********************/
-
-void cm_mgr_update_met(void)
-{
-	int cpu;
-
-	met_data.cm_mgr_power[0] = cpu_power_up_array[0];
-	met_data.cm_mgr_power[1] = cpu_power_up_array[1];
-	met_data.cm_mgr_power[2] = cpu_power_down_array[0];
-	met_data.cm_mgr_power[3] = cpu_power_down_array[1];
-	met_data.cm_mgr_power[4] = cpu_power_up[0];
-	met_data.cm_mgr_power[5] = cpu_power_up[1];
-	met_data.cm_mgr_power[6] = cpu_power_down[0];
-	met_data.cm_mgr_power[7] = cpu_power_down[1];
-	met_data.cm_mgr_power[8] = cpu_power_up[0] + cpu_power_up[1];
-	met_data.cm_mgr_power[9] = cpu_power_down[0] + cpu_power_down[1];
-	met_data.cm_mgr_power[10] = vcore_power_up;
-	met_data.cm_mgr_power[11] = vcore_power_down;
-	met_data.cm_mgr_power[12] = v2f[0];
-	met_data.cm_mgr_power[13] = v2f[1];
-
-	met_data.cm_mgr_count[0] = count[0];
-	met_data.cm_mgr_count[1] = count[1];
-	met_data.cm_mgr_count[2] = count_ack[0];
-	met_data.cm_mgr_count[3] = count_ack[1];
-
-	met_data.cm_mgr_opp[0] = vcore_dram_opp;
-	met_data.cm_mgr_opp[1] = vcore_dram_opp_cur;
-	met_data.cm_mgr_opp[2] = cpu_opp_cur[0];
-	met_data.cm_mgr_opp[3] = cpu_opp_cur[1];
-	met_data.cm_mgr_opp[4] = debounce_times_up;
-	met_data.cm_mgr_opp[5] = debounce_times_down;
-
-	met_data.cm_mgr_loading[0] = cm_mgr_abs_load;
-	met_data.cm_mgr_loading[1] = cm_mgr_rel_load;
-	met_data.cm_mgr_loading[2] = max_load[0];
-	met_data.cm_mgr_loading[3] = max_load[1];
-	for_each_possible_cpu(cpu) {
-		if (cpu >= CM_MGR_CPU_COUNT)
-			break;
-		met_data.cm_mgr_loading[4 + cpu] = cpu_load[cpu];
-	}
-
-	met_data.cm_mgr_ratio[0] = ratio_max[0];
-	met_data.cm_mgr_ratio[1] = ratio_max[1];
-	met_data.cm_mgr_ratio[2] = ratio_scale[0];
-	met_data.cm_mgr_ratio[3] = ratio_scale[1];
-	met_data.cm_mgr_ratio[4] = ratio[0];
-	met_data.cm_mgr_ratio[5] = ratio[1];
-	met_data.cm_mgr_ratio[6] = ratio[2];
-	met_data.cm_mgr_ratio[7] = ratio[3];
-	met_data.cm_mgr_ratio[8] = ratio[4];
-	met_data.cm_mgr_ratio[9] = ratio[5];
-	met_data.cm_mgr_ratio[10] = ratio[6];
-	met_data.cm_mgr_ratio[11] = ratio[7];
-
-	met_data.cm_mgr_bw = total_bw;
-
-	met_data.cm_mgr_valid = cps_valid;
-
-	if (cm_mgr_power_dbg_handler)
-		cm_mgr_power_dbg_handler(ARRAY_SIZE(met_data.cm_mgr_power),
-				met_data.cm_mgr_power);
-	if (cm_mgr_count_dbg_handler)
-		cm_mgr_count_dbg_handler(ARRAY_SIZE(met_data.cm_mgr_count),
-				met_data.cm_mgr_count);
-	if (cm_mgr_opp_dbg_handler)
-		cm_mgr_opp_dbg_handler(ARRAY_SIZE(met_data.cm_mgr_opp),
-				met_data.cm_mgr_opp);
-	if (cm_mgr_loading_dbg_handler)
-		cm_mgr_loading_dbg_handler(ARRAY_SIZE(met_data.cm_mgr_loading),
-				met_data.cm_mgr_loading);
-	if (cm_mgr_ratio_dbg_handler)
-		cm_mgr_ratio_dbg_handler(ARRAY_SIZE(met_data.cm_mgr_ratio),
-				met_data.cm_mgr_ratio);
-	if (cm_mgr_bw_dbg_handler)
-		cm_mgr_bw_dbg_handler(1, &met_data.cm_mgr_bw);
-	if (cm_mgr_valid_dbg_handler)
-		cm_mgr_valid_dbg_handler(1, &met_data.cm_mgr_valid);
-}
-
 #include <linux/cpu_pm.h>
 static int cm_mgr_idle_mask;
 void __iomem *spm_sleep_base;
@@ -219,8 +102,7 @@ void debug_stall(int cpu)
 	pr_debug("%s: cpu number %d ################\n", __func__,
 			cpu);
 	pr_debug("%s: clustor[%d] 0x%08x\n", __func__,
-			cpu / CM_MGR_CPU_LIMIT,
-			pstall_all->clustor[cpu / CM_MGR_CPU_LIMIT]);
+			cpu / 4, pstall_all->clustor[cpu / 4]);
 	pr_debug("%s: stall_val[%d] 0x%016llx\n", __func__,
 			cpu, pstall_all->stall_val[cpu]);
 	pr_debug("%s: stall_val_diff[%d] 0x%016llx\n", __func__,
@@ -232,12 +114,10 @@ void debug_stall(int cpu)
 	pr_debug("%s: ratio[%d] 0x%016llx\n", __func__,
 			cpu, pstall_all->ratio[cpu]);
 	pr_debug("%s: ratio_max[%d] 0x%08x\n", __func__,
-			cpu / CM_MGR_CPU_LIMIT,
-			pstall_all->ratio_max[cpu / CM_MGR_CPU_LIMIT]);
+			cpu / 4, pstall_all->ratio_max[cpu / 4]);
 	pr_debug("%s: cpu 0x%08x\n", __func__, pstall_all->cpu);
 	pr_debug("%s: cpu_count[%d] 0x%08x\n", __func__,
-			cpu / CM_MGR_CPU_LIMIT,
-			pstall_all->cpu_count[cpu / CM_MGR_CPU_LIMIT]);
+			cpu / 4, pstall_all->cpu_count[cpu / 4]);
 }
 
 void debug_stall_all(void)
@@ -247,7 +127,7 @@ void debug_stall_all(void)
 	for (i = 0; i < CM_MGR_CPU_COUNT; i++)
 		debug_stall(i);
 }
-#endif /* USE_DEBUG_LOG */
+#endif
 
 static int cm_mgr_check_dram_type(void)
 {
@@ -255,23 +135,16 @@ static int cm_mgr_check_dram_type(void)
 	int ddr_type = get_ddr_type();
 	int ddr_hz = dram_steps_freq(0);
 
-	if (ddr_type == TYPE_LPDDR4X || ddr_type == TYPE_LPDDR4)
+	if (ddr_type == TYPE_LPDDR4X && ddr_hz == 3200)
 		cm_mgr_idx = CM_MGR_LP4X_2CH_3200;
-	else if (ddr_type == TYPE_LPDDR3)
+	else if (ddr_type == TYPE_LPDDR3 && ddr_hz == 1866)
 		cm_mgr_idx = CM_MGR_LP3_1CH_1866;
-	pr_info("#@# %s(%d) ddr_type 0x%x, ddr_hz %d, cm_mgr_idx 0x%x\n",
-			__func__, __LINE__, ddr_type, ddr_hz, cm_mgr_idx);
+	pr_info("#@# %s(%d) cm_mgr_idx 0x%x\n", __func__, __LINE__, cm_mgr_idx);
 #else
 	cm_mgr_idx = 0;
 	pr_info("#@# %s(%d) NO CONFIG_MTK_DRAMC !!! set cm_mgr_idx to 0x%x\n",
 			__func__, __LINE__, cm_mgr_idx);
 #endif /* CONFIG_MTK_DRAMC */
-
-#if defined(CONFIG_MTK_TINYSYS_SSPM_SUPPORT) && defined(USE_CM_MGR_AT_SSPM)
-	if (cm_mgr_idx >= 0)
-		cm_mgr_to_sspm_command(IPI_CM_MGR_DRAM_TYPE, cm_mgr_idx);
-#endif /* CONFIG_MTK_TINYSYS_SSPM_SUPPORT */
-
 	return cm_mgr_idx;
 };
 
@@ -301,20 +174,20 @@ int cm_mgr_get_cpu_count(int cluster)
 static unsigned int cm_mgr_read_stall(int cpu)
 {
 	unsigned int val = 0;
-	unsigned long spinlock_save_flags;
 
-	if (!spin_trylock_irqsave(&cm_mgr_cpu_mask_lock, spinlock_save_flags))
+	if (!spin_trylock(&cm_mgr_cpu_mask_lock))
 		return val;
 
-	if (cpu < CM_MGR_CPU_LIMIT) {
-		if (cm_mgr_idle_mask & CLUSTER0_MASK)
+	if (cpu < 4) {
+		if (cm_mgr_idle_mask & 0x0f)
+
 			val = cm_mgr_read(MP0_CPU0_STALL_COUNTER + 4 * cpu);
 	} else {
-		if (cm_mgr_idle_mask & CLUSTER1_MASK)
+		if (cm_mgr_idle_mask & 0xf0)
 			val = cm_mgr_read(MP1_CPU0_STALL_COUNTER +
-					4 * (cpu - CM_MGR_CPU_LIMIT));
+					4 * (cpu - 4));
 	}
-	spin_unlock_irqrestore(&cm_mgr_cpu_mask_lock, spinlock_save_flags);
+	spin_unlock(&cm_mgr_cpu_mask_lock);
 
 	return val;
 }
@@ -326,7 +199,7 @@ int cm_mgr_check_stall_ratio(int mp0, int mp1)
 	unsigned int stall_val_new;
 #ifdef USE_TIME_NS
 	unsigned long long time_ns_new;
-#endif /* USE_TIME_NS */
+#endif
 
 	pstall_all->clustor[0] = mp0;
 	pstall_all->clustor[1] = mp1;
@@ -338,7 +211,7 @@ int cm_mgr_check_stall_ratio(int mp0, int mp1)
 
 	for (i = 0; i < CM_MGR_CPU_COUNT; i++) {
 		pstall_all->ratio[i] = 0;
-		clustor = i / CM_MGR_CPU_LIMIT;
+		clustor = i / 4;
 
 		stall_val_new = cm_mgr_read_stall(i);
 
@@ -347,7 +220,7 @@ int cm_mgr_check_stall_ratio(int mp0, int mp1)
 			pr_debug("%s: WARN!!! stall_val_new is 0x%08x\n",
 					__func__, stall_val_new);
 			debug_stall(i);
-#endif /* USE_DEBUG_LOG */
+#endif
 			continue;
 		}
 
@@ -356,7 +229,7 @@ int cm_mgr_check_stall_ratio(int mp0, int mp1)
 		pstall_all->time_ns_diff[i] =
 			time_ns_new - pstall_all->time_ns[i];
 		pstall_all->time_ns[i] = time_ns_new;
-#endif /* USE_TIME_NS */
+#endif
 
 		diff_value_overflow(pstall_all->stall_val_diff[i],
 				stall_val_new, pstall_all->stall_val[i]);
@@ -366,7 +239,7 @@ int cm_mgr_check_stall_ratio(int mp0, int mp1)
 #ifdef USE_DEBUG_LOG
 			pr_debug("%s: WARN!!! cpu:%d diff == 0\n", __func__, i);
 			debug_stall(i);
-#endif /* USE_DEBUG_LOG */
+#endif
 			continue;
 		}
 
@@ -378,13 +251,13 @@ int cm_mgr_check_stall_ratio(int mp0, int mp1)
 		pstall_all->ratio[i] = pstall_all->stall_val_diff[i] * 100000;
 		do_div(pstall_all->ratio[i], pstall_all->time_ns_diff[i]);
 		do_div(pstall_all->ratio[i], pstall_all->clustor[clustor]);
-#endif /* CONFIG_ARM64 */
+#endif
 		if (pstall_all->ratio[i] > 100) {
 #ifdef USE_DEBUG_LOG
 			pr_debug("%s: WARN!!! cpu:%d ratio > 100\n",
 					__func__, i);
 			debug_stall(i);
-#endif /* USE_DEBUG_LOG */
+#endif
 			pstall_all->ratio[i] = 100;
 			/* continue; */
 		}
@@ -396,12 +269,12 @@ int cm_mgr_check_stall_ratio(int mp0, int mp1)
 					pstall_all->ratio_max[clustor]);
 #ifdef USE_DEBUG_LOG
 		debug_stall(i);
-#endif /* USE_DEBUG_LOG */
+#endif
 	}
 
 #ifdef USE_DEBUG_LOG
 	debug_stall_all();
-#endif /* USE_DEBUG_LOG */
+#endif
 	return 0;
 }
 
@@ -472,11 +345,9 @@ static int cm_mgr_sched_pm_notifier(struct notifier_block *self,
 	spin_lock_irqsave(&cm_mgr_cpu_mask_lock, spinlock_save_flags);
 
 	if (cmd == CPU_PM_EXIT) {
-		if (((cm_mgr_idle_mask & CLUSTER0_MASK) == 0x0) &&
-				(cur_cpu < CM_MGR_CPU_LIMIT))
+		if (((cm_mgr_idle_mask & 0x0f) == 0x0) && (cur_cpu < 4))
 			init_cpu_stall_counter(0);
-		else if (((cm_mgr_idle_mask & CLUSTER1_MASK) == 0x0) &&
-				(cur_cpu >= CM_MGR_CPU_LIMIT))
+		else if (((cm_mgr_idle_mask & 0xf0) == 0x0) && (cur_cpu >= 4))
 			init_cpu_stall_counter(1);
 		cm_mgr_idle_mask |= (1 << cur_cpu);
 	} else if (cmd == CPU_PM_ENTER)
@@ -510,11 +381,9 @@ static int cm_mgr_cpu_callback(struct notifier_block *nfb,
 
 	switch (action) {
 	case CPU_ONLINE:
-		if (((cm_mgr_idle_mask & CLUSTER0_MASK) == 0x0) &&
-				(cur_cpu < CM_MGR_CPU_LIMIT))
+		if (((cm_mgr_idle_mask & 0x0f) == 0x0) && (cur_cpu < 4))
 			init_cpu_stall_counter(0);
-		else if (((cm_mgr_idle_mask & CLUSTER1_MASK) == 0x0) &&
-				(cur_cpu >= CM_MGR_CPU_LIMIT))
+		else if (((cm_mgr_idle_mask & 0xf0) == 0x0) && (cur_cpu >= 4))
 			init_cpu_stall_counter(1);
 		cm_mgr_idle_mask |= (1 << cur_cpu);
 		break;
@@ -556,17 +425,11 @@ static int cm_mgr_fb_notifier_callback(struct notifier_block *self,
 	case FB_BLANK_UNBLANK:
 		pr_info("#@# %s(%d) SCREEN ON\n", __func__, __LINE__);
 		cm_mgr_blank_status = 0;
-#if defined(CONFIG_MTK_TINYSYS_SSPM_SUPPORT) && defined(USE_CM_MGR_AT_SSPM)
-		cm_mgr_to_sspm_command(IPI_CM_MGR_BLANK, 0);
-#endif /* CONFIG_MTK_TINYSYS_SSPM_SUPPORT */
 		break;
 	case FB_BLANK_POWERDOWN:
 		pr_info("#@# %s(%d) SCREEN OFF\n", __func__, __LINE__);
 		cm_mgr_blank_status = 1;
 		dvfsrc_set_power_model_ddr_request(0);
-#if defined(CONFIG_MTK_TINYSYS_SSPM_SUPPORT) && defined(USE_CM_MGR_AT_SSPM)
-		cm_mgr_to_sspm_command(IPI_CM_MGR_BLANK, 1);
-#endif /* CONFIG_MTK_TINYSYS_SSPM_SUPPORT */
 		break;
 	default:
 		break;
@@ -622,14 +485,14 @@ static int cm_mgr_is_lp_flavor(void)
 
 	pr_info("flavor check: %s, is_lp: %d\n",
 			CONFIG_BUILD_ARM64_DTB_OVERLAY_IMAGE_NAMES, r);
-#endif /* CONFIG_ARM64 */
+#endif
 
 	return r;
 }
-#endif /* 0 */
+#endif
 
 struct timer_list cm_mgr_ratio_timer;
-#define CM_MGR_RATIO_TIMER_MS	msecs_to_jiffies(1)
+#define CM_MGR_RATIO_TIMER_MS	1
 
 static void cm_mgr_ratio_timer_fn(unsigned long data)
 {
@@ -638,53 +501,42 @@ static void cm_mgr_ratio_timer_fn(unsigned long data)
 	trace_CM_MGR__stall_raio_1(
 			(unsigned int)cm_mgr_read(MP1_CPU_AVG_STALL_RATIO));
 
-	cm_mgr_ratio_timer.expires = jiffies + CM_MGR_RATIO_TIMER_MS;
+	cm_mgr_ratio_timer.expires = jiffies +
+		msecs_to_jiffies(CM_MGR_RATIO_TIMER_MS);
 	add_timer(&cm_mgr_ratio_timer);
 }
 
 void cm_mgr_ratio_timer_en(int enable)
 {
 	if (enable) {
-		cm_mgr_ratio_timer.expires = jiffies + CM_MGR_RATIO_TIMER_MS;
+		cm_mgr_ratio_timer.expires = jiffies +
+			msecs_to_jiffies(CM_MGR_RATIO_TIMER_MS);
 		add_timer(&cm_mgr_ratio_timer);
 	} else {
 		del_timer(&cm_mgr_ratio_timer);
 	}
 }
 
-static int debounce_times_perf_down_local;
 void cm_mgr_perf_platform_set_status(int enable)
 {
 	if (enable) {
-		debounce_times_perf_down_local = 0;
-
-		if (cm_mgr_perf_enable == 0)
-			return;
-
 		cpu_power_ratio_up[0] = 500;
 		cpu_power_ratio_up[1] = 500;
 		debounce_times_up_adb[1] = 0;
 	} else {
-		if (++debounce_times_perf_down_local < debounce_times_perf_down)
-			return;
-
 		cpu_power_ratio_up[0] = 100;
 		cpu_power_ratio_up[1] = 100;
 		debounce_times_up_adb[1] = 3;
-
-		debounce_times_perf_down_local = 0;
 	}
 }
 
 static struct pm_qos_request ddr_opp_req;
+static int debounce_times_perf_down_local;
 static int pm_qos_update_request_status;
 void cm_mgr_perf_platform_set_force_status(int enable)
 {
 	if (enable) {
 		debounce_times_perf_down_local = 0;
-
-		if (cm_mgr_perf_enable == 0)
-			return;
 
 		if ((cm_mgr_perf_force_enable == 0) ||
 				(pm_qos_update_request_status == 1))
@@ -698,7 +550,7 @@ void cm_mgr_perf_platform_set_force_status(int enable)
 
 		if ((cm_mgr_perf_force_enable == 0) ||
 				(++debounce_times_perf_down_local >=
-				 debounce_times_perf_force_down)) {
+				 debounce_times_perf_down)) {
 			pm_qos_update_request(&ddr_opp_req,
 					PM_QOS_DDR_OPP_DEFAULT_VALUE);
 			pm_qos_update_request_status = enable;
@@ -738,8 +590,6 @@ int cm_mgr_platform_init(void)
 {
 	int r;
 
-	spin_lock_init(&cm_mgr_cpu_mask_lock);
-
 	r = cm_mgr_register_init();
 	if (r) {
 		pr_info("FAILED TO CREATE REGISTER(%d)\n", r);
@@ -754,6 +604,8 @@ int cm_mgr_platform_init(void)
 		return r;
 	}
 
+	spin_lock_init(&cm_mgr_cpu_mask_lock);
+
 	cm_mgr_hotplug_cb_init();
 
 #ifdef USE_IDLE_NOTIFY
@@ -763,7 +615,7 @@ int cm_mgr_platform_init(void)
 #if 0
 	if (cm_mgr_is_lp_flavor())
 		cm_mgr_enable = 1;
-#endif /* 0 */
+#endif
 
 	init_timer_deferrable(&cm_mgr_ratio_timer);
 	cm_mgr_ratio_timer.function = cm_mgr_ratio_timer_fn;
@@ -775,57 +627,4 @@ int cm_mgr_platform_init(void)
 			PM_QOS_DDR_OPP_DEFAULT_VALUE);
 
 	return r;
-}
-
-#define MT6762M_SEGMENT 1
-#define MT6762_SEGMENT 2
-#define MT6765_SEGMENT 3
-#define MT6765T_SEGMENT 4
-
-#if 0
-/* Manh */
-unsigned int gpu_power_gain[][CM_MGR_GPU_ARRAY_SIZE] = {
-	{4100, 156},
-	{173, 901},
-	{299, 829},
-};
-#else
-/* Texering */
-unsigned int gpu_power_gain[][CM_MGR_GPU_ARRAY_SIZE] = {
-	{5288, 126},
-	{62, 808},
-	{414, 234},
-};
-#endif /* 0 */
-
-int cm_mgr_get_gpu_power(int level, int up)
-{
-	int gpu_opp;
-	int gpu_type;
-	int gpu_status;
-	int gpu_loading;
-
-	if (cm_mgr_gpu_enable == 0)
-		return 0;
-
-	gpu_type = dvfsrc_sram_read(QOS_CM_GPU_ONOFF) >> 16;
-	gpu_status = dvfsrc_sram_read(QOS_CM_GPU_ONOFF) & 0xffff;
-	gpu_opp = dvfsrc_sram_read(QOS_CM_GPU_OPP);
-	gpu_loading = dvfsrc_sram_read(QOS_CM_RESERVE_2);
-
-#ifdef DEBUG_CM_MGR
-	pr_info("#@# gpu %d/%d/%d, level %d, loading %d\n",
-			gpu_type, gpu_status, gpu_opp, level, gpu_loading);
-#endif /* DEBUG_CM_MGR */
-
-	if (gpu_status != 1)
-		return 0;
-
-	if (gpu_type == MT6762M_SEGMENT)
-		gpu_opp = 2;
-
-	if (up == IS_UP)
-		return (gpu_power_gain[gpu_opp][level] * gpu_loading / 100);
-	else
-		return (gpu_power_gain[gpu_opp][level - 1] * gpu_loading / 100);
 }

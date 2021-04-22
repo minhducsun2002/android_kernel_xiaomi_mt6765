@@ -64,205 +64,205 @@ unsigned int g_cust_eint_mt_pmic_debounce_en = 1;
 /* Interrupt Setting */
 static struct pmic_sp_irq buck_irqs[][PMIC_INT_WIDTH] = {
 	{
-		PMIC_SP_IRQ_GEN(1, 1, INT_VPROC_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VCORE_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VMODEM_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VS1_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VPA_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VCORE_PREOC),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
+		PMIC_SP_IRQ_GEN(1, INT_VPROC_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VCORE_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VMODEM_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VS1_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VPA_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VCORE_PREOC),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
 	},
 };
 
 static struct pmic_sp_irq ldo_irqs[][PMIC_INT_WIDTH] = {
 	{
-		PMIC_SP_IRQ_GEN(1, 1, INT_VFE28_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VXO22_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VRF18_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VRF12_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VEFUSE_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VCN33_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VCN28_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VCN18_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VCAMA_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VCAMD_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VCAMIO_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VLDO28_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VUSB33_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VAUX18_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VAUD28_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VIO28_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VFE28_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VXO22_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VRF18_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VRF12_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VEFUSE_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VCN33_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VCN28_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VCN18_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VCAMA_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VCAMD_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VCAMIO_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VLDO28_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VUSB33_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VAUX18_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VAUD28_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VIO28_OC),
 	},
 	{
-		PMIC_SP_IRQ_GEN(1, 1, INT_VIO18_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VSRAM_PROC_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VSRAM_OTHERS_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VIBR_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VDRAM_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VMC_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VMCH_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VEMC_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VSIM1_OC),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VSIM2_OC),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
+		PMIC_SP_IRQ_GEN(1, INT_VIO18_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VSRAM_PROC_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VSRAM_OTHERS_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VIBR_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VDRAM_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VMC_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VMCH_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VEMC_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VSIM1_OC),
+		PMIC_SP_IRQ_GEN(1, INT_VSIM2_OC),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
 	},
 };
 
 static struct pmic_sp_irq psc_irqs[][PMIC_INT_WIDTH] = {
 	{
-		PMIC_SP_IRQ_GEN(1, 0, INT_PWRKEY),
-		PMIC_SP_IRQ_GEN(1, 0, INT_HOMEKEY),
-		PMIC_SP_IRQ_GEN(1, 0, INT_PWRKEY_R),
-		PMIC_SP_IRQ_GEN(1, 0, INT_HOMEKEY_R),
-		PMIC_SP_IRQ_GEN(1, 0, INT_NI_LBAT_INT),
-		PMIC_SP_IRQ_GEN(1, 1, INT_CHRDET),
-		PMIC_SP_IRQ_GEN(1, 0, INT_CHRDET_EDGE),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VCDT_HV_DET),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(1, 1, INT_WATCHDOG),
-		PMIC_SP_IRQ_GEN(1, 1, INT_VBATON_UNDET),
-		PMIC_SP_IRQ_GEN(1, 1, INT_BVALID_DET),
-		PMIC_SP_IRQ_GEN(1, 0, INT_OV),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
+		PMIC_SP_IRQ_GEN(1, INT_PWRKEY),
+		PMIC_SP_IRQ_GEN(1, INT_HOMEKEY),
+		PMIC_SP_IRQ_GEN(1, INT_PWRKEY_R),
+		PMIC_SP_IRQ_GEN(1, INT_HOMEKEY_R),
+		PMIC_SP_IRQ_GEN(1, INT_NI_LBAT_INT),
+		PMIC_SP_IRQ_GEN(1, INT_CHRDET),
+		PMIC_SP_IRQ_GEN(1, INT_CHRDET_EDGE),
+		PMIC_SP_IRQ_GEN(1, INT_VCDT_HV_DET),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(1, INT_WATCHDOG),
+		PMIC_SP_IRQ_GEN(1, INT_VBATON_UNDET),
+		PMIC_SP_IRQ_GEN(1, INT_BVALID_DET),
+		PMIC_SP_IRQ_GEN(1, INT_OV),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
 	},
 };
 
 static struct pmic_sp_irq sck_irqs[][PMIC_INT_WIDTH] = {
 	{
-		PMIC_SP_IRQ_GEN(1, 1, INT_RTC),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
+		PMIC_SP_IRQ_GEN(1, INT_RTC),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
 	},
 };
 
 static struct pmic_sp_irq bm_irqs[][PMIC_INT_WIDTH] = {
 	{
-		PMIC_SP_IRQ_GEN(1, 0, INT_FG_BAT0_H),
-		PMIC_SP_IRQ_GEN(1, 0, INT_FG_BAT0_L),
-		PMIC_SP_IRQ_GEN(1, 0, INT_FG_CUR_H),
-		PMIC_SP_IRQ_GEN(1, 0, INT_FG_CUR_L),
-		PMIC_SP_IRQ_GEN(1, 0, INT_FG_ZCV),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
+		PMIC_SP_IRQ_GEN(1, INT_FG_BAT0_H),
+		PMIC_SP_IRQ_GEN(1, INT_FG_BAT0_L),
+		PMIC_SP_IRQ_GEN(1, INT_FG_CUR_H),
+		PMIC_SP_IRQ_GEN(1, INT_FG_CUR_L),
+		PMIC_SP_IRQ_GEN(1, INT_FG_ZCV),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
 	},
 	{
-		PMIC_SP_IRQ_GEN(1, 1, INT_BATON_LV),
-		PMIC_SP_IRQ_GEN(1, 1, INT_BATON_HT),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
+		PMIC_SP_IRQ_GEN(1, INT_BATON_LV),
+		PMIC_SP_IRQ_GEN(1, INT_BATON_HT),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
 	},
 };
 
 static struct pmic_sp_irq hk_irqs[][PMIC_INT_WIDTH] = {
 	{
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(1, 1, INT_BAT_H),
-		PMIC_SP_IRQ_GEN(1, 1, INT_BAT_L),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(1, 1, INT_AUXADC_IMP),
-		PMIC_SP_IRQ_GEN(1, 1, INT_NAG_C_DLTV),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(1, INT_BAT_H),
+		PMIC_SP_IRQ_GEN(1, INT_BAT_L),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(1, INT_AUXADC_IMP),
+		PMIC_SP_IRQ_GEN(1, INT_NAG_C_DLTV),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
 	},
 };
 
 static struct pmic_sp_irq aud_irqs[][PMIC_INT_WIDTH] = {
 	{
-		PMIC_SP_IRQ_GEN(1, 1, INT_AUDIO),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(1, 1, INT_ACCDET),
-		PMIC_SP_IRQ_GEN(1, 1, INT_ACCDET_EINT0),
-		PMIC_SP_IRQ_GEN(1, 1, INT_ACCDET_EINT1),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
+		PMIC_SP_IRQ_GEN(1, INT_AUDIO),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(1, INT_ACCDET),
+		PMIC_SP_IRQ_GEN(1, INT_ACCDET_EINT0),
+		PMIC_SP_IRQ_GEN(1, INT_ACCDET_EINT1),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
 	},
 };
 
 static struct pmic_sp_irq misc_irqs[][PMIC_INT_WIDTH] = {
 	{
-		PMIC_SP_IRQ_GEN(1, 1, INT_SPI_CMD_ALERT),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
-		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
+		PMIC_SP_IRQ_GEN(1, INT_SPI_CMD_ALERT),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
+		PMIC_SP_IRQ_GEN(0, NO_USE),
 	},
 };
 
@@ -615,7 +615,6 @@ void register_all_oc_interrupts(void)
 		case INT_VCAMA_OC:
 		case INT_VCAMD_OC:
 		case INT_VCAMIO_OC:
-		case INT_VLDO28_OC:
 			IRQLOG("[PMIC_INT] non-enabled OC: %d\n", oc_int);
 			break;
 #if 0
@@ -634,14 +633,20 @@ void register_all_oc_interrupts(void)
 }
 #endif
 
-/*
- * For level triggered interrupt, double clear interrupt status to avoid
- * triggered interrupt again
- */
-static void pmic_clear_interrupt_status(unsigned int spNo,
-					unsigned int sp_conNo,
-					unsigned int sp_int_status)
+static void pmic_sp_irq_handler(unsigned int spNo,
+				unsigned int sp_conNo,
+				unsigned int sp_int_status)
 {
+	unsigned int i;
+	struct pmic_sp_irq *sp_irq;
+
+	if (sp_int_status == 0)
+		return; /* this subpack control has no interrupt triggered */
+
+	pr_notice(PMICTAG "[PMIC_INT] Reg[0x%x]=0x%x\n"
+		  , (sp_interrupts[spNo].status + 0x2 * sp_conNo)
+		  , sp_int_status);
+
 	if (g_pmic_chip_version == 1) {
 		/* prevent from MT6357 glitch problem */
 		/* clear interrupt status by CLR enable register */
@@ -657,23 +662,6 @@ static void pmic_clear_interrupt_status(unsigned int spNo,
 		upmu_set_reg_value((sp_interrupts[spNo].status +
 				    0x2 * sp_conNo), sp_int_status);
 	}
-}
-
-static void pmic_sp_irq_handler(unsigned int spNo,
-				unsigned int sp_conNo,
-				unsigned int sp_int_status)
-{
-	unsigned int i;
-	struct pmic_sp_irq *sp_irq;
-
-	if (sp_int_status == 0)
-		return; /* this subpack control has no interrupt triggered */
-
-	pr_notice(PMICTAG "[PMIC_INT] Reg[0x%x]=0x%x\n"
-		  , (sp_interrupts[spNo].status + 0x2 * sp_conNo)
-		  , sp_int_status);
-
-	pmic_clear_interrupt_status(spNo, sp_conNo, sp_int_status);
 
 	for (i = 0; i < PMIC_INT_WIDTH; i++) {
 		if (sp_int_status & (1 << i)) {
@@ -688,9 +676,6 @@ static void pmic_sp_irq_handler(unsigned int spNo,
 					 sp_conNo * PMIC_INT_WIDTH + i),
 					sp_irq->name);
 			}
-			if (sp_irq->level_trig)
-				pmic_clear_interrupt_status(spNo, sp_conNo,
-							    1 << i);
 		}
 	}
 
@@ -819,12 +804,12 @@ static void enable_pmic_irqs(void)
 	pmic_enable_interrupt(INT_CHRDET_EDGE, 1, "PMIC");
 }
 
-void PMIC_EINT_SETTING(struct platform_device *pdev)
+void PMIC_EINT_SETTING(void)
 {
+	struct device_node *node = NULL;
 	int ret = 0;
 	unsigned int spNo, sp_conNo;
 	unsigned int enable_reg;
-	struct device_node *node = pdev->dev.of_node;
 
 	/* unmask PMIC TOP interrupt */
 	pmic_set_register_value(PMIC_TOP_INT_MASK_CON0_CLR, 0x1FF);
@@ -854,6 +839,7 @@ void PMIC_EINT_SETTING(struct platform_device *pdev)
 	register_irq_handlers();
 	enable_pmic_irqs();
 
+	node = of_find_compatible_node(NULL, NULL, "mediatek,pmic-eint");
 	if (node) {
 		/* no debounce setting */
 		g_pmic_irq = irq_of_parse_and_map(node, 0);

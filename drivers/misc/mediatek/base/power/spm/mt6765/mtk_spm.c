@@ -82,18 +82,13 @@ int __attribute__((weak)) spm_fs_init(void)
 	return 0;
 }
 
-/* Note: implemented in mtk_spm_utils.c */
+/* Note: implemented in mtk_spm_sleep.c */
 ssize_t __attribute__((weak)) get_spm_last_wakeup_src(
 	char *ToUserBuf, size_t sz, void *priv) { return 0; }
 
-/* Note: implemented in mtk_spm_utils.c */
+/* Note: implemented in mtk_spm_sleep.c */
 ssize_t __attribute__((weak)) get_spm_sleep_count(
 	char *ToUserBuf, size_t sz, void *priv) { return 0; }
-
-/* Note: implemented in mtk_spm_utils.c */
-ssize_t __attribute__((weak)) get_spm_last_debug_flag(
-	char *ToUserBuf, size_t sz, void *priv) { return 0; }
-
 
 void __iomem *spm_base;
 void __iomem *sleep_reg_md_base;

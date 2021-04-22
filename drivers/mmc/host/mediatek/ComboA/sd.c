@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -40,6 +41,7 @@
 #include <mt-plat/mtk_lpae.h>
 #include <linux/seq_file.h>
 #include <linux/pm_runtime.h>
+#include <linux/proc_fs.h>              //bug 348606 ,zhaobeilong@wt,20180402,add
 
 #include "mtk_sd.h"
 #include <mmc/core/core.h>
@@ -201,6 +203,37 @@ int msdc_rsp[] = {
 	memset(BUF, 0, BUF_SZ); \
 	BUF_CUR = BUF; \
 }
+
+//bug 348606 ,zhaobeilong@wt,20180402,start
+static int sd_tray_gpio_show(struct seq_file *m, void *v)
+{
+	int sd_gpio_value = 0;
+
+#ifdef CONFIG_GPIOLIB
+	sd_gpio_value = __gpio_get_value(cd_gpio);
+#endif
+
+	seq_printf(m, "%d\n", sd_gpio_value);
+	return 0;
+}
+
+static int sd_tray_gpio_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, sd_tray_gpio_show, NULL);
+}
+
+static const struct file_operations sd_tray_gpio_fops = {
+	.open	= sd_tray_gpio_proc_open,
+	.read	= seq_read,
+	.llseek	= seq_lseek,
+	.release	= single_release,
+};
+
+static void sd_tray_gpio_create_proc(void)
+{
+	proc_create("sd_tray_gpio_value", 0444, NULL, &sd_tray_gpio_fops);
+}
+//bug 348606 ,zhaobeilong@wt,20180402,end
 
 void msdc_dump_register_core(char **buff, unsigned long *size,
 	struct seq_file *m, struct msdc_host *host)
@@ -3618,8 +3651,7 @@ start_tune:
 				host->id, ++host->reautok_times);
 #ifdef CONFIG_MTK_EMMC_CQ_SUPPORT
 			/* CQ DAT tune in MMC layer, here tune CMD13 CRC */
-			if (host->mmc->card
-				&& host->mmc->card->ext_csd.cmdq_mode_en)
+			if (host->mmc->card->ext_csd.cmdq_mode_en)
 				emmc_execute_dvfs_autok(host, MMC_SEND_STATUS);
 			else
 #endif
@@ -4555,7 +4587,6 @@ static void msdc_check_data_timeout(struct work_struct *work)
 	}
 
 	if (msdc_use_async_dma(data->host_cookie)) {
-		dbg_add_host_log(host->mmc, 3, 0, 0);
 		msdc_dma_stop(host);
 		msdc_dma_clear(host);
 		msdc_reset_hw(host->id);
@@ -4655,7 +4686,6 @@ static void msdc_irq_data_complete(struct msdc_host *host,
 		msdc_dma_stop(host);
 		mrq = host->mrq;
 		if (error) {
-			dbg_add_host_log(host->mmc, 3, 0, 1);
 #if defined(CONFIG_MTK_HW_FDE) && defined(CONFIG_MTK_HW_FDE_AES)
 			if (MSDC_CHECK_FDE_ERR(host->mmc, mrq))
 				goto skip_non_FDE_ERROR_HANDLING;
@@ -4713,7 +4743,7 @@ skip:
 			mrq->cmd->error = (unsigned int)-EILSEQ;
 #endif
 		} else {
-			dbg_add_host_log(host->mmc, 3, 0, 0);
+
 			msdc_dma_clear(host);
 
 #ifdef CONFIG_MTK_EMMC_CQ_SUPPORT
@@ -5044,9 +5074,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	if (host->hw->host_function == MSDC_EMMC)
 		mmc->caps |= MMC_CAP_CMD23;
 #endif
-	if (host->hw->host_function == MSDC_SD)
-		mmc->caps |= MMC_CAP_AGGRESSIVE_PM;
-
+	//mmc->caps |= MMC_CAP_AGGRESSIVE_PM;
 	mmc->caps |= MMC_CAP_ERASE;
 
 	/* If 0  < mmc->max_busy_timeout < cmd.busy_timeout,
@@ -5138,6 +5166,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	spin_lock_init(&host->lock);
 	spin_lock_init(&host->reg_lock);
 	spin_lock_init(&host->remove_bad_card);
+	spin_lock_init(&host->cmd_dump_lock);
 	spin_lock_init(&host->sdio_irq_lock);
 
 #ifdef CONFIG_MTK_EMMC_CQ_SUPPORT
@@ -5389,6 +5418,8 @@ static int __init mt_msdc_init(void)
 	msdc_proc_emmc_create();
 #endif
 	msdc_debug_proc_init();
+
+	sd_tray_gpio_create_proc();         //bug 348606 ,zhaobeilong@wt,20180402,add
 
 	pr_debug(DRV_NAME ": MediaTek MSDC Driver\n");
 

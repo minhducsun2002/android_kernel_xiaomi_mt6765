@@ -18,7 +18,8 @@
 #include "mtk_cpufreq_internal.h"
 #include "mtk_cpufreq_hybrid.h"
 #include "mtk_cpufreq_platform.h"
-
+//MTK wfq add for bugreport
+#include <linux/thermal.h>
 unsigned int func_lv_mask;
 unsigned int do_dvfs_stress_test;
 unsigned int dvfs_power_mode;
@@ -470,7 +471,108 @@ static ssize_t cpufreq_dvfs_time_profile_proc_write(struct file *file,
 
 	return count;
 }
+//MTK wfq add for bugreport +
+extern int mtkts_bts_get_hw_temp(void);
+extern int tscpu_get_curr_temp(void);
+extern int tscpu_get_curr_max_ts_temp(void);
+extern unsigned int apthermolmt_get_cpu_power_limit(void);
+extern unsigned int apthermolmt_get_gpu_power_limit(void);
+static int cpufreq_sum_proc_show(struct seq_file *m, void *v)
+{
+	struct mt_cpu_dvfs *pLL,*pL;
+	struct pll_ctrl_t *pll_pLL,*pll_pL;
+	struct buck_ctrl_t *vproc_pLL,*vproc_pL;
+	unsigned int freqLL=0,freqL=0,mvLL=0,mvL=0;
+	unsigned int cpu_power,gpu_power;
+	pL = id_to_cpu_dvfs(MT_CPU_DVFS_L);
+	if(NULL==pL)
+		return 0;
+	pll_pL = id_to_pll_ctrl(pL->Pll_id);
+	if(NULL==pll_pL)
+		return 0;
+	freqL=pll_pL->pll_ops->get_cur_freq(pll_pL)/1000;
+	vproc_pL = id_to_buck_ctrl(pL->Vproc_buck_id);
+	if(NULL==vproc_pL)
+		return 0;
+	mvL=vproc_pL->buck_ops->get_cur_volt(vproc_pL)/100;
+	if(8==NR_CPUS)
+	{
+		pLL = id_to_cpu_dvfs(MT_CPU_DVFS_LL);
+		if(NULL==pLL)
+		return 0;
+		pll_pLL = id_to_pll_ctrl(pLL->Pll_id);
+		if(NULL==pll_pLL)
+		return 0;
+		freqLL=pll_pLL->pll_ops->get_cur_freq(pll_pLL)/1000;
+		vproc_pLL = id_to_buck_ctrl(pLL->Vproc_buck_id);
+		mvLL=vproc_pLL->buck_ops->get_cur_volt(vproc_pLL)/100;
+		seq_printf(m, "cpufreq:[%u,%u;%u,%u]\n", freqL,mvL,freqLL,mvLL);
+	}
+	if(4==NR_CPUS)
+	seq_printf(m, "cpufreq:(%u,%u)\n", freqL,mvL);
+	cpu_power=apthermolmt_get_cpu_power_limit();
+	gpu_power=apthermolmt_get_gpu_power_limit();
+	seq_printf(m, "Temp:%d,%d,%u,%u\n", (mtkts_bts_get_hw_temp()/1000),(tscpu_get_curr_max_ts_temp()/1000),\
+		(int)((cpu_power != 0x7FFFFFFF) ? cpu_power : 0),\
+		(int)((gpu_power != 0x7FFFFFFF) ? gpu_power : 0));
+	return 0;
+}
 
+static ssize_t cpufreq_sum_proc_write(struct file *file,
+	const char __user *buffer, size_t count, loff_t *pos)
+{
+	return 0;
+}
+/*
+ *tsbattery,tspmic,tsbtsmdpa,tswmt,tscharger
+ */
+static int cpufreq_tz_related_proc_show(struct seq_file *m, void *v)
+{
+	int temp_tz1=0,temp_tz2=0,temp_tz3=0,temp_tz4=0,temp_tz5=0;
+	int ret=0;
+	struct thermal_zone_device *mtktsbattery,*mtktspmic,*mtktsbtsmdpa,*mtktswmt,*mtktscharger;
+	mtktsbattery=thermal_zone_get_zone_by_name("mtktsbattery");
+        if(!IS_ERR(mtktsbattery))
+	{
+		ret=mtktsbattery->ops->get_temp(mtktsbattery,&temp_tz1);
+		if(0!=ret)
+		return 0;
+	}
+
+	mtktspmic=thermal_zone_get_zone_by_name("mtktspmic");
+        if(!IS_ERR(mtktspmic))
+	{
+		ret=mtktspmic->ops->get_temp(mtktspmic,&temp_tz2);
+		if(0!=ret)
+		return 0;
+	}
+	mtktsbtsmdpa=thermal_zone_get_zone_by_name("mtktsbtsmdpa");
+        if(!IS_ERR(mtktsbtsmdpa))
+	{
+		ret=mtktsbtsmdpa->ops->get_temp(mtktsbtsmdpa,&temp_tz3);
+		if(0!=ret)
+		return 0;
+	}
+	mtktswmt=thermal_zone_get_zone_by_name("mtktswmt");
+        if(!IS_ERR(mtktswmt))
+	{
+		ret=mtktswmt->ops->get_temp(mtktswmt,&temp_tz4);
+		if(0!=ret)
+		return 0;
+	}
+	mtktscharger=thermal_zone_get_zone_by_name("mtktscharger");
+        if(!IS_ERR(mtktscharger))
+	{
+		ret=mtktscharger->ops->get_temp(mtktscharger,&temp_tz5);
+		if(0!=ret)
+		return 0;
+	}
+	seq_printf(m, "mtktz:%d,%d,%d,%d,%d\n", temp_tz1/1000,temp_tz2/1000,temp_tz3/1000,temp_tz4/1000,temp_tz5/1000);
+	return 0;
+}
+PROC_FOPS_RW(cpufreq_sum);
+PROC_FOPS_RO(cpufreq_tz_related);
+//MTK wfq add for bugreport -
 PROC_FOPS_RW(cpufreq_debug);
 PROC_FOPS_RW(cpufreq_stress_test);
 PROC_FOPS_RW(cpufreq_power_mode);
@@ -507,6 +609,8 @@ int cpufreq_procfs_init(void)
 		PROC_ENTRY(cpufreq_freq),
 		PROC_ENTRY(cpufreq_volt),
 		PROC_ENTRY(cpufreq_turbo_mode),
+		PROC_ENTRY(cpufreq_sum),//MTK wfq add for bugreport
+		PROC_ENTRY(cpufreq_tz_related),//MTK wfq add for bugreport
 	};
 
 	dir = proc_mkdir("cpufreq", NULL);

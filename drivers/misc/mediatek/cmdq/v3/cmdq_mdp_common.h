@@ -78,8 +78,6 @@ typedef u64 (*CmdqMdpGetEngineGroupBits) (u32 engine_group);
 
 typedef void (*CmdqMdpEnableCommonClock) (bool enable);
 
-typedef void (*CmdqCheckHwStatus) (struct cmdqRecStruct *handle);
-
 struct cmdqMDPFuncStruct {
 	CmdqDumpMMSYSConfig dumpMMSYSConfig;
 	CmdqVEncDumpInfo vEncDumpInfo;
@@ -110,7 +108,6 @@ struct cmdqMDPFuncStruct {
 	CmdqEndTaskCB endTask;
 	CmdqBeginTaskCB beginISPTask;
 	CmdqEndTaskCB endISPTask;
-	CmdqCheckHwStatus CheckHwStatus;
 };
 
 struct mdp_pmqos_record {
@@ -161,7 +158,7 @@ s32 cmdq_mdp_wait(struct cmdqRecStruct *handle,
 s32 cmdq_mdp_flush(struct cmdqCommandStruct *desc, bool user_space);
 void cmdq_mdp_suspend(void);
 void cmdq_mdp_resume(void);
-void cmdq_mdp_release_active_task(void *file_node);
+void cmdq_mdp_release_task_by_file_node(void *file_node);
 void cmdq_mdp_init(void);
 void cmdq_mdp_deinit_pmqos(void);
 

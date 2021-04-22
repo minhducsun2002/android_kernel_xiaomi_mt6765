@@ -20,7 +20,6 @@
 #include <linux/pm_qos.h>
 #include <linux/sched.h>
 #include <linux/mutex.h>
-#include <linux/spinlock.h>
 
 #include "governor.h"
 
@@ -38,16 +37,9 @@
 
 static struct helio_dvfsrc *dvfsrc;
 static DEFINE_MUTEX(sw_req1_mutex);
-static DEFINE_SPINLOCK(force_req_lock);
 
 #define DVFSRC_REG(offset) (dvfsrc->regs + offset)
 #define DVFSRC_SRAM_REG(offset) (dvfsrc->sram_regs + offset)
-
-int __weak dram_steps_freq(unsigned int step)
-{
-	pr_info("get dram steps_freq fail\n");
-	return -1;
-}
 
 u32 dvfsrc_read(u32 offset)
 {
@@ -63,21 +55,11 @@ void dvfsrc_write(u32 offset, u32 val)
 	dvfsrc_write(offset, (dvfsrc_read(offset) & ~(mask << shift)) \
 			| (val << shift))
 
-u32 dvfsrc_sram_read(u32 offset)
-{
-	if (!is_qos_enabled())
-		return -1;
+#define dvfsrc_sram_write(offset, val) \
+	writel(val, DVFSRC_SRAM_REG(offset))
 
-	return readl(DVFSRC_SRAM_REG(offset));
-}
-
-void dvfsrc_sram_write(u32 offset, u32 val)
-{
-	if (!is_qos_enabled())
-		return;
-
-	writel(val, DVFSRC_SRAM_REG(offset));
-}
+#define dvfsrc_sram_read(offset) \
+	readl(DVFSRC_SRAM_REG(offset))
 
 static void dvfsrc_set_sw_req(int data, int mask, int shift)
 {
@@ -153,7 +135,6 @@ static int commit_data(int type, int data, int check_spmfw)
 {
 	int ret = 0;
 	int level = 16, opp = 16;
-	unsigned long flags;
 
 	if (!is_dvfsrc_enabled())
 		return ret;
@@ -236,7 +217,6 @@ static int commit_data(int type, int data, int check_spmfw)
 				VCORE_SW_AP2_MASK, VCORE_SW_AP2_SHIFT);
 		break;
 	case PM_QOS_VCORE_DVFS_FORCE_OPP:
-		spin_lock_irqsave(&force_req_lock, flags);
 		if (data >= VCORE_DVFS_OPP_NUM || data < 0)
 			data = VCORE_DVFS_OPP_NUM;
 
@@ -245,7 +225,6 @@ static int commit_data(int type, int data, int check_spmfw)
 
 		if (opp == VCORE_DVFS_OPP_NUM) {
 			dvfsrc_release_force();
-			spin_unlock_irqrestore(&force_req_lock, flags);
 			break;
 		}
 		dvfsrc_set_force_start(1 << level);
@@ -255,7 +234,6 @@ static int commit_data(int type, int data, int check_spmfw)
 					DVFSRC_TIMEOUT);
 
 		dvfsrc_set_force_end();
-		spin_unlock_irqrestore(&force_req_lock, flags);
 		break;
 	default:
 		break;
@@ -284,34 +262,18 @@ void helio_dvfsrc_enable(int dvfsrc_en)
 	if (dvfsrc_en > 1 || dvfsrc_en < 0)
 		return;
 
-	if (!spm_load_firmware_status())
-		return;
-
-#ifdef CONFIG_MTK_TINYSYS_SSPM_SUPPORT
-	helio_dvfsrc_sspm_ipi_init(dvfsrc_en);
-#endif
-
 	dvfsrc->qos_enabled = 1;
 	dvfsrc->dvfsrc_enabled = dvfsrc_en;
 	dvfsrc->opp_forced = 0;
 	sprintf(dvfsrc->force_start, "0");
 	sprintf(dvfsrc->force_end, "0");
 
+#ifdef CONFIG_MTK_TINYSYS_SSPM_SUPPORT
+	helio_dvfsrc_sspm_ipi_init(dvfsrc_en);
+#endif
+
 	dvfsrc_restore();
-	if (dvfsrc_en)
-		dvfsrc_en |= (dvfsrc->dvfsrc_flag << 1);
-
 	mtk_spmfw_init(dvfsrc_en, 1);
-}
-
-void helio_dvfsrc_flag_set(int flag)
-{
-	dvfsrc->dvfsrc_flag = flag;
-}
-
-int helio_dvfsrc_flag_get(void)
-{
-	return	dvfsrc->dvfsrc_flag;
 }
 
 void dvfsrc_opp_table_init(void)
@@ -679,7 +641,7 @@ static void pm_qos_notifier_register(void)
 
 static int helio_dvfsrc_probe(struct platform_device *pdev)
 {
-	int ret = 0;
+	int ret;
 	struct resource *res;
 
 	dvfsrc = devm_kzalloc(&pdev->dev, sizeof(*dvfsrc), GFP_KERNEL);
@@ -711,7 +673,9 @@ static int helio_dvfsrc_probe(struct platform_device *pdev)
 
 	pm_qos_notifier_register();
 
-	helio_dvfsrc_common_init();
+	ret = helio_dvfsrc_common_init();
+	if (ret)
+		return ret;
 
 	helio_dvfsrc_platform_init(dvfsrc);
 

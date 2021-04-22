@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2007-2012 Steven Rostedt <srostedt@redhat.com>
  * Copyright (C) 2008 Ingo Molnar <mingo@redhat.com>
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * Originally taken from the RT patch by:
  *    Arnaldo Carvalho de Melo <acme@redhat.com>

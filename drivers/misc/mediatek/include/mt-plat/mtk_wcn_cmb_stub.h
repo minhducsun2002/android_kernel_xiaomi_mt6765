@@ -99,7 +99,7 @@ typedef int (*wmt_func_do_reset) (unsigned int);
 #if MTK_WCN_CMB_FOR_SDIO_1V_AUTOK
 typedef unsigned int (*wmt_get_drv_status)(unsigned int);
 #endif
-typedef void (*wmt_clock_fail_dump_cb) (void);
+
 typedef void (*msdc_sdio_irq_handler_t) (void *);	/* external irq handler */
 typedef void (*pm_callback_t) (pm_message_t state, void *data);
 
@@ -121,7 +121,6 @@ struct _CMB_STUB_CB_ {
 #if MTK_WCN_CMB_FOR_SDIO_1V_AUTOK
 	wmt_get_drv_status get_drv_status_cb;
 #endif
-	wmt_clock_fail_dump_cb clock_fail_dump_cb;
 };
 
 /*******************************************************************************
@@ -162,7 +161,6 @@ extern void mtk_wcn_cmb_stub_func_ctrl(unsigned int type, unsigned int on);
 extern int mtk_wcn_cmb_stub_query_ctrl(void);
 extern int board_sdio_ctrl(unsigned int sdio_port_num, unsigned int on);
 extern int mtk_wcn_sdio_irq_flag_set(int falg);
-extern void mtk_wcn_cmb_stub_clock_fail_dump(void);
 
 #if MTK_WCN_CMB_FOR_SDIO_1V_AUTOK
 extern int mtk_wcn_cmb_stub_1vautok_for_dvfs(void);

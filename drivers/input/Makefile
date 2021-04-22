@@ -24,7 +24,11 @@ obj-$(CONFIG_INPUT_JOYSTICK)	+= joystick/
 obj-$(CONFIG_INPUT_TABLET)	+= tablet/
 obj-$(CONFIG_INPUT_TOUCHSCREEN)	+= touchscreen/
 obj-$(CONFIG_INPUT_MISC)	+= misc/
-obj-$(CONFIG_MTK_FINGERPRINT_SUPPORT)  += fingerprint/
+
+ifeq ($(CONFIG_WT_FINGERPRINT_SUPPORT), y)
+    obj-y  += fingerprint/
+endif
+#obj-$(CONFIG_MTK_FINGERPRINT_SUPPORT)  += fingerprint/
 
 obj-$(CONFIG_INPUT_APMPOWER)	+= apm-power.o
 obj-$(CONFIG_INPUT_KEYRESET)	+= keyreset.o

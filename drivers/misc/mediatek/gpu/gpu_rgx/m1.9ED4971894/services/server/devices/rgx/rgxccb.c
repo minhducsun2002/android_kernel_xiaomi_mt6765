@@ -1860,7 +1860,6 @@ void DumpCCB(PVRSRV_RGXDEV_INFO *psDevInfo,
 	IMG_UINT32 ui32EndOffset = psCurrentClientCCB->ui32HostWriteOffset;
 	IMG_UINT32 ui32WrapMask = psClientCCBCtrl->ui32WrapMask;
 	IMG_CHAR * pszState = "Ready";
-	IMG_HANDLE hPMR = psCurrentClientCCB->psClientCCBMemDesc->psImport->hPMR;
 
 	PVR_DUMPDEBUG_LOG("FWCtx 0x%08X (%s)", sFWCommonContext.ui32Addr,
 		(IMG_PCHAR)&psCurrentClientCCB->szName);
@@ -1879,30 +1878,9 @@ void DumpCCB(PVRSRV_RGXDEV_INFO *psDevInfo,
 		IMG_CHAR pszSyncInfo[CCB_SYNC_INFO_LEN];
 		IMG_UINT32 ui32NoOfUpdates, i;
 		RGXFWIF_UFO *psUFOPtr;
-		IMG_DEV_PHYADDR sDevPhyAddr = {0};
-		IMG_CPU_PHYADDR sCpuPhyAddr = {0};
-		IMG_BOOL bValid;
-		PVRSRV_ERROR eError;
 
 		ui32NoOfUpdates = psCmdHeader->ui32CmdSize / sizeof(RGXFWIF_UFO);
 		psUFOPtr = (RGXFWIF_UFO*)(pui8ClientCCBBuff + ui32Offset + sizeof(RGXFWIF_CCB_CMD_HEADER));
-
-		eError = PMR_DevPhysAddr(hPMR,
-		                         OSGetPageShift(),
-		                         1,
-		                         ui32Offset,
-		                         &sDevPhyAddr,
-		                         &bValid);
-		if (eError != PVRSRV_OK) { pr_debug("%s: Error %u while calling PMR_DevPhysAddr\n", __func__, eError); }
-
-		eError = PMR_CpuPhysAddr(hPMR,
-		                         OSGetPageShift(),
-		                         1,
-		                         ui32Offset,
-		                         &sCpuPhyAddr,
-		                         &bValid);
-		if (eError != PVRSRV_OK) { pr_debug("%s: Error %u while calling PMR_DevPhysAddr\n", __func__, eError); }
-
 		pszSyncInfo[0] = '\0';
 
 		if (ui32Offset == ui32DepOffset)
@@ -1910,11 +1888,10 @@ void DumpCCB(PVRSRV_RGXDEV_INFO *psDevInfo,
 			pszState = "Waiting";
 		}
 
-		PVR_DUMPDEBUG_LOG("  %s--%s %s @ %u Int=%u Ext=%u Hdr DevPA 0x%llX CpuPA 0x%llX",
+		PVR_DUMPDEBUG_LOG("  %s--%s %s @ %u Int=%u Ext=%u",
 			bLastCommand? "`": "|",
 			pszState, _CCBCmdTypename(psCmdHeader->eCmdType),
-			ui32Offset, psCmdHeader->ui32IntJobRef, psCmdHeader->ui32ExtJobRef,
-			sDevPhyAddr.uiAddr, sCpuPhyAddr.uiAddr
+			ui32Offset, psCmdHeader->ui32IntJobRef, psCmdHeader->ui32ExtJobRef
 			);
 
 		/* switch on type and write checks and updates */

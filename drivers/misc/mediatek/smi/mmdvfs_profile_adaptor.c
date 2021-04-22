@@ -24,14 +24,12 @@
 #include "mmdvfs_config_mt6758.h"
 #elif defined(SMI_CER)
 #include "mmdvfs_config_mt6765.h"
-#elif defined(SMI_MER)
-#include "mmdvfs_config_mt6761.h"
 #endif
 
 #include "mmdvfs_mgr.h"
 #include "mmdvfs_internal.h"
 #ifdef PLL_HOPPING_READY
-#include <mt_freqhopping_drv.h>
+#include "mach/mtk_freqhopping.h"
 #endif
 
 #ifdef USE_DDR_TYPE
@@ -63,17 +61,6 @@ struct mmdvfs_step_util mmdvfs_step_util_obj_mt6765 = {
 	MMDVFS_SCEN_COUNT,
 	{0},
 	MT6765_MMDVFS_OPP_MAX,
-	MMDVFS_FINE_STEP_OPP0,
-	mmdvfs_step_util_init,
-	mmdvfs_step_util_set_step,
-};
-
-#elif defined(SMI_MER)
-struct mmdvfs_step_util mmdvfs_step_util_obj_mt6761 = {
-	{0},
-	MMDVFS_SCEN_COUNT,
-	{0},
-	MT6761_MMDVFS_OPP_MAX,
 	MMDVFS_FINE_STEP_OPP0,
 	mmdvfs_step_util_init,
 	mmdvfs_step_util_set_step,
@@ -159,25 +146,6 @@ struct mmdvfs_adaptor mmdvfs_adaptor_obj_mt6765_lp3 = {
 	mmdvfs_get_cam_sys_clk,
 	mmdvfs_single_profile_dump,
 };
-
-#elif defined(SMI_MER)
-struct mmdvfs_adaptor mmdvfs_adaptor_obj_mt6761 = {
-	0, 0, 0, 0,
-	NULL, 0,
-	NULL, 0,
-	mt6761_step_profile, MT6761_MMDVFS_OPP_MAX,
-	0,
-	mmdvfs_profile_dump,
-	mmdvfs_single_hw_config_dump,
-	mmdvfs_hw_config_dump,
-	mmdvfs_determine_step,
-	mmdvfs_apply_hw_config,
-	mmdvfs_apply_vcore_hw_config,
-	mmdvfs_apply_clk_hw_config,
-	mmdvfs_get_cam_sys_clk,
-	mmdvfs_single_profile_dump,
-};
-
 #endif
 
 /* class: ISP PMQoS Handler */
@@ -203,7 +171,6 @@ struct mmdvfs_thres_handler mmdvfs_thres_handler_mt6765 = {
 	MMDVFS_PM_QOS_SUB_SYS_NUM,
 	get_step_by_threshold
 };
-
 #endif
 
 /* Member function implementation */
@@ -881,13 +848,6 @@ void mmdvfs_config_util_init(void)
 		MMDVFSMSG("g_mmdvfs_step_util init with lp4 2-ch\n");
 #endif
 		g_mmdvfs_step_util = &mmdvfs_step_util_obj_mt6765;
-#endif
-		break;
-	case MMDVFS_PROFILE_MER:
-#if defined(SMI_MER)
-		g_mmdvfs_adaptor = &mmdvfs_adaptor_obj_mt6761;
-		g_mmdvfs_step_util = &mmdvfs_step_util_obj_mt6761;
-		g_mmdvfs_threshandler = &mmdvfs_thres_handler_obj;
 #endif
 		break;
 	default:

@@ -13,10 +13,6 @@
 #include "bootprof.h"
 #endif
 
-#ifdef CONFIG_MTK_USB2JTAG_SUPPORT
-#include <mt-plat/mtk_usb2jtag.h>
-#endif
-
 #ifdef CONFIG_USB_CONFIGFS_UEVENT
 #include <linux/platform_device.h>
 #include <linux/kdev_t.h>
@@ -1631,10 +1627,7 @@ static void android_disconnect(struct usb_gadget *gadget)
 	acc_disconnect();
 #endif
 	gi->connected = 0;
-	if (strstr(current->comm, "init") && !in_interrupt())
-		pr_notice("%s, skip work\n", __func__);
-	else
-		schedule_work(&gi->work);
+	schedule_work(&gi->work);
 	composite_disconnect(gadget);
 }
 #endif

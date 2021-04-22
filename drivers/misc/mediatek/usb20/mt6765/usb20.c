@@ -1785,9 +1785,6 @@ static int mt_usb_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	DBG(0, " musb_host_db related to false\n");
-	musb_host_db_enable = musb_host_db_workaround = false;
-
 #ifdef CONFIG_MTK_MUSB_QMU_SUPPORT
 	isoc_ep_end_idx = 1;
 	isoc_ep_gpd_count = 248; /* 30 ms for HS, at most (30*8 + 1) */

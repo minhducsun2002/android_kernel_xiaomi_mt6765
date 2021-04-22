@@ -91,15 +91,92 @@ static ssize_t last_suspend_time_show(struct kobject *kobj,
 				suspend_resume_time.tv_sec, suspend_resume_time.tv_nsec,
 				sleep_time.tv_sec, sleep_time.tv_nsec);
 }
+//MTK wfq add for bugreport +
+extern int iavg4bugreport;
+extern int expamp_mode;
+#define CCCIF_CH_LEN 200
 
+extern unsigned int wakereasons[32],wakecnt;
+extern unsigned int ccb_wkcnt;
+
+extern unsigned int cccif_wkcnt[CCCIF_CH_LEN];
+extern u32 spm_info[6][2];
+extern int scp_log[10][5];
+static ssize_t suspend_wakereason_show(struct kobject *kobj, struct kobj_attribute *attr,
+		char *buf)
+{
+	int buf_offset = 0;
+	int i=0;
+	bool ccif_tag=false;
+	if (!buf)
+		return -EINVAL;
+	buf_offset += sprintf(buf+buf_offset, "AvgI:%d\n",(-iavg4bugreport/10));
+	buf_offset += sprintf(buf+buf_offset, "ExpPa:%d\n",expamp_mode);
+
+	if(0==wakecnt)
+		return buf_offset;
+	buf_offset += sprintf(buf+buf_offset, "wakeup[%d]",wakecnt);
+	for(i=0;i<32;i++)
+	{
+		if(0!=wakereasons[i])
+		{
+			buf_offset += sprintf(buf+buf_offset, ",[%d]%d",i,wakereasons[i]);
+		}
+
+		wakereasons[i]=0;
+	}
+	buf_offset += sprintf(buf+buf_offset,"\n");
+	for(i=0;i<CCCIF_CH_LEN;i++)
+	{
+		if(0!=cccif_wkcnt[i])
+		{
+			if(!ccif_tag)
+				buf_offset += sprintf(buf+buf_offset,"ccif");
+			buf_offset += sprintf(buf+buf_offset, ",[%d]%d",i,cccif_wkcnt[i]);
+			ccif_tag=true;
+			cccif_wkcnt[i]=0;
+		}
+	}
+	if(ccif_tag)
+		buf_offset += sprintf(buf+buf_offset,"\n");
+	if(ccb_wkcnt>0)
+	buf_offset += sprintf(buf+buf_offset,"ccb:%d\n",ccb_wkcnt);
+        wakecnt=ccb_wkcnt=0;
+	if(0<spm_info[5][1])
+	{
+		buf_offset += sprintf(buf+buf_offset,"spm[%d/%d]",spm_info[5][1],spm_info[5][0]);
+		for(i=0;i<5;i++)
+		{
+			if(0==spm_info[i][1])
+				break;
+			buf_offset += sprintf(buf+buf_offset,",[%x,%x]",spm_info[i][0],spm_info[i][1]);//r13,debugflg
+			spm_info[i][0]=spm_info[i][1]=0;
+		}
+		buf_offset += sprintf(buf+buf_offset,"\n");
+		spm_info[5][0]=spm_info[5][1]=0;
+	}
+	buf_offset += sprintf(buf+buf_offset,"SCPw:");
+	for(i=0;i<10;i++)
+	{
+		if(scp_log[i][0]!=-1)
+		buf_offset += sprintf(buf+buf_offset,",[%d,%d,%d,%d,%d]",scp_log[i][0],scp_log[i][1],scp_log[i][2],scp_log[i][3],scp_log[i][4]);
+		scp_log[i][0]=scp_log[i][1]=scp_log[i][2]=scp_log[i][3]=scp_log[i][4]=-1;
+	}
+	buf_offset += sprintf(buf+buf_offset,"\n");
+	return buf_offset;
+}
+//MTK wfq add for bugreport -
 static struct kobj_attribute resume_reason = __ATTR_RO(last_resume_reason);
 static struct kobj_attribute suspend_time = __ATTR_RO(last_suspend_time);
-
+//MTK wfq add for Bugreport +
+static struct kobj_attribute suspend_wkreason = __ATTR_RO(suspend_wakereason);
 static struct attribute *attrs[] = {
 	&resume_reason.attr,
 	&suspend_time.attr,
+	&suspend_wkreason.attr,
 	NULL,
 };
+//MTK wfq add for bugreport -
 static struct attribute_group attr_group = {
 	.attrs = attrs,
 };

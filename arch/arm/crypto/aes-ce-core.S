@@ -2,6 +2,7 @@
  * aes-ce-core.S - AES in CBC/CTR/XTS mode using ARMv8 Crypto Extensions
  *
  * Copyright (C) 2015 Linaro Ltd <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

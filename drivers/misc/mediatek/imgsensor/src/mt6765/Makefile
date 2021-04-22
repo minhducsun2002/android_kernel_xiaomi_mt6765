@@ -21,8 +21,6 @@ IMGSENSOR_DRIVER_PATH  := $(srctree)/drivers/misc/mediatek/imgsensor/src
 COMMON_VERSION := v1
 
 subdir-ccflags-y +=  -I$(IMGSENSOR_DRIVER_PATH)/common/$(COMMON_VERSION)
-ccflags-y += -I$(srctree)/drivers/misc/mediatek/smi
-ccflags-y += -I$(srctree)/drivers/misc/mediatek/base/power/include/dcm_v1
 obj-y				+= ../common/$(COMMON_VERSION)/imgsensor.o
 obj-y				+= ../common/$(COMMON_VERSION)/imgsensor.o
 obj-y				+= ../common/$(COMMON_VERSION)/imgsensor_hw.o

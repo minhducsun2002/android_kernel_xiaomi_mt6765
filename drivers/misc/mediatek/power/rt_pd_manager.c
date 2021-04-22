@@ -20,6 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/pm_wakeup.h>
 #include <linux/reboot.h>
+#include <linux/delay.h>
 
 #include "tcpm.h"
 
@@ -62,7 +63,8 @@ static struct charger_consumer *chg_consumer;
 
 static void tcpc_mt_power_off(void)
 {
-	kernel_power_off();
+	pr_notice("[%s] kernel_power_off\n", __func__);
+	//kernel_power_off();
 }
 
 #if CONFIG_MTK_GAUGE_VERSION == 20
@@ -99,7 +101,7 @@ void pd_chrdet_int_handler(void)
 		if (boot_mode == KERNEL_POWER_OFF_CHARGING_BOOT
 			|| boot_mode == LOW_POWER_OFF_CHARGING_BOOT) {
 			pr_notice("[%s] Unplug Charger/USB\n", __func__);
-			kernel_power_off();
+			tcpc_mt_power_off();
 		}
 	}
 
@@ -246,16 +248,11 @@ static int pd_tcp_notifier_call(struct notifier_block *nb,
 		break;
 	case TCP_NOTIFY_TYPEC_STATE:
 		if (noti->typec_state.new_state == TYPEC_ATTACHED_SNK ||
-		    noti->typec_state.new_state == TYPEC_ATTACHED_CUSTOM_SRC ||
 		    noti->typec_state.new_state == TYPEC_ATTACHED_NORP_SRC) {
-#ifdef CONFIG_MTK_EXTERNAL_CHARGER_TYPE_DETECT
 #if CONFIG_MTK_GAUGE_VERSION == 30
 			charger_dev_enable_chg_type_det(primary_charger, true);
 #else
 			mtk_chr_enable_chr_type_det(true);
-#endif
-#else
-			mtk_pmic_enable_chr_type_det(true);
 #endif
 			pr_info("%s USB Plug in, pol = %d\n", __func__,
 					noti->typec_state.polarity);
@@ -270,7 +267,6 @@ static int pd_tcp_notifier_call(struct notifier_block *nb,
 #endif
 #endif
 		} else if ((noti->typec_state.old_state == TYPEC_ATTACHED_SNK ||
-		    noti->typec_state.old_state == TYPEC_ATTACHED_CUSTOM_SRC ||
 			noti->typec_state.old_state == TYPEC_ATTACHED_NORP_SRC)
 			&& noti->typec_state.new_state == TYPEC_UNATTACHED) {
 			if (tcpc_kpoc) {
@@ -291,23 +287,20 @@ static int pd_tcp_notifier_call(struct notifier_block *nb,
 			pr_notice("TCP_NOTIFY_SINK_VBUS=> plug out");
 #endif
 #endif
-#ifdef CONFIG_MTK_EXTERNAL_CHARGER_TYPE_DETECT
 #if CONFIG_MTK_GAUGE_VERSION == 30
 			ret = charger_dev_enable_chg_type_det(primary_charger,
 				false);
 #else
 			ret = mtk_chr_enable_chr_type_det(false);
 #endif
-#else
-			mtk_pmic_enable_chr_type_det(false);
-#endif
+
 			boot_mode = get_boot_mode();
 			if (ret < 0) {
 				if (boot_mode == KERNEL_POWER_OFF_CHARGING_BOOT
 				|| boot_mode == LOW_POWER_OFF_CHARGING_BOOT) {
 					pr_info("%s: notify chg detach fail, power off\n",
 						__func__);
-					kernel_power_off();
+					tcpc_mt_power_off();
 				}
 			}
 		}

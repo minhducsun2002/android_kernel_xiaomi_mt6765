@@ -47,7 +47,7 @@ static void calc_min_cpucap(void)
 	for (i = 0; i < perfmgr_clusters ; i++) {
 		arch_get_cluster_cpus(&cpus, i);
 		cpumask_and(&cpu_online_cpumask,
-				&cpus, cpu_possible_mask);
+			&cpus, cpu_possible_mask);
 
 		calc_cpu_num[i] = cpumask_weight(&cpu_online_cpumask);
 		calc_cpu_cap[i] = arch_get_max_cpu_capacity(cpu_num);
@@ -123,9 +123,9 @@ int topo_ctrl_init(struct proc_dir_entry *parent)
 	/* create procfs */
 	for (i = 0; i < ARRAY_SIZE(entries); i++) {
 		if (!proc_create(entries[i].name, 0644,
-					topo_dir, entries[i].fops)) {
+			topo_dir, entries[i].fops)) {
 			pr_debug("%s(), create /topo_ctrl%s failed\n",
-					__func__, entries[i].name);
+				__func__, entries[i].name);
 			ret = -EINVAL;
 			goto out;
 		}

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2018 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,17 +19,6 @@
 
 #include <helio-dvfsrc.h>
 #include <helio-dvfsrc-opp.h>
-
-__weak void dvfsrc_enable_dvfs_freq_hopping(int gps_on)
-{
-	pr_info("dummy dvfsrc_enable_dvfs_freq_hopping(%d)\n", gps_on);
-}
-
-__weak int dvfsrc_get_dvfs_freq_hopping_status(void)
-{
-	pr_info("dummy dvfsrc_get_dvfs_freq_hopping_status\n");
-	return 0;
-}
 
 static struct pm_qos_request dvfsrc_memory_bw_req;
 static struct pm_qos_request dvfsrc_ddr_opp_req;
@@ -57,27 +47,6 @@ static ssize_t dvfsrc_enable_store(struct device *dev,
 }
 static DEVICE_ATTR(dvfsrc_enable, 0644,
 		dvfsrc_enable_show, dvfsrc_enable_store);
-
-static ssize_t dvfsrc_enable_flag_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%x\n", helio_dvfsrc_flag_get());
-}
-static ssize_t dvfsrc_enable_flag_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	int val = 0;
-
-	if (kstrtoint(buf, 16, &val))
-		return -EINVAL;
-
-	helio_dvfsrc_flag_set(val);
-
-	return count;
-}
-
-static DEVICE_ATTR(dvfsrc_enable_flag, 0644,
-		dvfsrc_enable_flag_show, dvfsrc_enable_flag_store);
 
 static ssize_t dvfsrc_req_memory_bw_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -265,7 +234,6 @@ static DEVICE_ATTR(dvfsrc_freq_hopping, 0644,
 
 static struct attribute *helio_dvfsrc_attrs[] = {
 	&dev_attr_dvfsrc_enable.attr,
-	&dev_attr_dvfsrc_enable_flag.attr,
 	&dev_attr_dvfsrc_req_memory_bw.attr,
 	&dev_attr_dvfsrc_req_ddr_opp.attr,
 	&dev_attr_dvfsrc_req_vcore_opp.attr,

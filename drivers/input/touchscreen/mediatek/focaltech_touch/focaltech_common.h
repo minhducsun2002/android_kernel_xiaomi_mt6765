@@ -150,6 +150,17 @@ struct ts_ic_info {
 #define FTS_FUNC_EXIT()
 #endif
 
+#if FTS_GESTURE_EN
+#define GESTURE_NODE "onoff"
+#define GESTURE_DATA  "data"
+#define DOUBLE_CLICK 143
+struct gesture_struct
+{
+    int gesture_all_switch;
+    unsigned long gesture_mask;
+};
+#endif
+
 #define FTS_INFO(fmt, args...) printk(KERN_INFO "[FTS][Info]"fmt"\n", ##args)
 #define FTS_ERROR(fmt, args...) printk(KERN_ERR "[FTS][Error]"fmt"\n", ##args)
 

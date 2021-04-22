@@ -3,6 +3,7 @@
  * Based on arch/arm/kernel/head.S
  *
  * Copyright (C) 1994-2002 Russell King
+ * Copyright (C) 2018 XiaoMi, Inc.
  * Copyright (C) 2003-2012 ARM Ltd.
  * Authors:	Catalin Marinas <catalin.marinas@arm.com>
  *		Will Deacon <will.deacon@arm.com>

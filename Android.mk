@@ -21,6 +21,14 @@ $(TARGET_KERNEL_CONFIG): $(KERNEL_CONFIG_FILE) $(LOCAL_PATH)/Android.mk
 $(TARGET_KERNEL_CONFIG): $(shell find $(KERNEL_DIR) -name "Kconfig*")
 	$(hide) mkdir -p $(dir $@)
 	$(MAKE) -C $(KERNEL_DIR) $(KERNEL_MAKE_OPTION) $(KERNEL_DEFCONFIG)
+	$(warning xiaomi international $(PRODUCT_BUILD_INTERNATIONAL))
+	$(warning xiaomi international $@)
+ifeq (true,$(PRODUCT_BUILD_INTERNATIONAL))
+	@echo "CONFIG_MTK_MD3_SUPPORT=0" >> $@
+	@echo "CONFIG_MTK_ECCCI_C2K=y" >> $@
+	@echo "CONFIG_MTK_MD1_SUPPORT=9" >> $@
+	@echo "CONFIG_MTK_C2K_LTE_MODE=0" >> $@
+endif
 
 $(KERNEL_MODULES_DEPS): $(KERNEL_ZIMAGE_OUT) ;
 $(BUILT_DTB_OVERLAY_TARGET): $(KERNEL_ZIMAGE_OUT)

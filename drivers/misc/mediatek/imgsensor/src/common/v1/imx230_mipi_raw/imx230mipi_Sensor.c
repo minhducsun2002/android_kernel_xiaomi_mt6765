@@ -410,12 +410,12 @@ static kal_uint16 read_cmos_sensor(kal_uint32 addr)
 	return get_byte;
 }
 
-static int write_cmos_sensor(kal_uint32 addr, kal_uint32 para)
+static void write_cmos_sensor(kal_uint32 addr, kal_uint32 para)
 {
 	char pu_send_cmd[3] = {
 		(char)(addr >> 8), (char)(addr & 0xFF), (char)(para & 0xFF) };
 
-	return iWriteRegI2C(pu_send_cmd, 3, imgsensor.i2c_write_id);
+	iWriteRegI2C(pu_send_cmd, 3, imgsensor.i2c_write_id);
 }
 
 #if 0
@@ -583,8 +583,7 @@ static void set_dummy(void)
 
 static kal_uint32 return_sensor_id(void)
 {
-	if (write_cmos_sensor(0x0A02, 0x1F) < 0)
-		return 0;
+	write_cmos_sensor(0x0A02, 0x1F);
 	write_cmos_sensor(0x0A00, 0x01);
 	write_cmos_sensor(0x0A01, 0x01);
 
@@ -1088,18 +1087,16 @@ static kal_uint16 imx230_table_write_cmos_sensor(
 		    len == IDX  ||
 		    addr != addr_last) {
 
-			if (iBurstWriteReg_multi(puSendCmd,
+			iBurstWriteReg_multi(puSendCmd,
 				tosend,
 				imgsensor.i2c_write_id,
 				3,
-				imgsensor_info.i2c_speed) != 0)
-				return -1;
+				imgsensor_info.i2c_speed);
 
 			tosend = 0;
 		}
 #else
-		if (iWriteRegI2C(puSendCmd, 3, imgsensor.i2c_write_id) != 0)
-			return -1;
+		iWriteRegI2C(puSendCmd, 3, imgsensor.i2c_write_id);
 		tosend = 0;
 
 #endif
@@ -4004,9 +4001,8 @@ static kal_uint32 feature_control(MSDK_SENSOR_FEATURE_ENUM feature_id,
 			(*feature_para_len) / sizeof(UINT32), feature_data_16);
 		break;
 	case SENSOR_FEATURE_SET_PDAF_REG_SETTING:
-		/*pr_info("SENSOR_FEATURE_SET_PDAF_REG_SETTING %d",
-		 *	(*feature_para_len));
-		 */
+		pr_info("SENSOR_FEATURE_SET_PDAF_REG_SETTING %d",
+			(*feature_para_len));
 
 		imx230_set_pdaf_reg_setting(
 			(*feature_para_len) / sizeof(UINT32), feature_data_16);

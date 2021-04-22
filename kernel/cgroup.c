@@ -3,6 +3,7 @@
  *
  *  Based originally on the cpuset system, extracted by Paul Menage
  *  Copyright (C) 2006 Google, Inc
+ *  Copyright (C) 2018 XiaoMi, Inc.
  *
  *  Notifications support
  *  Copyright (C) 2009 Nokia Corporation

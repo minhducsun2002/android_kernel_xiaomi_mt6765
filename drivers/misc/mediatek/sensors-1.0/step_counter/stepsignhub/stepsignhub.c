@@ -1,6 +1,7 @@
 /* step_chub motion sensor driver
  *
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -293,49 +294,41 @@ static int step_cds_open_report_data(int open)
 static int step_detect_recv_data(struct data_unit_t *event,
 				void *reserved)
 {
-	int err = 0;
-
 	if (event->flush_action == FLUSH_ACTION)
-		err = step_d_flush_report();
+		step_d_flush_report();
 	else if (event->flush_action == DATA_ACTION)
-		err = step_notify(TYPE_STEP_DETECTOR);
-	return err;
+		step_notify(TYPE_STEP_DETECTOR);
+	return 0;
 }
 
 static int step_count_recv_data(struct data_unit_t *event, void *reserved)
 {
-	int err = 0;
-
 	if (event->flush_action == FLUSH_ACTION)
-		err = step_c_flush_report();
+		step_c_flush_report();
 	else if (event->flush_action == DATA_ACTION)
-		err = step_c_data_report(
-			event->step_counter_t.accumulated_step_count, 2);
-	return err;
+		step_c_data_report(event->step_counter_t.accumulated_step_count,
+			2);
+	return 0;
 }
 
 static int sign_recv_data(struct data_unit_t *event, void *reserved)
 {
-	int err = 0;
-
 	if (event->flush_action == FLUSH_ACTION)
 		pr_err("sign do not support flush\n");
 	else if (event->flush_action == DATA_ACTION)
-		err = step_notify(TYPE_SIGNIFICANT);
-	return err;
+		step_notify(TYPE_SIGNIFICANT);
+	return 0;
 }
 
 static int floor_count_recv_data(struct data_unit_t *event, void *reserved)
 {
-	int err = 0;
 	floor_counter_event_t *pfloor_counter = &event->floor_counter_t;
 
 	if (event->flush_action == FLUSH_ACTION)
-		err = floor_c_flush_report();
+		floor_c_flush_report();
 	else if (event->flush_action == DATA_ACTION)
-		err = floor_c_data_report(
-			pfloor_counter->accumulated_floor_count, 2);
-	return err;
+		floor_c_data_report(pfloor_counter->accumulated_floor_count, 2);
+	return 0;
 }
 
 static int step_chub_local_init(void)

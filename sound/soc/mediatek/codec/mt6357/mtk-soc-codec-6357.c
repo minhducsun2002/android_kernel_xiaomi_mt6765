@@ -525,13 +525,7 @@ void Auddrv_Read_Efuse_HPOffset(void)
 	pr_debug("Auddrv_Read_Efuse_HPOffset(-)\n");
 }
 EXPORT_SYMBOL(Auddrv_Read_Efuse_HPOffset);
-#ifndef BYPASS_HPIMP
-static void setHpGainZero(void)
-{
-	Ana_Set_Reg(ZCD_CON2, DL_GAIN_0DB << 7, 0x0f80);
-	Ana_Set_Reg(ZCD_CON2, DL_GAIN_0DB, 0x001f);
-}
-#endif
+
 static void Hp_Zcd_Enable(bool _enable)
 {
 	if (_enable) {
@@ -966,7 +960,13 @@ static void open_trim_bufferhardware_withspk(bool enable, bool buffer_on)
 }
 #endif
 static int efuse_current_calibrate;
-#ifndef BYPASS_HPIMP
+#if !defined(BYPASS_HPIMP) && !defined(WT_COMPILE_FACTORY_VERSION)
+static void setHpGainZero(void)
+{
+	Ana_Set_Reg(ZCD_CON2, DL_GAIN_0DB << 7, 0x0f80);
+	Ana_Set_Reg(ZCD_CON2, DL_GAIN_0DB, 0x001f);
+}
+
 static bool OpenHeadPhoneImpedanceSetting(bool bEnable)
 {
 	/* pr_debug("%s benable = %d\n", __func__, bEnable); */
@@ -1272,7 +1272,8 @@ static int detect_impedance(void)
 	EnableTrimbuffer(false);
 	return impedance;
 }
-#endif
+#endif//BYPASS_HPIMP || WT_COMPILE_FACTORY_VERSION
+
 /* 1.7V * 0.5kohm / (2.5 + 0.5)kohm = 0.283V, support 1k ~ 14k, 0.5k margin */
 #define MIC_VINP_4POLE_THRES_MV 283
 #define VINP_NORMALIZED_TO_MV 1700
@@ -2424,19 +2425,6 @@ static struct snd_soc_dai_driver mtk_6357_dai_codecs[] = {
 		     .channels_max = 2,
 		     .rates = SNDRV_PCM_RATE_8000_48000,
 		     .formats = SND_SOC_ADV_MT_FMTS,
-		     },
-	 },
-	{
-	 .name = MT_SOC_CODEC_SPKSCPTXDAI_NAME,
-	 .ops = &mt6323_aif1_dai_ops,
-	 .playback = {
-		      .stream_name = MT_SOC_DL1SCPSPK_STREAM_NAME,
-		      .channels_min = 1,
-		      .channels_max = 2,
-		      .rate_min = 8000,
-		      .rate_max = 192000,
-		      .rates = SNDRV_PCM_RATE_8000_192000,
-		      .formats = SND_SOC_ADV_MT_FMTS,
 		     },
 	 },
 #ifdef _NON_COMMON_FEATURE_READY
@@ -4078,7 +4066,7 @@ static int pmic_dctrim_control_set(struct snd_kcontrol *kcontrol,
 static int hp_impedance_get(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-#ifdef BYPASS_HPIMP
+#ifdef WT_COMPILE_FACTORY_VERSION
 	pr_debug("%s(), VIVO no need calculate hp_impedance\n", __func__);
 	ucontrol->value.integer.value[0] = 32;
 	return 0;
@@ -4284,7 +4272,7 @@ static bool TurnOnADcPowerACC(int ADCType, bool enable)
 					[AUDIO_MICSOURCE_MUX_IN_1] == 1) {
 				/* headset mic */
 				/* Enable MICBIAS1, MISBIAS1 = 2P6V */
-				Ana_Set_Reg(AUDENC_ANA_CON9, 0x0001, 0x0001);
+				Ana_Set_Reg(AUDENC_ANA_CON9, 0x0061, 0xffff);
 			}
 			SetMicPGAGain();
 		}
@@ -4387,8 +4375,8 @@ static bool TurnOnADcPowerACC(int ADCType, bool enable)
 			} else if (mCodec_data->mAudio_Ana_Mux
 					[AUDIO_MICSOURCE_MUX_IN_1] == 1) {
 				/* headset mic */
-				/* Disable MICBIAS1 */
-				Ana_Set_Reg(AUDENC_ANA_CON9, 0x0000, 0x0001);
+				/* Disable MICBIAS1, MISBIAS1 = 1P7V */
+				Ana_Set_Reg(AUDENC_ANA_CON9, 0x0000, 0xffff);
 			}
 			/* LCLDO_ENC remote sense off */
 			Ana_Set_Reg(AUDDEC_ANA_CON12, 0x0100, 0x2500);
@@ -4548,8 +4536,13 @@ static bool TurnOnADcPowerDCC(int ADCType, bool enable, int ECMmode)
 					[AUDIO_MICSOURCE_MUX_IN_1] == 1) {
 				/* headset mic */
 				/* Enable MICBIAS1, MISBIAS1 = 2P6V */
-				Ana_Set_Reg(AUDENC_ANA_CON9,
-					    0x0001, 0x0001);
+				if (ECMmode == 2) {
+					Ana_Set_Reg(AUDENC_ANA_CON9,
+						    0x0161, 0xffff);
+				} else {
+					Ana_Set_Reg(AUDENC_ANA_CON9,
+						    0x0061, 0xffff);
+				}
 			}
 			SetMicPGAGain();
 		}
@@ -4673,10 +4666,14 @@ static bool TurnOnADcPowerDCC(int ADCType, bool enable, int ECMmode)
 			} else if (mCodec_data->mAudio_Ana_Mux
 					[AUDIO_MICSOURCE_MUX_IN_1] == 1) {
 				/* headset mic */
-				/* Disable MICBIAS1 */
-				Ana_Set_Reg(AUDENC_ANA_CON9,
-					    0x0000, 0x0001);
-
+				/* Disable MICBIAS1, MISBIAS1 = 1P7V */
+				if (ECMmode == 2) {
+					Ana_Set_Reg(AUDENC_ANA_CON9,
+						    0x0100, 0xffff);
+				} else {
+					Ana_Set_Reg(AUDENC_ANA_CON9,
+						    0x0000, 0xffff);
+				}
 			}
 			/* dcclk_gen_on=1'b0 */
 			Ana_Set_Reg(AFE_DCCLK_CFG0, 0x2060, 0xffff);

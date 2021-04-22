@@ -2,6 +2,7 @@
  * Completely Fair Scheduling (CFS) Class (SCHED_NORMAL/SCHED_BATCH)
  *
  *  Copyright (C) 2007 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
+ *  Copyright (C) 2018 XiaoMi, Inc.
  *
  *  Interactivity improvements by Mike Galbraith
  *  (C) 2007 Mike Galbraith <efault@gmx.de>
@@ -774,6 +775,9 @@ void init_entity_runnable_average(struct sched_entity *se)
 	sa->util_sum = 0;
 	/* when this task enqueue'ed, it will contribute to its cfs_rq's load_avg */
 
+	/* sched: add trace_sched */
+	if (entity_is_task(se))
+		trace_sched_task_entity_avg(0, task_of(se), &se->avg);
 }
 
 static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq);
@@ -3368,6 +3372,7 @@ static inline void update_load_avg(struct sched_entity *se, int flags)
 #ifdef CONFIG_SCHED_WALT
 		ptr = (void *)&(task_of(se)->ravg);
 #endif
+		trace_sched_task_entity_avg(1, task_of(se), &se->avg);
 		trace_sched_load_avg_task(task_of(se), &se->avg, ptr);
 	}
 
@@ -6889,8 +6894,14 @@ static int start_cpu(struct task_struct *p, bool prefer_idle,
 		return boosted ? rd->max_cap_orig_cpu : rd->min_cap_orig_cpu;
 
 	/* favor small cpu for tiny task */
+	if (is_tiny_task(p))
+		if (sched_tiny_task_force_filter || !prefer_idle)
+			return rd->min_cap_orig_cpu;
+
+	/*
 	if (!prefer_idle && is_tiny_task(p))
 		return rd->min_cap_orig_cpu;
+	*/
 
 	capacity_curr_little = capacity_curr_of(rd->min_cap_orig_cpu);
 	capacity_real_little = capacity_hw_of(rd->min_cap_orig_cpu);
@@ -7278,25 +7289,8 @@ static int select_energy_cpu_brute(struct task_struct *p, int prev_cpu, int sync
 
 		/* no need energy calculation if the same domain */
 		if (is_intra_domain(task_cpu(p), target_cpu) &&
-				target_cpu != l_plus_cpu) {
-			if (idle_cpu(prev_cpu) && idle_cpu(target_cpu)) {
-				struct rq *prev_rq, *target_rq;
-				int prev_idle_idx;
-				int target_idle_idx;
-
-				prev_rq = cpu_rq(prev_cpu);
-				target_rq = cpu_rq(tmp_target);
-
-				prev_idle_idx = idle_get_state_idx(prev_rq);
-				target_idle_idx = idle_get_state_idx(target_rq);
-
-				/* favoring shallowest idle states */
-				if ((prev_idle_idx <= target_idle_idx) ||
-						target_idle_idx == -1)
-					target_cpu = prev_cpu;
-			}
+				target_cpu != l_plus_cpu)
 			goto unlock;
-		}
 
 		if ((boosted || prefer_idle) && idle_cpu(target_cpu)) {
 			schedstat_inc(p->se.statistics.nr_wakeups_secb_idle_bt);

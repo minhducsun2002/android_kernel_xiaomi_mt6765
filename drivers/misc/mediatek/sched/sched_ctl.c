@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -86,6 +87,54 @@ static struct kobj_attribute set_sched_deiso_attr;
 #ifdef CONFIG_MTK_SCHED_BOOST
 static struct kobj_attribute sched_boost_attr;
 #endif
+
+static ssize_t store_sched_tiny_task_force_filter(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int val = 0;
+
+	if (sscanf(buf, "%iu", &val) != 0)
+		sched_tiny_task_force_filter = (val) ? 1 : 0;
+
+	return count;
+}
+
+static ssize_t store_sched_tiny_task_thresh(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int val = 0;
+
+	if (sscanf(buf, "%iu", &val) != 0) {
+		if (val >= 0 && val < 1024)
+			sched_tiny_task_thresh = val;
+	}
+	return count;
+}
+
+static ssize_t show_sched_tiny_task_force_filter(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	unsigned int len = 0;
+	unsigned int max_len = 4096;
+
+	len += snprintf(buf+len, max_len-len,
+		"sched_tiny_task_force_filter=%u\n",
+			sched_tiny_task_force_filter);
+
+	return len;
+}
+
+static ssize_t show_sched_tiny_task_thresh(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	unsigned int len = 0;
+	unsigned int max_len = 4096;
+
+	len += snprintf(buf+len, max_len-len,
+		"sched_tiny_task_thresh=%u\n", sched_tiny_task_thresh);
+
+	return len;
+}
 
 static int sched_hint_status(int util, int cap)
 {
@@ -282,9 +331,7 @@ static ssize_t store_idle_prefer(struct kobject *kobj,
 		struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	unsigned int val = 0;
-#ifdef CONFIG_CPU_FREQ_GOV_SCHEDPLUS
 	static unsigned int dvfs_margin_orig;
-#endif
 	static int is_dirty;
 	int en;
 
@@ -299,14 +346,12 @@ static ssize_t store_idle_prefer(struct kobject *kobj,
 
 	en = (idle_prefer_mode > 0) ? 1 : 0;
 
-#ifdef CONFIG_CPU_FREQ_GOV_SCHEDPLUS
 	/* backup system settings */
 	if (!is_dirty)
 		dvfs_margin_orig = capacity_margin_dvfs;
 
 	/* marginless DVFS control for high TLP scene */
 	capacity_margin_dvfs = en ? 1024 : dvfs_margin_orig;
-#endif
 
 #ifdef CONFIG_SCHED_TUNE
 	/*
@@ -357,7 +402,17 @@ __ATTR(walt_debug, 0600 /* S_IWUSR | S_IRUSR */,
 static struct kobj_attribute sched_idle_prefer_attr =
 __ATTR(idle_prefer, 0600, show_idle_prefer, store_idle_prefer);
 
+static struct kobj_attribute sched_tiny_task_force_filter_attr =
+__ATTR(set_sched_tiny_task_force_filter, 0600 /* S_IWUSR | S_IRUSR */,
+	 show_sched_tiny_task_force_filter, store_sched_tiny_task_force_filter);
+
+static struct kobj_attribute sched_tiny_task_thresh_attr =
+__ATTR(set_sched_tiny_task_thresh, 0600 /* S_IWUSR | S_IRUSR */,
+	 show_sched_tiny_task_thresh, store_sched_tiny_task_thresh);
+
 static struct attribute *sched_attrs[] = {
+	&sched_tiny_task_force_filter_attr.attr,
+	&sched_tiny_task_thresh_attr.attr,
 	&sched_info_attr.attr,
 	&sched_load_thresh_attr.attr,
 	&sched_enable_attr.attr,

@@ -204,7 +204,7 @@ update_average_load(enum AVG_LOAD_ID id, unsigned int freq, unsigned int cpu)
 
 	/* Compute MCPS */
 	if (pcpu->mcps_base_time) {
-		cpu_cycles = ((wall_time - idle_time) * (freq/1000U));
+		cpu_cycles = ((wall_time - idle_time) * (freq/1000));
 		pcpu->cpu_cycles += cpu_cycles;
 	}
 	if (delta_time >= MCPS_UPDATE_TIME) {
@@ -548,6 +548,9 @@ static void __trace_out(int heavy, int cpu, struct task_struct *p)
 			p->pid,
 			p->comm);
 		trace_sched_heavy_task(tracebuf);
+
+		if (unlikely(heavy))
+			trace_sched_task_entity_avg(5, p, &p->se.avg);
 }
 
 static int ack_by_curcap(int cpu, int cluster_id, int max_cluster_id)
@@ -1045,7 +1048,48 @@ static ssize_t cpu_mcps_data_show(struct kobject *kobj,
 }
 
 static struct kobj_attribute cpu_mcps_attr = __ATTR_RO(cpu_mcps_data);
+//MTK wfq add for bugreport+
+//hw_max_freq, last_mcps, inc_mcps, inc_time;
+u64 lastmcps[8][4]={0};
+static ssize_t cpu_mcps_sum_show(struct kobject *kobj,
+                                                                struct kobj_attribute *attr, char *buf)
+{
+                int cpu;
+                unsigned int len = 0;
+                unsigned int hw_max_freq = 0;
+                unsigned int last_mcps = 0;
+                u64 inc_mcps = 0;
+                u64 inc_time = 0;
+                unsigned int max_len = 4096;
+                u64 load_pct=0,tmp;
+                u32 load_pct_divbase,result=0;
+                len += snprintf(buf+len, max_len-len,"mcps");
+                for_each_possible_cpu(cpu) {
+                                sched_get_mcps(cpu, &hw_max_freq,
+                                                &last_mcps, &inc_mcps, &inc_time);
 
+                if(0!=inc_time-lastmcps[cpu][3])
+                {
+                                load_pct=(inc_mcps-lastmcps[cpu][2])*100;
+                                tmp=(inc_time-lastmcps[cpu][3])*hw_max_freq;
+                                do_div(tmp,1000000);
+                                load_pct_divbase=(u32)tmp;
+                                result=do_div(load_pct,load_pct_divbase);
+                }
+                else
+                                load_pct=0;
+                lastmcps[cpu][0]=hw_max_freq;
+                lastmcps[cpu][1]=last_mcps;
+                lastmcps[cpu][2]=inc_mcps;
+                lastmcps[cpu][3]=inc_time;
+                len += snprintf(buf+len, max_len-len,",[%llu,%u]",load_pct,last_mcps);
+
+                }
+                len += snprintf(buf+len, max_len-len,"\n");
+                return len;
+}
+static struct kobj_attribute cpu_mcps_sum_attr = __ATTR_RO(cpu_mcps_sum);
+//MTK wfq add for bugreport-
 /* For htasks statistics */
 static ssize_t show_heavy_tasks(struct kobject *kobj,
 					struct kobj_attribute *attr, char *buf)
@@ -1234,6 +1278,7 @@ __ATTR(big_task, 0400 /* S_IRUSR */, show_big_task,
 
 static struct attribute *rq_attrs[] = {
 	&cpu_mcps_attr.attr,
+	&cpu_mcps_sum_attr.attr,	//MTK wfq add for bugreport
 	&cpu_normalized_load_attr.attr,
 	&def_timer_ms_attr.attr,
 	&run_queue_avg_attr.attr,

@@ -59,7 +59,13 @@ int new_dentry_private_data(struct dentry *dentry)
 
 	spin_lock_init(&info->lock);
 	dentry->d_fsdata = info;
-
+	/*
+	 * MTK: dentry's d_fsdata's address is changed to a strange value
+	 * dump it 3 times to confirm it...
+	 */
+	dentry->d_fsdata_b[0] = info;
+	dentry->d_fsdata_b[1] = info;
+	dentry->d_fsdata_b[2] = info;
 	return 0;
 }
 

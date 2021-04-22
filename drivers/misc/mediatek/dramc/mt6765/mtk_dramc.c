@@ -44,8 +44,6 @@
 #include <mt-plat/aee.h>
 #include <mt-plat/mtk_chip.h>
 
-static unsigned int lp4_highest_freq;
-
 void __iomem *SYS_TIMER_BASE_ADDR;
 void __iomem *DRAMC_AO_CHA_BASE_ADDR;
 void __iomem *DRAMC_AO_CHB_BASE_ADDR;
@@ -70,7 +68,6 @@ unsigned int CBT_MODE;
 /*extern bool spm_vcorefs_is_dvfs_in_porgress(void);*/
 #define Reg_Sync_Writel(addr, val)   writel(val, IOMEM(addr))
 #define Reg_Readl(addr) readl(IOMEM(addr))
-#define MEM_DCM (DDRPHY_AO_CHA_BASE_ADDR + 0x28c)
 
 static unsigned int dram_rank_num;
 static unsigned int dram_mr_mode;
@@ -1281,10 +1278,9 @@ int dram_steps_freq(unsigned int step)
 	case 0:
 		if (DRAM_TYPE == TYPE_LPDDR3)
 			freq = 1866;
-		else if (DRAM_TYPE == TYPE_LPDDR4X)
+		else if ((DRAM_TYPE == TYPE_LPDDR4) ||
+				(DRAM_TYPE == TYPE_LPDDR4X))
 			freq = 3200;
-		else if (DRAM_TYPE == TYPE_LPDDR4)
-			freq = lp4_highest_freq;
 		break;
 	case 1:
 		if (DRAM_TYPE == TYPE_LPDDR3)
@@ -1750,11 +1746,6 @@ static int dram_probe(struct platform_device *pdev)
 	dramc_info("shuffle_status = %d\n", get_shuffle_status());
 	dramc_info("MR mode = %d\n", dram_mr_mode);
 
-	if (DRAM_TYPE == TYPE_LPDDR4)
-		lp4_highest_freq = get_dram_data_rate();
-	else
-		lp4_highest_freq = 0;
-
 #ifdef SW_TX_TRACKING
 	dram_sw_tx = (readl(PDEF_DRAMC0_CHA_REG_0C8) >> 24) & 0x1;
 	dramc_info("SW_TX = %d\n", dram_sw_tx);
@@ -1922,25 +1913,6 @@ unsigned int mt_dramc_chp_get(unsigned int emi_cona)
 	chp = (emi_cona >> 2) & 0x3;
 
 	return chp + 7;
-}
-
-void switch_mem_dcm(unsigned int on)
-{
-	if (on) {
-		// enable MEM DCM
-		Reg_Sync_Writel(MEM_DCM, Reg_Readl(MEM_DCM) | 0x00000080);
-		Reg_Sync_Writel(MEM_DCM, Reg_Readl(MEM_DCM) | 0x0000003e);
-		Reg_Sync_Writel(MEM_DCM, Reg_Readl(MEM_DCM) & 0xfffffffe);
-		Reg_Sync_Writel(MEM_DCM, Reg_Readl(MEM_DCM) | 0x00000001);
-		Reg_Sync_Writel(MEM_DCM, Reg_Readl(MEM_DCM) & 0xfffffffe);
-	} else {
-		// disable MEM DCM
-		Reg_Sync_Writel(MEM_DCM, Reg_Readl(MEM_DCM) & 0xffffff7f);
-		Reg_Sync_Writel(MEM_DCM, Reg_Readl(MEM_DCM) | 0x0000003e);
-		Reg_Sync_Writel(MEM_DCM, Reg_Readl(MEM_DCM) & 0xfffffffe);
-		Reg_Sync_Writel(MEM_DCM, Reg_Readl(MEM_DCM) | 0x00000001);
-		Reg_Sync_Writel(MEM_DCM, Reg_Readl(MEM_DCM) & 0xfffffffe);
-	}
 }
 
 phys_addr_t mt_dramc_rankbase_get(unsigned int rank)

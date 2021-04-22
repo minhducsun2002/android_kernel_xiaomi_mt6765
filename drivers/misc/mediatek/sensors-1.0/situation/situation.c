@@ -74,9 +74,6 @@ static int handle_to_index(int handle)
 	case ID_TILT_DETECTOR:
 		index = tilt_detector;
 		break;
-	case ID_FLAT:
-		index = flat;
-		break;
 	default:
 		index = -1;
 		pr_err("handle_to_index invalid handle:%d,index:%d\n",
@@ -134,7 +131,6 @@ int situation_flush_report(int handle)
 	return err;
 }
 
-#ifndef CONFIG_NANOHUB
 static int situation_enable_and_batch(int index)
 {
 	struct situation_context *cxt = situation_context_obj;
@@ -194,7 +190,6 @@ static int situation_enable_and_batch(int index)
 	}
 	return 0;
 }
-#endif
 
 static ssize_t situation_store_active(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
@@ -225,33 +220,7 @@ static ssize_t situation_store_active(struct device *dev,
 		err = -1;
 		goto err_out;
 	}
-#ifdef CONFIG_NANOHUB
-	if (cxt->ctl_context[index].enable == 1) {
-		if (cxt->ctl_context[index].situation_ctl.open_report_data
-			== NULL) {
-			pr_err("open_report_data() is NULL, %d\n", index);
-			goto err_out;
-		}
-		err = cxt->ctl_context[index].situation_ctl.open_report_data(1);
-		if (err) {
-			pr_err("situation turn on power err = %d\n", err);
-			goto err_out;
-		}
-	} else {
-		if (cxt->ctl_context[index].situation_ctl.open_report_data
-			== NULL) {
-			pr_err("open_report_data() is NULL, %d\n", index);
-			goto err_out;
-		}
-		err = cxt->ctl_context[index].situation_ctl.open_report_data(0);
-		if (err) {
-			pr_err("situation turn off power err = %d\n", err);
-			goto err_out;
-		}
-	}
-#else
 	err = situation_enable_and_batch(index);
-#endif
 	pr_debug("situation_store_active done\n");
 err_out:
 	mutex_unlock(&situation_context_obj->situation_op_mutex);
@@ -301,30 +270,7 @@ static ssize_t situation_store_batch(struct device *dev,
 	cxt->ctl_context[index].delay_ns = samplingPeriodNs;
 	cxt->ctl_context[index].latency_ns = maxBatchReportLatencyNs;
 	mutex_lock(&situation_context_obj->situation_op_mutex);
-#ifdef CONFIG_NANOHUB
-	if (cxt->ctl_context[index].delay_ns >= 0) {
-		if (cxt->ctl_context[index].situation_ctl.batch == NULL) {
-			pr_err("batch() is NULL, %d\n", index);
-			goto err_out;
-		}
-		if (cxt->ctl_context[index].situation_ctl.is_support_batch)
-			err = cxt->ctl_context[index].situation_ctl.batch(0,
-				cxt->ctl_context[index].delay_ns,
-				cxt->ctl_context[index].latency_ns);
-		else
-			err = cxt->ctl_context[index].situation_ctl.batch(0,
-				cxt->ctl_context[index].delay_ns, 0);
-		if (err) {
-			pr_err("situation set batch(ODR) err %d\n", err);
-			goto err_out;
-		}
-	} else
-		pr_info("batch state no need change\n");
-#else
 	err = situation_enable_and_batch(index);
-#endif
-	pr_debug("%s done\n", __func__);
-err_out:
 	mutex_unlock(&situation_context_obj->situation_op_mutex);
 	return err;
 }

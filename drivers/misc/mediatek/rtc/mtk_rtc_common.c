@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010 MediaTek, Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  *
  * This software is licensed under the terms of the GNU General Public

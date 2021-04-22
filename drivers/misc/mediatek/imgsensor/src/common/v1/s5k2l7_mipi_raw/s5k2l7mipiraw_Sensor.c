@@ -261,7 +261,6 @@ static struct imgsensor_info_struct imgsensor_info = {
 	.sensor_output_dataformat = SENSOR_OUTPUT_FORMAT_RAW_Gr,
 	.mclk = 24,
 	.mipi_lane_num = SENSOR_MIPI_4_LANE,
-	/* should list all v1/v2 module possible i2c addr here. */
 	.i2c_addr_table = {0x20, 0x5A, 0xFF},
 	.i2c_speed = 300,
 };
@@ -485,7 +484,7 @@ static kal_uint16 read_cmos_sensor(kal_uint32 addr)
 static kal_uint16 read_cmos_sensor_twobyte(kal_uint32 addr)
 {
 	kal_uint16 get_byte = 0;
-	char get_word[2] = { 0, 0};
+	char get_word[2];
 	char pu_send_cmd[2] = { (char)(addr >> 8), (char)(addr & 0xFF) };
 	/* iReadRegI2C(pu_send_cmd, 2, get_word, 2, imgsensor.i2c_write_id); */
 	iReadRegI2CTiming(pu_send_cmd, 2, get_word, 2, imgsensor.i2c_write_id,
@@ -882,20 +881,44 @@ static BOOL is_module_v2(void)
 {
 	static UINT32 module_id;
 
-	/* If never read module id */
-	if (module_id == 0) {
-		/* Read from sensor */
-		module_id = read_cmos_sensor_twobyte(0x0002);
+	kal_uint8 i = 0;
+	kal_uint8 retry = 3;
 
-		pr_debug("i2c write id: 0x%x, module id: 0x%x\n",
-			 imgsensor.i2c_write_id,
-			 module_id);
+	/* Read from cache */
+	if (module_id != 0) {
+		if (module_id == MODULE_V2_ID) {
+			pr_debug("It is module v2");
+			return TRUE;
+		}
+
+		pr_debug("It is module v1");
+		return FALSE;
 	}
 
-	if (module_id == MODULE_V2_ID) {
-		pr_debug("It is module v2");
+	/* Read from sensor */
+	while (_imgsensor_info_m1_v2.i2c_addr_table[i] != 0xff) {
+		spin_lock(&imgsensor_drv_lock);
 
-		return TRUE;
+		imgsensor.i2c_write_id =
+			_imgsensor_info_m1_v2.i2c_addr_table[i];
+
+		spin_unlock(&imgsensor_drv_lock);
+		do {
+			module_id = read_cmos_sensor_twobyte(0x0002);
+
+			pr_debug("i2c write id: 0x%x, module id: 0x%x\n",
+				imgsensor.i2c_write_id,
+				module_id);
+
+			if (module_id == MODULE_V2_ID) {
+				pr_debug("It is module v2");
+
+				return TRUE;
+			}
+			retry--;
+		} while (retry > 0);
+		i++;
+		retry = 3;
 	}
 	pr_debug("It is module v1");
 	return FALSE;
@@ -1197,45 +1220,6 @@ static kal_uint32 get_imgsensor_id(UINT32 *sensor_id)
 	kal_uint8 i = 0;
 	kal_uint8 retry = 5;
 
-	/* query sensor id */
-	while (imgsensor_info.i2c_addr_table[i] != 0xff) {
-		spin_lock(&imgsensor_drv_lock);
-		imgsensor.i2c_write_id = imgsensor_info.i2c_addr_table[i];
-		spin_unlock(&imgsensor_drv_lock);
-		do {
-
-			*sensor_id = read_cmos_sensor_twobyte(0x0000);
-
-			if (*sensor_id == imgsensor_info.sensor_id
-			    || *sensor_id == 0x20C1) {
-				pr_debug(
-				    "i2c write id: 0x%x, sensor id: 0x%x\n",
-				    imgsensor.i2c_write_id, *sensor_id);
-
-				break;
-			}
-
-			pr_debug(
-			    "Read sensor id fail, write id: 0x%x, id: 0x%x\n",
-			    imgsensor.i2c_write_id, *sensor_id);
-			retry--;
-		} while (retry > 0);
-
-		if (*sensor_id == imgsensor_info.sensor_id
-		    || *sensor_id == 0x20C1) {
-			break;
-		}
-		i++;
-		retry = 2;
-	}
-	if (*sensor_id != imgsensor_info.sensor_id && *sensor_id != 0x20C1) {
-		/* if Sensor ID is not correct,
-		 * Must set *sensor_id to 0xFFFFFFFF
-		 */
-		*sensor_id = 0xFFFFFFFF;
-		return ERROR_SENSOR_CONNECT_FAIL;
-	}
-
 	pdaf_sensor_mode = proc_pdaf_sensor_mode;
 
 	pr_debug("%s pdaf sensor mode %d\n", __func__, pdaf_sensor_mode);
@@ -1262,6 +1246,33 @@ static kal_uint32 get_imgsensor_id(UINT32 *sensor_id)
 	imgsensor_info.sensor_output_dataformat = SENSOR_OUTPUT_FORMAT_RAW_Gr;
 #endif
 
+	while (imgsensor_info.i2c_addr_table[i] != 0xff) {
+		spin_lock(&imgsensor_drv_lock);
+		imgsensor.i2c_write_id = imgsensor_info.i2c_addr_table[i];
+		spin_unlock(&imgsensor_drv_lock);
+		do {
+
+			*sensor_id = read_cmos_sensor_twobyte(0x0000);
+
+	if (*sensor_id == imgsensor_info.sensor_id || *sensor_id == 0x20C1) {
+		pr_debug("i2c write id: 0x%x, sensor id: 0x%x\n",
+		imgsensor.i2c_write_id, *sensor_id);
+
+		return ERROR_NONE;
+	}
+
+		    pr_debug("Read sensor id fail, write id: 0x%x, id: 0x%x\n",
+				imgsensor.i2c_write_id, *sensor_id);
+			retry--;
+		} while (retry > 0);
+		i++;
+		retry = 2;
+	}
+	if (*sensor_id != imgsensor_info.sensor_id && *sensor_id != 0x20C1) {
+	  /* if Sensor ID is not correct, Must set *sensor_id to 0xFFFFFFFF */
+		*sensor_id = 0xFFFFFFFF;
+		return ERROR_SENSOR_CONNECT_FAIL;
+	}
 	return ERROR_NONE;
 }
 

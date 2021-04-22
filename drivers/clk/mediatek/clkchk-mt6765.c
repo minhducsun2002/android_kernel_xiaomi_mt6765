@@ -347,15 +347,6 @@ static const char * const *get_all_clk_names(void)
 	return clks;
 }
 
-static const char * const off_pll_names[] = {
-	"univpll",
-	"apll1",
-	"mfgpll",
-	"msdcpll",
-	"mmpll",
-	NULL
-};
-
 static const char *ccf_state(struct clk_hw *hw)
 {
 	if (__clk_get_enable_count(hw->clk))
@@ -370,48 +361,25 @@ static const char *ccf_state(struct clk_hw *hw)
 static void print_enabled_clks(void)
 {
 	const char * const *cn = get_all_clk_names();
-	const char *fix_clk = "clk26m";
+
+	clk_warn("enabled clks:\n");
 
 	for (; *cn; cn++) {
-		int valid = 0;
 		struct clk *c = __clk_lookup(*cn);
 		struct clk_hw *c_hw = __clk_get_hw(c);
 		struct clk_hw *p_hw;
-		const char *c_name;
-		const char *p_name;
-		const char * const *pn;
 
 		if (IS_ERR_OR_NULL(c) || !c_hw)
 			continue;
 
-		if (!__clk_get_enable_count(c))
+		p_hw = clk_hw_get_parent(c_hw);
+
+		if (!p_hw)
 			continue;
 
-		p_hw = clk_hw_get_parent(c_hw);
-		c_name = clk_hw_get_name(c_hw);
-		p_name = p_hw ? clk_hw_get_name(p_hw) : 0;
-		while (p_name && strcmp(p_name, fix_clk)) {
-			struct clk_hw *p_hw_temp;
-
-			p_hw_temp = clk_hw_get_parent(p_hw);
-			p_name = p_hw_temp ? clk_hw_get_name(p_hw_temp) : 0;
-			if (p_name && strcmp(p_name, fix_clk))
-				p_hw = p_hw_temp;
-			else if (p_name && !strcmp(p_name, fix_clk)) {
-				c_name = clk_hw_get_name(p_hw);
-				break;
-			}
-		}
-		for (pn = off_pll_names; *pn && c_name; pn++)
-			if (!strncmp(c_name, *pn, 10)) {
-				valid++;
-				break;
-			}
-
-		if (!valid)
+		if (!clk_hw_is_prepared(c_hw) && !__clk_get_enable_count(c))
 			continue;
 
-		p_hw = clk_hw_get_parent(c_hw);
 		clk_warn("[%-17s: %8s, %3d, %3d, %10ld, %17s]\n",
 			clk_hw_get_name(c_hw),
 			ccf_state(c_hw),
@@ -424,6 +392,15 @@ static void print_enabled_clks(void)
 
 static void check_pll_off(void)
 {
+	static const char * const off_pll_names[] = {
+		"univpll",
+		"apll1",
+		"mfgpll",
+		"msdcpll",
+		"mmpll",
+		NULL
+	};
+
 	static struct clk *off_plls[ARRAY_SIZE(off_pll_names)];
 
 	struct clk **c;

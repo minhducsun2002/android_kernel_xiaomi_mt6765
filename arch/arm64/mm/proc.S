@@ -2,6 +2,7 @@
  * Based on arch/arm/mm/proc.S
  *
  * Copyright (C) 2001 Deep Blue Solutions Ltd.
+ * Copyright (C) 2018 XiaoMi, Inc.
  * Copyright (C) 2012 ARM Ltd.
  * Author: Catalin Marinas <catalin.marinas@arm.com>
  *

@@ -15,6 +15,8 @@
 #define __MTK_GPU_UTILITY_H__
 
 #include <linux/types.h>
+#include <linux/preempt.h>
+#include <linux/trace_events.h>
 
   #define MTK_GPU_DVFS_TYPE_LIST {\
 MTK_GPU_DVFS_TYPE_ITEM(NONE) \
@@ -33,6 +35,13 @@ MTK_GPU_DVFS_TYPE_LIST
 #undef MTK_GPU_DVFS_TYPE_ITEM
 MTK_GPU_DVFS_TYPE;
 
+/* gpu  info*/
+struct gpu_info {
+	u32 freq;
+	u32 loading;
+	u32 dvfs_type;
+	u32 thermal_limit_freq;
+};
 
 #ifdef __cplusplus
 extern "C"
@@ -84,6 +93,12 @@ bool mtk_get_gpu_dvfs_cal_freq(unsigned long *pulGpu_tar_freq);
 
 /* MET */
 bool mtk_enable_gpu_perf_monitor(bool enable);
+
+/* ftrace */
+bool mtk_gpu_systrace_c(pid_t pid, int val, const char *fmt, ...);
+
+/* gpu info */
+bool mtk_get_gpuinfo(struct gpu_info *info);
 
 #ifdef __cplusplus
 }

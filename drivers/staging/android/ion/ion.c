@@ -1446,7 +1446,6 @@ static int ion_debug_heap_show(struct seq_file *s, void *unused)
 	size_t va2mva_total_size = 0;
 	size_t total_orphaned_size = 0;
 	unsigned int cam_id = ION_HEAP_TYPE_MULTIMEDIA_FOR_CAMERA;
-	unsigned int va_id = ION_HEAP_TYPE_MULTIMEDIA_MAP_MVA;
 
 	seq_printf(s, "%16.s(%16.s) %16.s %16.s %s\n",
 		   "client", "dbg_name", "pid", "size", "address");
@@ -1483,9 +1482,11 @@ static int ion_debug_heap_show(struct seq_file *s, void *unused)
 						     node);
 
 		if (buffer->heap->id != heap->id) {
-			if (buffer->heap->id == cam_id)
+			if ((heap->id == ION_HEAP_TYPE_MULTIMEDIA) &&
+			    (buffer->heap->id == cam_id))
 				camera_total_size += buffer->size;
-			else if (buffer->heap->id == va_id)
+			else if ((heap->id == ION_HEAP_TYPE_MULTIMEDIA) &&
+				 (buffer->heap->id == cam_id))
 				va2mva_total_size += buffer->size;
 			else
 				continue;
@@ -1707,9 +1708,8 @@ int ion_phys(struct ion_client *client, struct ion_handle *handle,
 		return -ENODEV;
 	}
 	mutex_unlock(&client->lock);
-	mutex_lock(&buffer->lock);
 	ret = buffer->heap->ops->phys(buffer->heap, buffer, addr, len);
-	mutex_unlock(&buffer->lock);
+
 	/*avoid camelcase, will modify in a letter*/
 	mmprofile_log_ex(ion_mmp_events[PROFILE_GET_PHYS], MMPROFILE_FLAG_END,
 			 buffer->size, (unsigned long)*addr);

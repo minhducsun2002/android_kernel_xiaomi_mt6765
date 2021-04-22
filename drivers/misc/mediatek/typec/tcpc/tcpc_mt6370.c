@@ -1627,16 +1627,8 @@ static int mt6370_i2c_suspend(struct device *dev)
 
 	if (client) {
 		chip = i2c_get_clientdata(client);
-		if (chip) {
-			if (chip->tcpc->pd_wait_hard_reset_complete) {
-				pr_info("%s PD WAITING HRESET COMPLETE(%d) - NO SUSPEND\n",
-					__func__, chip->tcpc->pd_wait_hard_reset_complete);
-				return -EAGAIN;
-			} else
-				pr_info("%s PD WAITING HRESET COMPLETE(%d) - SUSPEND\n",
-					__func__, chip->tcpc->pd_wait_hard_reset_complete);
+		if (chip)
 			down(&chip->suspend_lock);
-		}
 	}
 
 	return 0;

@@ -35,9 +35,9 @@ static int ddr_type;
 
 #ifdef MTK_QOS_SUPPORT
 /* QoS Method */
-static int ddr_now;
-static struct pm_qos_request emi_request;
-static int emi_opp;
+	static int ddr_now;
+	static struct pm_qos_request emi_request;
+	static int emi_opp;
 #endif
 
 
@@ -117,21 +117,21 @@ int dram_ctrl_init(struct proc_dir_entry *parent)
 	/* create procfs */
 	for (i = 0; i < ARRAY_SIZE(entries); i++) {
 		if (!proc_create(entries[i].name, 0644,
-					drams_dir, entries[i].fops)) {
+			drams_dir, entries[i].fops)) {
 			pr_debug("%s(), create /dram_ctrl%s failed\n",
-					__func__, entries[i].name);
+				__func__, entries[i].name);
 			ret = -EINVAL;
 			goto out;
 		}
 	}
 
 #ifdef MTK_QOS_SUPPORT
-	/* QoS Method */
+/* QoS Method */
 	ddr_now = -1;
 	if (!pm_qos_request_active(&emi_request)) {
 		pr_debug("hh: emi pm_qos_add_request\n");
 		pm_qos_add_request(&emi_request, PM_QOS_DDR_OPP,
-				PM_QOS_DDR_OPP_DEFAULT_VALUE);
+					PM_QOS_DDR_OPP_DEFAULT_VALUE);
 	} else {
 		pr_debug("hh: emi pm_qos already request\n");
 	}

@@ -27,9 +27,10 @@
 
 
 
-/*at clstr 0 for  small core*/
-#define MAX_FREQ (2001000)
-#define TARGET_FREQ (1102000)
+#define MAX_CORE (8)
+#define MAX_FREQ (20000000)
+#define TARGET_CORE (-1)
+#define TARGET_FREQ (1183000)
 
 struct boost {
 	spinlock_t touch_lock;
@@ -44,16 +45,22 @@ struct boost {
 static struct boost ktchboost;
 
 static int ktch_mgr_enable = 1;
+static int ktch_mgr_core = 1;
 static int ktch_mgr_freq = 1;
+static int ktch_mgr_clstr = 1;
 
 /*--------------------FUNCTION----------------*/
+int ktch_get_target_core(void)
+{
+	return TARGET_CORE;
+}
 
 int ktch_get_target_freq(void)
 {
 	return TARGET_FREQ;
 }
 
-void set_freq(int enable, int freq)
+void set_freq(int enable, int core, int freq)
 {
 	struct ppm_limit_data freq_to_set[perfmgr_clusters];
 	int i, targetclu;
@@ -74,7 +81,7 @@ void set_freq(int enable, int freq)
 
 static int ktchboost_thread(void *ptr)
 {
-	int event, freq;
+	int event, core, freq;
 	unsigned long flags;
 
 	set_user_nice(current, -10);
@@ -87,10 +94,11 @@ static int ktchboost_thread(void *ptr)
 
 		spin_lock_irqsave(&ktchboost.touch_lock, flags);
 		event = ktchboost.touch_event;
+		core = ktch_mgr_core;
 		freq = ktch_mgr_freq;
 		spin_unlock_irqrestore(&ktchboost.touch_lock, flags);
 		pr_debug("ktchboost_thread\n");
-		set_freq(event, freq);
+		set_freq(event, core, freq);
 
 	}
 	return 0;
@@ -139,6 +147,54 @@ static int perfmgr_tb_enable_open(struct inode *inode, struct file *file)
 static const struct file_operations perfmgr_tb_enable_fops = {
 	.open = perfmgr_tb_enable_open,
 	.write = perfmgr_tb_enable_write,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static ssize_t perfmgr_tb_core_write(struct file *filp, const char *ubuf,
+		size_t cnt, loff_t *data)
+{
+	char buf[64];
+	unsigned long val;
+	int ret;
+	unsigned long flags;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, ubuf, cnt))
+		return -EFAULT;
+	buf[cnt] = 0;
+	ret = kstrtoul(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	if (val > MAX_CORE)
+		return -1;
+
+	spin_lock_irqsave(&ktchboost.touch_lock, flags);
+	ktch_mgr_core = val;
+	spin_unlock_irqrestore(&ktchboost.touch_lock, flags);
+
+	return cnt;
+}
+
+static int perfmgr_tb_core_show(struct seq_file *m, void *v)
+{
+	if (m)
+		seq_printf(m, "%d\n", ktch_mgr_core);
+	return 0;
+}
+
+static int perfmgr_tb_core_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, perfmgr_tb_core_show, inode->i_private);
+}
+
+static const struct file_operations perfmgr_tb_core_fops = {
+	.open = perfmgr_tb_core_open,
+	.write = perfmgr_tb_core_write,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -194,7 +250,7 @@ static const struct file_operations perfmgr_tb_freq_fops = {
 static int perfmgr_tb_clstr_show(struct seq_file *m, void *v)
 {
 	if (m)
-		seq_printf(m, "%d\n", perfmgr_clusters);
+		seq_printf(m, "%d\n", ktch_mgr_clstr);
 	return 0;
 }
 
@@ -288,12 +344,14 @@ static struct input_handler dbs_input_handler = {
 int init_ktch(struct proc_dir_entry *parent)
 {
 	struct proc_dir_entry *ktch_root = NULL;
-	struct proc_dir_entry *tbe_dir, *tbf_dir, *tbclstr_dir;
+	struct proc_dir_entry *tbe_dir, *tbc_dir, *tbf_dir, *tbclstr_dir;
 	int handle;
 
 	pr_debug("init_ktch_touch\n");
 
+	ktch_mgr_core = ktch_get_target_core();
 	ktch_mgr_freq = ktch_get_target_freq();
+	ktch_mgr_clstr = perfmgr_clusters;
 
 	/*create kernel touch root file*/
 	ktch_root = proc_mkdir("kernel", parent);
@@ -305,6 +363,11 @@ int init_ktch(struct proc_dir_entry *parent)
 		 &perfmgr_tb_enable_fops);
 	if (!tbe_dir)
 		pr_debug("tbe_dir not create\n");
+	tbc_dir = proc_create("tb_core", 0644, ktch_root,
+		 &perfmgr_tb_core_fops);
+	if (!tbc_dir)
+		pr_debug("tbc_dir not create\n");
+
 	tbf_dir = proc_create("tb_freq", 0644, ktch_root,
 		 &perfmgr_tb_freq_fops);
 	if (!tbf_dir)
@@ -331,7 +394,7 @@ int ktch_suspend(void)
 {
 	/*pr_debug(TAG"perfmgr_touch_suspend\n");*/
 
-	set_freq(0, 0);
+	set_freq(0, 0, 0);
 
 	return 0;
 }

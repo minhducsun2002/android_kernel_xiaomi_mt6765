@@ -2359,21 +2359,19 @@ static kal_uint32 get_imgsensor_id(UINT32 *sensor_id)
 		spin_unlock(&imgsensor_drv_lock);
 
 	do {
+		*sensor_id = return_sensor_id();
 		ret = imx386_read_otp(0x0004, &module_id);
-		if (ret >= 0) {
-			*sensor_id = return_sensor_id();
-			if (*sensor_id == imgsensor_info.sensor_id) {
-				pr_info(
-				"Get imx386 sensor success!i2c write id: 0x%x, sensor id: 0x%x, module_id:0x%x\n",
-				imgsensor.i2c_write_id, *sensor_id, module_id);
+		if ((ret >= 0) && (*sensor_id == imgsensor_info.sensor_id)) {
+			pr_info(
+			"Get imx386 sensor success!i2c write id: 0x%x, sensor id: 0x%x, module_id:0x%x\n",
+			imgsensor.i2c_write_id, *sensor_id, module_id);
 
-				*sensor_id = IMX386_SENSOR_ID;
-				pdaf_cal_data_offset = PDAF_CAL_DATA_OFFSET_C1;
-				spc_start_addr = SPC_START_ADDR_C1;
+			*sensor_id = IMX386_SENSOR_ID;
+			pdaf_cal_data_offset = PDAF_CAL_DATA_OFFSET_C1;
+			spc_start_addr = SPC_START_ADDR_C1;
 
 				/* main_module_id = IMX386_SENSOR_ID; */
 				goto otp_read;
-			}
 		}
 
 		pr_info(
@@ -2435,6 +2433,7 @@ static kal_uint32 open(void)
 	kal_uint8 retry = 2;
 	kal_uint32 sensor_id = 0;
 
+	pr_info("IMX386,MIPI 4LANE\n");
 	/* sensor have two i2c address 0x6c 0x6d & 0x21 0x20,
 	 * we should detect the module used i2c address
 	 */
@@ -2753,7 +2752,7 @@ static kal_uint32 get_info(enum MSDK_SCENARIO_ID_ENUM scenario_id,
 			   MSDK_SENSOR_INFO_STRUCT *sensor_info,
 			   MSDK_SENSOR_CONFIG_STRUCT *sensor_config_data)
 {
-	/*pr_info("scenario_id = %d\n", scenario_id);*/
+	pr_info("scenario_id = %d\n", scenario_id);
 
 
 	/* sensor_info->SensorVideoFrameRate =
@@ -3171,7 +3170,7 @@ static kal_uint32 set_max_framerate_by_scenario(
 static kal_uint32 get_default_framerate_by_scenario(
 		enum MSDK_SCENARIO_ID_ENUM scenario_id, MUINT32 *framerate)
 {
-	/*pr_info("scenario_id = %d\n", scenario_id);*/
+	pr_info("scenario_id = %d\n", scenario_id);
 
 	switch (scenario_id) {
 	case MSDK_SCENARIO_ID_CAMERA_PREVIEW:
@@ -3268,7 +3267,7 @@ static kal_uint32 feature_control(MSDK_SENSOR_FEATURE_ENUM feature_id,
 
 	struct SET_PD_BLOCK_INFO_T *PDAFinfo;
 
-	/*pr_info("feature_id = %d\n", feature_id);*/
+	pr_info("feature_id = %d\n", feature_id);
 	switch (feature_id) {
 	case SENSOR_FEATURE_GET_PERIOD:
 		*feature_return_para_16++ = imgsensor.line_length;
@@ -3359,9 +3358,8 @@ static kal_uint32 feature_control(MSDK_SENSOR_FEATURE_ENUM feature_id,
 		break;
 
 	case SENSOR_FEATURE_GET_CROP_INFO:
-		/*pr_info("SENSOR_FEATURE_GET_CROP_INFO scenarioId:%d\n",
-		 *	(UINT32) *feature_data);
-		 */
+		pr_info("SENSOR_FEATURE_GET_CROP_INFO scenarioId:%d\n",
+			(UINT32) *feature_data);
 
 		wininfo =
 	(struct SENSOR_WINSIZE_INFO_STRUCT *) (uintptr_t) (*(feature_data + 1));
@@ -3562,46 +3560,6 @@ static kal_uint32 feature_control(MSDK_SENSOR_FEATURE_ENUM feature_id,
 		if (*feature_data != 0)
 			set_shutter(*feature_data);
 		streaming_control(KAL_TRUE);
-	break;
-	case SENSOR_FEATURE_GET_PIXEL_RATE:
-
-		switch (*feature_data) {
-		case MSDK_SCENARIO_ID_CAMERA_CAPTURE_JPEG:
-			*(MUINT32 *)(uintptr_t)(*(feature_data + 1)) =
-			(imgsensor_info.cap.pclk /
-			(imgsensor_info.cap.linelength - 80))*
-			imgsensor_info.cap.grabwindow_width;
-
-			break;
-		case MSDK_SCENARIO_ID_VIDEO_PREVIEW:
-			*(MUINT32 *)(uintptr_t)(*(feature_data + 1)) =
-			(imgsensor_info.normal_video.pclk /
-			(imgsensor_info.normal_video.linelength - 80))*
-			imgsensor_info.normal_video.grabwindow_width;
-
-			break;
-		case MSDK_SCENARIO_ID_HIGH_SPEED_VIDEO:
-			*(MUINT32 *)(uintptr_t)(*(feature_data + 1)) =
-			(imgsensor_info.hs_video.pclk /
-			(imgsensor_info.hs_video.linelength - 80))*
-			imgsensor_info.hs_video.grabwindow_width;
-
-			break;
-		case MSDK_SCENARIO_ID_SLIM_VIDEO:
-			*(MUINT32 *)(uintptr_t)(*(feature_data + 1)) =
-			(imgsensor_info.slim_video.pclk /
-			(imgsensor_info.slim_video.linelength - 80))*
-			imgsensor_info.slim_video.grabwindow_width;
-
-			break;
-		case MSDK_SCENARIO_ID_CAMERA_PREVIEW:
-		default:
-			*(MUINT32 *)(uintptr_t)(*(feature_data + 1)) =
-			(imgsensor_info.pre.pclk /
-			(imgsensor_info.pre.linelength - 80))*
-			imgsensor_info.pre.grabwindow_width;
-			break;
-		}
 		break;
 
 	case SENSOR_FEATURE_GET_MIPI_PIXEL_RATE:

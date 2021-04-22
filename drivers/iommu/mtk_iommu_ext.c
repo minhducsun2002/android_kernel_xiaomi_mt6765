@@ -79,7 +79,7 @@ struct iommu_global_t {
 	unsigned int dump_enable;
 	unsigned int start;
 	unsigned int write_pointer;
-	spinlock_t	lock;
+	unsigned int lock;
 	struct iommu_event_t *record;
 };
 
@@ -222,52 +222,19 @@ int mtk_smi_larb_get_ext(struct device *larbdev)
 
 }
 
-int mtk_iommu_iova_to_va(struct device *dev,
-			 dma_addr_t iova,
-			 unsigned long *map_va,
-			 size_t size)
+void *mtk_iommu_iova_to_va(struct device *dev, dma_addr_t iova, size_t size)
 {
-	struct iommu_domain *domain;
-	unsigned int page_count;
-	unsigned int i = 0;
-	struct page **pages;
-	void *va = NULL;
-	phys_addr_t pa = 0;
+#ifdef CONFIG_MTK_M4U
+	unsigned long map_va;
+	unsigned int map_size;
 
-	if (dev == NULL)
-		return 1;
-
-	domain = iommu_get_domain_for_dev(dev);
-
-	if (domain)
-		pa = iommu_iova_to_phys(domain, iova);
-
-	if ((domain == NULL) || (pa == 0)) {
-		pr_info("func %s dom: %p, pa: 0x%lx\n",
-		       __func__, domain, (unsigned long)pa);
-		return 1;
-	}
-
-	page_count = (size + PAGE_SIZE - 1) / PAGE_SIZE;
-	pages = kmalloc((sizeof(struct page *) * page_count), GFP_KERNEL);
-	if (!pages) {
-		pr_info("%s:alloc pages fail\n", __func__);
-		return 1;
-	}
-
-	for (i = 0; i < page_count; i++) {
-		pa = iommu_iova_to_phys(domain, iova + i * PAGE_SIZE);
-		pages[i] = pfn_to_page(pa >> PAGE_SHIFT);
-	}
-
-	va = vmap(pages, page_count, VM_MAP, PAGE_KERNEL);
-	if (va == 0)
-		pr_info("func %s map iova(0x%lx) fail to null\n",
-		       __func__, (unsigned long)iova);
-	*map_va = (unsigned long)va;
-
-	kfree(pages);
-	return 0;
+	m4u_mva_map_kernel((unsigned int)iova,
+			   (unsigned int)size,
+			   &map_va, &map_size);
+	return (void *)map_va;
+#else
+	return NULL;
+#endif
 }
 
 
@@ -346,8 +313,7 @@ void mtk_iommu_debug_init(void)
 	iommu_globals.enable = 1;
 	iommu_globals.dump_enable = 1;
 	iommu_globals.write_pointer = 0;
-
-	spin_lock_init(&iommu_globals.lock);
+	iommu_globals.lock = 0;
 }
 
 void mtk_iommu_debug_reset(void)
@@ -408,8 +374,8 @@ void mtk_iommu_trace_rec_write(int event,
 			       unsigned int data3)
 {
 	unsigned int index;
+	unsigned int lock;
 	struct iommu_event_t *p_event = NULL;
-	unsigned long flags;
 
 	if (iommu_globals.enable == 0)
 		return;
@@ -424,9 +390,27 @@ void mtk_iommu_trace_rec_write(int event,
 	index = (atomic_inc_return((atomic_t *)
 			&(iommu_globals.write_pointer)) - 1)
 	    % IOMMU_MAX_EVENT_COUNT;
-
-	spin_lock_irqsave(&iommu_globals.lock, flags);
-
+	lock = atomic_inc_return((atomic_t *)
+		&(iommu_globals.lock));
+	if (unlikely(lock > 1)) {
+		/* Do not reduce lock count since it need
+		 * to be marked as invalid.
+		 */
+		while (1) {
+			index =
+				(atomic_inc_return((atomic_t *)
+				&(iommu_globals.write_pointer)) - 1) %
+				IOMMU_MAX_EVENT_COUNT;
+			lock =
+			    atomic_inc_return((atomic_t *) &
+					(iommu_globals.lock));
+			/* Do not reduce lock count since it need to be
+			 * marked as invalid.
+			 */
+			if (likely(lock == 1))
+				break;
+		}
+	}
 	p_event = (struct iommu_event_t *)
 		&(iommu_globals.record[index]);
 	mtk_iommu_system_time(&(p_event->time_low), &(p_event->time_high));
@@ -434,8 +418,15 @@ void mtk_iommu_trace_rec_write(int event,
 	p_event->data1 = (unsigned int)data1;
 	p_event->data2 = (unsigned int)data2;
 	p_event->data3 = data3;
+	lock = atomic_dec_return((atomic_t *) &(iommu_globals.lock));
+	if (unlikely(lock > 0)) {
+		/* Someone has marked this record as invalid.
+		 * Kill this record.
+		 */
+		p_event->event_id = 0;
+		iommu_globals.lock = 0;
+	}
 
-	spin_unlock_irqrestore(&iommu_globals.lock, flags);
 }
 
 void mtk_iommu_trace_map(unsigned long orig_iova,

@@ -138,7 +138,6 @@
 #define MT_GPUFREQ_BATT_PERCENT_PROTECT /* todo: disable it */
 #define MT_GPUFREQ_BATT_OC_PROTECT
 #define MT_GPUFREQ_DYNAMIC_POWER_TABLE_UPDATE
-#define FHCTL_READY
 
 /**************************************************
  * Battery Over Current Protect
@@ -272,7 +271,7 @@ extern bool mtk_get_gpu_loading(unsigned int *pLoading);
 extern unsigned int mt_get_ckgen_freq(unsigned int ckgen);
 extern u32 get_devinfo_with_index(u32 index);
 
-extern int (mt_dfs_general_pll)(unsigned int pll_id, unsigned int dds);
+extern int (*mt_dfs_general_pll)(unsigned int pll_id, unsigned int dds);
 
 
 #endif /* _MT_GPUFREQ_CORE_H_ */

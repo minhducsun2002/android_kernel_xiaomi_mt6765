@@ -2,6 +2,7 @@
  *  linux/drivers/mmc/core/core.c
  *
  *  Copyright (C) 2003-2004 Russell King, All Rights Reserved.
+ *  Copyright (C) 2018 XiaoMi, Inc.
  *  SD support Copyright (C) 2004 Ian Molton, All Rights Reserved.
  *  Copyright (C) 2005-2008 Pierre Ossman, All Rights Reserved.
  *  MMCv4 support Copyright (C) 2006 Philip Langdale, All Rights Reserved.
@@ -462,7 +463,6 @@ int mmc_run_queue_thread(void *data)
 	unsigned int task_id, areq_cnt_chk, tmo;
 	bool is_done = false;
 	bool io_boost_done = false;
-
 	int err;
 	u64 chk_time = 0;
 	struct sched_param scheduler_params = {0};
@@ -657,7 +657,7 @@ int mmc_run_queue_thread(void *data)
 				chk_time = 0;
 			else if (sched_clock() - chk_time > CMD13_TMO_NS)
 				/* sleep when TMO */
-				usleep_range(2000, 5000);
+				usleep_range(1000, 5000);
 		}
 
 		/* Sleep when nothing to do */
@@ -834,7 +834,7 @@ int mmc_blk_cmdq_switch(struct mmc_card *card, int enable)
 		mmc_wait_cmdq_empty(card->host);
 
 	ret = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-		EXT_CSD_CMDQ_MODE_EN, !!enable,
+		EXT_CSD_CMDQ_MODE_EN, enable,
 		card->ext_csd.generic_cmd6_time);
 
 	if (ret) {
@@ -845,11 +845,11 @@ int mmc_blk_cmdq_switch(struct mmc_card *card, int enable)
 		return ret;
 	}
 
-	card->ext_csd.cmdq_mode_en = !!enable;
+	card->ext_csd.cmdq_mode_en = enable;
 
-	pr_notice("%s: set cmdq %s\n",
+	pr_notice("%s: set ext_csd.cmdq_mode_en = %d\n",
 		mmc_hostname(card->host),
-		enable ? "on":"off");
+		card->ext_csd.cmdq_mode_en);
 
 	return 0;
 }
@@ -2902,10 +2902,13 @@ void mmc_init_erase(struct mmc_card *card)
 			card->pref_erase = 1024 * 1024 / 512;
 		else if (sz < 1024)
 			card->pref_erase = 2 * 1024 * 1024 / 512;
-		else
-		/* workaround: enlarge 'pref_erase' to  speed up discard */
-			card->pref_erase = 128 * 1024 * 1024 / 512;
-
+		else {
+/* Workaround: Enlarge erase size for Micron device erase performance issue. */
+			if (card->cid.manfid == CID_MANFID_MICRON)
+				card->pref_erase = 128 * 1024 * 1024 / 512;
+			else
+				card->pref_erase = 4 * 1024 * 1024 / 512;
+		}
 		if (card->pref_erase < card->erase_size)
 			card->pref_erase = card->erase_size;
 		else {

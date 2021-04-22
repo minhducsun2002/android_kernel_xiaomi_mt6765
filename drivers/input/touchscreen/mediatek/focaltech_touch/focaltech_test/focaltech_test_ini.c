@@ -59,10 +59,8 @@ int ini_get_key(char *filedata, char *section, char *key, char *value)
         if (fts_strncmp(section, test_data.ini_data[i].section_name,
                         test_data.ini_data[i].section_name_len) != 0)
             continue;
-        //FTS_TEST_DBG("Section Name:%s, Len:%d\n",  test_data.ini_data[i].section_name, test_data.ini_data[i].section_name_len);
         if (strlen(key) == test_data.ini_data[i].key_name_len) {
             if (fts_strncmp(key, test_data.ini_data[i].key_name,  test_data.ini_data[i].key_name_len) == 0)
-                //test_data.ini_data[i].key_name_len) == 0)
             {
                 memcpy(value, test_data.ini_data[i].key_value, test_data.ini_data[i].key_value_len);
                 ret = 0;
@@ -88,7 +86,6 @@ char *ini_str_trim_r(char *buf)
 
     memset(tmp, 0, sizeof(tmp));
     len = strlen(buf);
-    //  tmp = (char *)malloc(len);
 
     memset(tmp, 0x00, len);
     for (i = 0; i < len; i++) {
@@ -99,7 +96,6 @@ char *ini_str_trim_r(char *buf)
         strncpy(tmp, (buf + i), (len - i));
     }
     strncpy(buf, tmp, len);
-    //  free(tmp);
     return buf;
 }
 
@@ -117,7 +113,6 @@ char *ini_str_trim_l(char *buf)
 
     memset(tmp, 0, sizeof(tmp));
     len = strlen(buf);
-    //tmp = (char *)malloc(len);
 
     memset(tmp, 0x00, len);
 
@@ -129,7 +124,6 @@ char *ini_str_trim_l(char *buf)
         strncpy(tmp, buf, len - i);
     }
     strncpy(buf, tmp, len);
-    //free(tmp);
     return buf;
 }
 
@@ -152,16 +146,16 @@ static int ini_file_get_line(char *filedata, char *buffer, int maxlen)
     for (i = 0, j = 0; i < maxlen; j++) {
         ch1 = filedata[j];
         iRetNum = j + 1;
-        if (ch1 == '\n' || ch1 == '\r') { //line end
+        if (ch1 == '\n' || ch1 == '\r') {
             ch1 = filedata[j + 1];
             if (ch1 == '\n' || ch1 == '\r') {
                 iRetNum++;
             }
 
-            break; // line breaks
+            break;
         } else if (ch1 == 0x00) {
             iRetNum = -1;
-            break; //file end
+            break;
         } else {
             buffer[i++] = ch1;    /* ignore carriage return */
         }
@@ -295,10 +289,9 @@ int ini_get_key_data(char *filedata)
         if (n == 0 || buf1[0] == CFG_NTS)
             continue;       /* A blank line or a comment line */
         ret = CFG_ERR_FILE_FORMAT;
-        //get section name
         if (n > 2 && ((buf1[0] == CFG_SSL && buf1[n - 1] != CFG_SSR))) {
             FTS_TEST_ERROR("Bad Section:%s\n",  buf1);
-            goto cfg_scts_end;//bad section
+            goto cfg_scts_end;
         }
 
         if (buf1[0] == CFG_SSL) {
@@ -475,7 +468,6 @@ void fts_ic_table_get_ic_name_from_ic_code(unsigned int ucIcCode, char *strIcNam
     if (ucIcCode == IC_FT3X16)sprintf(strIcName, "%s",  "FT3X16");
     if (ucIcCode == IC_FT3X26)sprintf(strIcName, "%s",  "FT3X26");
 
-    //if(ucIcCode == IC_FT5X46)sprintf(strIcName, "%s",  "FT5X46");
     if (ucIcCode == IC_FT5X46) sprintf(strIcName, "%s",  "FT5X46");
     if (ucIcCode == IC_FT5X46i) sprintf(strIcName, "%s",  "FT5X46i");
     if (ucIcCode == IC_FT5526) sprintf(strIcName, "%s",  "FT5526");
@@ -601,8 +593,8 @@ int fts_test_get_ini_size(char *config_name)
         FTS_TEST_ERROR("error occured while opening file %s.",  filepath);
         return -EIO;
     }
-
-    inode = pfile->f_dentry->d_inode;
+	
+    inode = pfile->f_inode;
     fsize = inode->i_size;
     filp_close(pfile, NULL);
 
@@ -611,7 +603,7 @@ int fts_test_get_ini_size(char *config_name)
     return fsize;
 }
 
-//Read configuration to memory
+
 int fts_test_read_ini_data(char *config_name, char *config_buf)
 {
     struct file *pfile = NULL;
@@ -632,8 +624,7 @@ int fts_test_read_ini_data(char *config_name, char *config_buf)
         FTS_TEST_ERROR("error occured while opening file %s.",  filepath);
         return -EIO;
     }
-
-    inode = pfile->f_dentry->d_inode;
+    inode = pfile->f_inode;
     fsize = inode->i_size;
     old_fs = get_fs();
     set_fs(KERNEL_DS);

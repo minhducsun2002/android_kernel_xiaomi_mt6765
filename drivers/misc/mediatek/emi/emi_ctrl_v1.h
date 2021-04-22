@@ -30,7 +30,6 @@ extern void elm_init(
 extern unsigned int get_dram_type(void);
 extern unsigned int get_ch_num(void);
 extern unsigned int get_rk_num(void);
-extern void switch_emi_dcm(unsigned int on);
 extern unsigned int get_rank_size(unsigned int rank_index);
 extern void __iomem *mt_cen_emi_base_get(void);
 extern void __iomem *mt_emi_base_get(void);

@@ -1595,7 +1595,7 @@ static int __mt6370_enable_safety_timer(
 	return ret;
 }
 
-static int mt6370_enable_hz(struct mt6370_pmu_charger_data *chg_data, bool en)
+static int _mt6370_enable_hz(struct mt6370_pmu_charger_data *chg_data, bool en)
 {
 	int ret = 0;
 
@@ -1604,6 +1604,19 @@ static int mt6370_enable_hz(struct mt6370_pmu_charger_data *chg_data, bool en)
 		(chg_data->chip, MT6370_PMU_REG_CHGCTRL1, MT6370_MASK_HZ_EN);
 
 	return ret;
+}
+
+static int mt6370_enable_hz(struct charger_device *chg_dev, bool en)
+{
+             int ret = 0;
+             struct mt6370_pmu_charger_data *chg_data =
+                             dev_get_drvdata(&chg_dev->dev);
+
+             ret = mt6370_enable_wdt(chg_data, !en);
+             if (ret < 0)
+                             dev_err(chg_data->dev, "%s: set wdt fail\n", __func__);
+             printk("mt6370_enable_hz = %d\n", en);
+             return _mt6370_enable_hz(chg_data, en);
 }
 
 static int mt6370_set_ircmp_resistor(struct mt6370_pmu_charger_data *chg_data,
@@ -1696,6 +1709,15 @@ static int mt6370_enable_te(struct charger_device *chg_dev, bool en)
 	struct mt6370_pmu_charger_data *chg_data =
 		dev_get_drvdata(&chg_dev->dev);
 	return __mt6370_enable_te(chg_data, en);
+}
+
+static int mt6370_enable_rst(struct charger_device *chg_dev, bool en)
+{
+	struct mt6370_pmu_charger_data *chg_data =
+		dev_get_drvdata(&chg_dev->dev);
+	return (en ? mt6370_pmu_reg_clr_bit : mt6370_pmu_reg_set_bit)
+	       (chg_data->chip, MT6370_PMU_REG_CHGPUMP, MT6370_MASK_PP_OFF_RST);
+
 }
 
 static int mt6370_reset_eoc_state(struct charger_device *chg_dev)
@@ -3677,7 +3699,7 @@ static int mt6370_chg_init_setting(struct mt6370_pmu_charger_data *chg_data)
 		dev_err(chg_data->dev, "%s: disable jeita failed\n", __func__);
 
 	/* Disable HZ */
-	ret = mt6370_enable_hz(chg_data, false);
+	ret = _mt6370_enable_hz(chg_data, false);
 	if (ret < 0)
 		dev_err(chg_data->dev, "%s: disable hz failed\n", __func__);
 
@@ -3720,10 +3742,12 @@ static struct charger_ops mt6370_chg_ops = {
 	.run_aicl = mt6370_run_aicl,
 	.set_eoc_current = mt6370_set_ieoc,
 	.enable_termination = mt6370_enable_te,
+	.enable_hz = mt6370_enable_hz,
 	.reset_eoc_state = mt6370_reset_eoc_state,
 	.safety_check = mt6370_safety_check,
 	.get_min_charging_current = mt6370_get_min_ichg,
 	.get_min_input_current = mt6370_get_min_aicr,
+	.enable_rst = mt6370_enable_rst,
 
 	/* Safety timer */
 	.enable_safety_timer = mt6370_enable_safety_timer,

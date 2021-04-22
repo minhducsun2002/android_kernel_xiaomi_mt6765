@@ -85,28 +85,6 @@ static inline void _pvr_kfree(const void* pvAddr)
 			kfree(pvAddr);
 }
 
-void *mtkmalloc(IMG_UINT32 ui32Size)
-{
-	void *pvRet = NULL;
-	pvRet = kmalloc(ui32Size, GFP_KERNEL|__GFP_NORETRY&(~__GFP_RECLAIM));
-	if (pvRet == NULL)
-	{
-		pvRet = vmalloc(ui32Size);
-	}
-	return pvRet;
-}
-
-void *mtkzalloc(IMG_UINT32 ui32Size)
-{
-	void *pvRet = NULL;
-	pvRet = kzalloc(ui32Size, GFP_KERNEL|__GFP_NORETRY&(~__GFP_RECLAIM));
-	if (pvRet == NULL)
-	{
-		pvRet = vzalloc(ui32Size);
-	}
-	return pvRet;
-}
-
 #if !defined(PVRSRV_ENABLE_PROCESS_STATS)
 IMG_INTERNAL void *OSAllocMem(IMG_UINT32 ui32Size)
 {
@@ -118,7 +96,7 @@ IMG_INTERNAL void *OSAllocMem(IMG_UINT32 ui32Size)
 	}
 	if (pvRet == NULL)
 	{
-		pvRet = mtkmalloc(ui32Size);
+		pvRet = kmalloc(ui32Size, GFP_KERNEL);
 	}
 
 	return pvRet;
@@ -134,7 +112,7 @@ IMG_INTERNAL void *OSAllocZMem(IMG_UINT32 ui32Size)
 	}
 	if (pvRet == NULL)
 	{
-		pvRet = mtkzalloc(ui32Size);
+		pvRet = kzalloc(ui32Size, GFP_KERNEL);
 	}
 
 	return pvRet;
@@ -170,7 +148,7 @@ IMG_INTERNAL void *_OSAllocMem(IMG_UINT32 ui32Size, void *pvAllocFromFile, IMG_U
 	}
 	if (pvRet == NULL)
 	{
-		pvRet = mtkmalloc(ui32Size);
+		pvRet = kmalloc(ui32Size, GFP_KERNEL);
 	}
 
 	if (pvRet != NULL)
@@ -218,7 +196,7 @@ IMG_INTERNAL void *_OSAllocZMem(IMG_UINT32 ui32Size, void *pvAllocFromFile, IMG_
 	}
 	if (pvRet == NULL)
 	{
-		pvRet = mtkzalloc(ui32Size);
+		pvRet = kzalloc(ui32Size, GFP_KERNEL);
 	}
 
 	if (pvRet != NULL)
@@ -266,7 +244,7 @@ IMG_INTERNAL void *OSAllocMem(IMG_UINT32 ui32Size)
 	if (pvRet == NULL)
 	{
 		/* Allocate an additional 4 bytes to store the PID of the allocating process */
-		pvRet = mtkmalloc(ui32Size + ALLOCMEM_MEMSTATS_PADDING);
+		pvRet = kmalloc(ui32Size + ALLOCMEM_MEMSTATS_PADDING, GFP_KERNEL);
 	}
 
 	if (pvRet != NULL)
@@ -331,7 +309,7 @@ IMG_INTERNAL void *OSAllocZMem(IMG_UINT32 ui32Size)
 	if (pvRet == NULL)
 	{
 		/* Allocate an additional 4 bytes to store the PID of the allocating process */
-		pvRet = mtkzalloc(ui32Size + ALLOCMEM_MEMSTATS_PADDING);
+		pvRet = kzalloc(ui32Size + ALLOCMEM_MEMSTATS_PADDING, GFP_KERNEL);
 	}
 
 	if (pvRet != NULL)
@@ -438,7 +416,7 @@ IMG_INTERNAL void *OSAllocMemNoStats(IMG_UINT32 ui32Size)
 	}
 	if (pvRet == NULL)
 	{
-		pvRet = mtkmalloc(ui32Size);
+		pvRet = kmalloc(ui32Size, GFP_KERNEL);
 	}
 
 	return pvRet;
@@ -454,7 +432,7 @@ IMG_INTERNAL void *OSAllocZMemNoStats(IMG_UINT32 ui32Size)
 	}
 	if (pvRet == NULL)
 	{
-		pvRet = mtkzalloc(ui32Size);
+		pvRet = kzalloc(ui32Size, GFP_KERNEL);
 	}
 
 	return pvRet;

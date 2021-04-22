@@ -126,6 +126,7 @@ static int mt_charger_online(struct mt_charger *mtk_chg)
 		if (boot_mode == KERNEL_POWER_OFF_CHARGING_BOOT ||
 		    boot_mode == LOW_POWER_OFF_CHARGING_BOOT) {
 			pr_notice("%s: Unplug Charger/USB\n", __func__);
+			msleep(3000);
 			kernel_power_off();
 		}
 	}
@@ -360,7 +361,7 @@ static int mt_charger_resume(struct device *dev)
 
 	power_supply_changed(mt_charger->chg_psy);
 	power_supply_changed(mt_charger->ac_psy);
-	power_supply_changed(mt_charger->usb_psy);
+	//power_supply_changed(mt_charger->usb_psy);
 
 	return 0;
 }

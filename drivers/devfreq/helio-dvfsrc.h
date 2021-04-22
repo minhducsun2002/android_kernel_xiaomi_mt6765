@@ -20,8 +20,6 @@
 
 #if defined(CONFIG_MACH_MT6765)
 #include <helio-dvfsrc-mt6765.h>
-#elif defined(CONFIG_MACH_MT6761)
-#include <helio-dvfsrc-mt6761.h>
 #else
 #include <helio-dvfsrc-mt67xx.h>
 #endif
@@ -38,7 +36,6 @@ struct helio_dvfsrc {
 
 	bool qos_enabled;
 	bool dvfsrc_enabled;
-	int dvfsrc_flag;
 
 	void __iomem		*regs;
 	void __iomem		*sram_regs;
@@ -72,11 +69,6 @@ struct helio_dvfsrc {
 #define QOS_GPU_BW		(QOS_TOTAL_BW_BUF_SIZE * 4 + 0x8)
 #define QOS_MM_BW		(QOS_TOTAL_BW_BUF_SIZE * 4 + 0xC)
 #define QOS_OTHER_BW		(QOS_TOTAL_BW_BUF_SIZE * 4 + 0x10)
-
-#define QOS_CM_GPU_ONOFF	(0x70)
-#define QOS_CM_GPU_OPP		(0x74)
-#define QOS_CM_RESERVE_2	(0x78)
-#define QOS_CM_RESERVE_3	(0x7C)
 
 /* PMIC */
 #define vcore_pmic_to_uv(pmic)	\
@@ -116,13 +108,9 @@ extern int get_vcore_dvfs_level(void);
 extern void mtk_spmfw_init(int dvfsrc_en, int skip_check);
 extern struct reg_config *dvfsrc_get_init_conf(void);
 extern void helio_dvfsrc_enable(int dvfsrc_en);
-extern void helio_dvfsrc_flag_set(int flag);
-extern int helio_dvfsrc_flag_get(void);
 extern char *dvfsrc_dump_reg(char *ptr);
 extern u32 dvfsrc_read(u32 offset);
 extern void dvfsrc_write(u32 offset, u32 val);
-extern u32 dvfsrc_sram_read(u32 offset);
-extern void dvfsrc_sram_write(u32 offset, u32 val);
 extern void dvfsrc_opp_table_init(void);
 extern void helio_dvfsrc_reg_config(struct reg_config *config);
 extern void helio_dvfsrc_sram_reg_init(void);

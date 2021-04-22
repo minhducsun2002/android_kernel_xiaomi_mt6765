@@ -397,13 +397,6 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
 		   -std=gnu89
-
-ifdef CONFIG_KASAN
-ifdef CONFIG_KASAN_OUTLINE
-KBUILD_CFLAGS   += $(call cc-option,-fpack-struct=16,)
-endif
-endif
-
 KBUILD_CPPFLAGS := -D__KERNEL__
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
@@ -668,6 +661,14 @@ ifeq ($(shell $(CONFIG_SHELL) $(srctree)/scripts/gcc-goto.sh $(CC) $(KBUILD_CFLA
 	KBUILD_CFLAGS += -DCC_HAVE_ASM_GOTO
 	KBUILD_AFLAGS += -DCC_HAVE_ASM_GOTO
 endif
+
+#wangxun add factory flag for ATO version only.
+ifeq ($(WT_COMPILE_FACTORY_VERSION),yes)
+       KBUILD_CFLAGS += -DWT_COMPILE_FACTORY_VERSION
+endif
+#end
+
+KBUILD_CFLAGS += $(MTK_CDEFS)
 
 include scripts/Makefile.gcc-plugins
 

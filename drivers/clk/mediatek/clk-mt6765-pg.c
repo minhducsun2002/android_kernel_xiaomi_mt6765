@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2014 MediaTek Inc.
  * Author: James Liao <jamesjj.liao@mediatek.com>
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -217,6 +218,7 @@ static void __iomem *conn_mcu_base; /* connsys MCU */
 #define CONN_MCU_DEBUG_STATUS		CONN_MCU_REG(0x040C)
 #define CONN_MCU_BUSHANGCR		CONN_MCU_REG(0x0440)
 #define CONN_MCU_BUSHANGADDR		CONN_MCU_REG(0x0444)
+
 /* Define MTCMOS Bus Protect Mask */
 #define MD1_PROT_STEP1_0_MASK		((0x1 << 7))
 #define MD1_PROT_STEP1_0_ACK_MASK	((0x1 << 7))
@@ -860,11 +862,13 @@ int spm_mtcmos_ctrl_conn_bus_prot(int state)
 		/* TINFO="Release bus protect - step1 : 0" */
 		spm_write(INFRA_TOPAXI_PROTECTEN_CLR,
 			CONN_PROT_STEP1_0_MASK);
+
 #ifndef IGNORE_MTCMOS_CHECK
 		/* Note that this protect ack check after
 		 * releasing protect has been ignored
 		 */
 #endif
+
 		/* TINFO="Release bus protect - step1 : 1" */
 		spm_write(INFRA_TOPAXI_PROTECTEN_1_CLR,
 			CONN_PROT_STEP1_1_MASK);
@@ -873,6 +877,7 @@ int spm_mtcmos_ctrl_conn_bus_prot(int state)
 		 * releasing protect has been ignored
 		 */
 #endif
+
 		/* TINFO="Finish to turn on CONN" */
 	}
 	INCREASE_STEPS;

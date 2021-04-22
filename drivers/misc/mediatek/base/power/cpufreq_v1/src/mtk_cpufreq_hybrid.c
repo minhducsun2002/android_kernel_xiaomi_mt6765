@@ -779,16 +779,12 @@ int cpuhvfs_set_iccs_freq(enum mt_cpu_dvfs_id id, unsigned int freq)
 
 	p = id_to_cpu_dvfs(id);
 
-#ifndef ONE_CLUSTER
 #ifdef DVFS_CLUSTER_REMAPPING
 	cluster = (id == MT_CPU_DVFS_LL) ? DVFS_CLUSTER_LL :
 		(id == MT_CPU_DVFS_L) ? DVFS_CLUSTER_L : DVFS_CLUSTER_B;
 #else
 	cluster = (id == MT_CPU_DVFS_LL) ? 0 :
 		(id == MT_CPU_DVFS_L) ? 1 : 2;
-#endif
-#else
-	cluster = 0;
 #endif
 
 	cpufreq_ver("ICCS: cluster = %d, freq = %d\n", cluster, freq);
@@ -812,16 +808,12 @@ int cpuhvfs_set_cluster_load_freq(enum mt_cpu_dvfs_id id, unsigned int freq)
 
 	p = id_to_cpu_dvfs(id);
 
-#ifndef ONE_CLUSTER
 #ifdef DVFS_CLUSTER_REMAPPING
 	cluster = (id == MT_CPU_DVFS_LL) ? DVFS_CLUSTER_LL :
 		(id == MT_CPU_DVFS_L) ? DVFS_CLUSTER_L : DVFS_CLUSTER_B;
 #else
 	cluster = (id == MT_CPU_DVFS_LL) ? 0 :
 		(id == MT_CPU_DVFS_L) ? 1 : 2;
-#endif
-#else
-	cluster = 0;
 #endif
 
 	cpufreq_ver("sched: cluster = %d, freq = %d\n", cluster, freq);
@@ -853,15 +845,6 @@ int cpuhvfs_update_volt(unsigned int cluster_id, unsigned int *volt_tbl,
 #ifdef EEM_AP_SIDE
 	int i;
 	int index;
-	int checkFlag = 0;
-
-	for (i = 0; i < nr_volt_tbl; i++) {
-		if (volt_tbl[i] == 0)
-			checkFlag = 1;
-	}
-
-	if (checkFlag == 1)
-		return 0;
 
 	for (i = 0; i < nr_volt_tbl; i++) {
 		index = (cluster_id * 36) + i;
@@ -903,8 +886,6 @@ void cpuhvfs_pvt_tbl_create(void)
 			(i * ARRAY_COL_SIZE) + 2) & 0xFF);
 		cpufreq_ver("DVFS - recordRef[%d] = 0x%x\n",
 				i + NR_FREQ, recordRef[i + NR_FREQ]);
-
-		if (NR_MT_CPU_DVFS > 2) {
 		/* L [31:16] = Vproc, [15:0] = Freq */
 		recordRef[i + 36] =
 			((*(recordTbl +
@@ -941,7 +922,6 @@ void cpuhvfs_pvt_tbl_create(void)
 			((NR_FREQ * 2) + i) * ARRAY_COL_SIZE + 2) & 0xFF);
 		cpufreq_ver("DVFS - recordRef[%d] = 0x%x\n",
 				i + 72 + NR_FREQ, recordRef[i + 72 + NR_FREQ]);
-		}
 
 		if (NR_MT_CPU_DVFS > 3) {
 			/* CCI [31:16] = Vproc, [15:0] = Freq */
@@ -1113,11 +1093,7 @@ static void init_cpuhvfs_debug_repo(void)
 
 	dbg_repo[REPO_I_DATA_S] = REPO_GUARD0;
 
-#ifndef ONE_CLUSTER
 	for (c = 0; c < NR_MT_CPU_DVFS && c != MT_CPU_DVFS_CCI; c++) {
-#else
-	for (c = 0; c < NR_MT_CPU_DVFS; c++) {
-#endif
 		repo_i = OFFS_PPM_LIMIT_S / sizeof(u32) + c;
 		dbg_repo[repo_i] = (0 << 16) | (NR_FREQ - 1);
 	}

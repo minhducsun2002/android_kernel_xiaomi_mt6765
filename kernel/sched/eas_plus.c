@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,7 +17,9 @@ static inline unsigned long task_util(struct task_struct *p);
 static int select_max_spare_capacity(struct task_struct *p, int target);
 static int __energy_diff(struct energy_env *eenv);
 int cpu_eff_tp = 1024;
-int tiny_thresh;
+unsigned int sched_tiny_task_force_filter;
+unsigned int sched_tiny_task_thresh;
+
 #ifdef CONFIG_SCHED_TUNE
 static inline int energy_diff(struct energy_env *eenv);
 #else
@@ -44,7 +47,7 @@ static bool is_intra_domain(int prev, int target)
 
 static int is_tiny_task(struct task_struct *p)
 {
-	if (task_util(p) < tiny_thresh)
+	if (task_util(p) < sched_tiny_task_thresh)
 		return 1;
 
 	return 0;
@@ -242,6 +245,7 @@ static int __init parse_dt_eas(void)
 	struct device_node *cn;
 	int ret = 0;
 	const u32 *tp;
+	int tiny_thresh = 0;
 
 	cn = of_find_node_by_path("/eas");
 	if (!cn) {
@@ -265,6 +269,7 @@ static int __init parse_dt_eas(void)
 	else
 		tiny_thresh = be32_to_cpup(tp);
 
+	sched_tiny_task_thresh = tiny_thresh;
 	pr_info("eas: turning point=<%d> tiny=<%d>\n", cpu_eff_tp, tiny_thresh);
 
 	of_node_put(cn);

@@ -2,6 +2,7 @@
  *  linux/arch/arm/common/amba.c
  *
  *  Copyright (C) 2003 Deep Blue Solutions Ltd, All Rights Reserved.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

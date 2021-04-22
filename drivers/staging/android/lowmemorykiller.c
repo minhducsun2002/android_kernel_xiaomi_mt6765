@@ -45,12 +45,6 @@
 #include <linux/freezer.h>
 #include <linux/ratelimit.h>
 
-#define MTK_LMK_USER_EVENT
-
-#ifdef MTK_LMK_USER_EVENT
-#include <linux/miscdevice.h>
-#endif
-
 #if defined(CONFIG_MTK_AEE_FEATURE) && defined(CONFIG_MTK_ENG_BUILD)
 #include <mt-plat/aee.h>
 #include <disp_assert_layer.h>
@@ -103,57 +97,6 @@ static unsigned long lowmem_count(struct shrinker *s,
 		global_node_page_state(NR_INACTIVE_FILE);
 }
 
-#ifdef MTK_LMK_USER_EVENT
-static const struct file_operations mtklmk_fops = {
-	.owner = THIS_MODULE,
-};
-
-static struct miscdevice mtklmk_misc = {
-	.minor = MISC_DYNAMIC_MINOR,
-	.name = "mtklmk",
-	.fops = &mtklmk_fops,
-};
-
-static struct work_struct mtklmk_work;
-static int uevent_adj, uevent_minfree;
-static void mtklmk_async_uevent(struct work_struct *work)
-{
-#define MTKLMK_EVENT_LENGTH	(24)
-	char adj[MTKLMK_EVENT_LENGTH], free[MTKLMK_EVENT_LENGTH];
-	char *envp[3] = { adj, free, NULL };
-
-	snprintf(adj, MTKLMK_EVENT_LENGTH, "OOM_SCORE_ADJ=%d", uevent_adj);
-	snprintf(free, MTKLMK_EVENT_LENGTH, "MINFREE=%d", uevent_minfree);
-	kobject_uevent_env(&mtklmk_misc.this_device->kobj, KOBJ_CHANGE, envp);
-#undef MTKLMK_EVENT_LENGTH
-}
-
-static unsigned int mtklmk_initialized;
-static unsigned int mtklmk_uevent_timeout = 10000; /* ms */
-module_param_named(uevent_timeout, mtklmk_uevent_timeout, uint, 0644);
-static void mtklmk_uevent(int oom_score_adj, int minfree)
-{
-	static unsigned long last_time;
-	unsigned long timeout;
-
-	/* change to use jiffies */
-	timeout = msecs_to_jiffies(mtklmk_uevent_timeout);
-
-	if (!last_time)
-		last_time = jiffies - timeout;
-
-	if (time_before(jiffies, last_time + timeout))
-		return;
-
-	last_time = jiffies;
-
-	uevent_adj = oom_score_adj;
-	uevent_minfree = minfree;
-	schedule_work(&mtklmk_work);
-}
-#endif
-
-#ifndef CONFIG_MTK_ENABLE_AGO
 /* Check memory status by zone, pgdat */
 static int lowmem_check_status_by_zone(enum zone_type high_zoneidx,
 				       int *other_free, int *other_file)
@@ -239,11 +182,11 @@ static short lowmem_amr_check(int *to_be_aggressive, int other_file)
 #else
 #define ENABLE_AMR_RAMSIZE	(0x40000)	/* > 1GB */
 #endif
+
 	unsigned long swap_pages = 0;
 	short amr_adj = OOM_SCORE_ADJ_MAX + 1;
-#ifndef CONFIG_MTK_GMO_RAM_OPTIMIZE
 	int i;
-#endif
+
 	swap_pages = atomic_long_read(&nr_swap_pages);
 	/* More than 1/2 swap usage */
 	if (swap_pages * 2 < total_swap_pages)
@@ -284,15 +227,6 @@ static short lowmem_amr_check(int *to_be_aggressive, int other_file)
 	return OOM_SCORE_ADJ_MAX + 1;
 #endif
 }
-#else
-static int lowmem_check_status_by_zone(enum zone_type high_zoneidx,
-				       int *other_free, int *other_file)
-{
-	return 0;
-}
-
-#define lowmem_amr_check(a, b) (short)(OOM_SCORE_ADJ_MAX + 1)
-#endif
 
 static void __lowmem_trigger_warning(struct task_struct *selected)
 {
@@ -528,12 +462,6 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 	    min_score_adj <= lowmem_warn_adj)
 		dump_memory_status(selected_oom_score_adj);
 
-#ifdef MTK_LMK_USER_EVENT
-	/* Send uevent if needed */
-	if (mtklmk_initialized && current_is_kswapd() && mtklmk_uevent_timeout)
-		mtklmk_uevent(min_score_adj, minfree);
-#endif
-
 	return rem;
 }
 
@@ -550,18 +478,6 @@ static int __init lowmem_init(void)
 		vm_swappiness = 100;
 
 	register_shrinker(&lowmem_shrinker);
-
-#ifdef MTK_LMK_USER_EVENT
-	/* initialize work for uevent */
-	INIT_WORK(&mtklmk_work, mtklmk_async_uevent);
-
-	/* register as misc device */
-	if (!misc_register(&mtklmk_misc)) {
-		pr_info("%s: successful to register misc device!\n", __func__);
-		mtklmk_initialized = 1;
-	}
-#endif
-
 	return 0;
 }
 device_initcall(lowmem_init);
@@ -661,3 +577,4 @@ module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 module_param_named(debug_level, lowmem_debug_level, uint, 0644);
 module_param_named(debug_adj, lowmem_warn_adj, short, 0644);
 module_param_named(no_debug_adj, lowmem_no_warn_adj, short, 0644);
+

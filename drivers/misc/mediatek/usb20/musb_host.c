@@ -303,7 +303,7 @@ static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 			 "Could not flush host TX%d fifo: csr: %04x\n"
 			 , ep->epnum, csr))
 			return;
-		udelay(10);
+		mdelay(1);
 	}
 }
 
@@ -396,7 +396,7 @@ static inline void musb_h_tx_start(struct musb_hw_ep *ep)
 		musb_writew(ep->regs, MUSB_TXCSR, txcsr);
 
 		if (musb_host_db_workaround)
-			wait_tx_done(ep->epnum, 5000000);
+			wait_tx_done(ep->epnum, 1000000000);
 	} else {
 		txcsr = MUSB_CSR0_H_DIS_PING
 				| MUSB_CSR0_H_SETUPPKT
@@ -1924,8 +1924,8 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 
 				diff_ns = timeval_to_ns(&tv_after) -
 					timeval_to_ns(&tv_before);
-				/* 1 ms for timeout */
-				if (diff_ns >= 1000000) {
+				/* 1 sec for timeout */
+				if (diff_ns >= 1000000000) {
 					timeout = 1;
 					break;
 				}

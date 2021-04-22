@@ -2,6 +2,7 @@
  * Based on arch/arm/include/asm/assembler.h, arch/arm/mm/proc-macros.S
  *
  * Copyright (C) 1996-2000 Russell King
+ * Copyright (C) 2018 XiaoMi, Inc.
  * Copyright (C) 2012 ARM Ltd.
  *
  * This program is free software; you can redistribute it and/or modify

@@ -349,13 +349,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define RGXMIPSFW_C0_DEBUG_DM             (1 << 30)
 #define RGXMIPSFW_C0_DEBUG_DBD            (1 << 31)
 
-/*
- * Reserved bit in C0_Status, used to indicate if the NMI dump
- * has additional information for cores on more than 32 bit
- */
-#define RGXMIPSFW_C0_STATUS_RESERVED                 (1 << 5)
-#define RGXMIPSFW_REMAP_RANGE_DUMP_AVAILABLE(STATUS) (((STATUS) & RGXMIPSFW_C0_STATUS_RESERVED) != 0)
-
 /* ELF format defines */
 #define ELF_PT_LOAD     (0x1U)   /* Program header identifier as Load */
 #define ELF_SHT_SYMTAB  (0x2U)   /* Section identifier as Symbol Table */

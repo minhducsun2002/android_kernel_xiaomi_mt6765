@@ -39,28 +39,28 @@ static int usrtch_debug;
 
 void switch_usrtch(int enable)
 {
-	mutex_lock(&notify_lock);
-	usrtch_dbg = !enable;
-	mutex_unlock(&notify_lock);
+		mutex_lock(&notify_lock);
+		usrtch_dbg = !enable;
+		mutex_unlock(&notify_lock);
 }
 
 void switch_init_opp(int boost_opp)
 {
-	int i;
+		int i;
 
-	touch_boost_opp = boost_opp;
-	for (i = 0; i < perfmgr_clusters; i++)
-		target_freq[i].min =
-			mt_cpufreq_get_freq_by_idx(i, touch_boost_opp);
+		touch_boost_opp = boost_opp;
+		for (i = 0; i < perfmgr_clusters; i++)
+			target_freq[i].min =
+			 mt_cpufreq_get_freq_by_idx(i, touch_boost_opp);
 }
 
 void switch_init_duration(int duration)
 {
-	touch_boost_duration = duration;
+		touch_boost_duration = duration;
 }
 void switch_active_time(int duration)
 {
-	active_time = duration;
+		active_time = duration;
 }
 
 /*--------------------TIMER------------------------*/
@@ -111,9 +111,9 @@ static int notify_touch(int action)
 
 		/* boost */
 		update_eas_boost_value(EAS_KIR_TOUCH,
-				CGROUP_TA, touch_boost_value);
+			 CGROUP_TA, touch_boost_value);
 		update_userlimit_cpu_freq(CPU_KIR_TOUCH,
-				perfmgr_clusters, target_freq);
+			 perfmgr_clusters, target_freq);
 		if (usrtch_debug)
 			pr_debug("touch down\n");
 		fpsgo_systrace_c_fbt(prev_boost_pid, 1, "touch");
@@ -199,7 +199,7 @@ long usrtch_ioctl(unsigned int cmd, unsigned long arg)
 	mutex_lock(&notify_lock);
 
 	switch (cmd) {
-		/*receive touch info*/
+	/*receive touch info*/
 	case FPSGO_TOUCH:
 		ret = notify_touch(arg);
 		break;
@@ -284,13 +284,13 @@ int init_utch(struct proc_dir_entry *parent)
 	active_time = TOUCH_FSTB_ACTIVE_US;
 
 	target_freq = kcalloc(perfmgr_clusters,
-			sizeof(struct ppm_limit_data), GFP_KERNEL);
+		 sizeof(struct ppm_limit_data), GFP_KERNEL);
 	reset_freq = kcalloc(perfmgr_clusters,
-			sizeof(struct ppm_limit_data), GFP_KERNEL);
+		 sizeof(struct ppm_limit_data), GFP_KERNEL);
 
 	for (i = 0; i < perfmgr_clusters; i++) {
 		target_freq[i].min =
-			mt_cpufreq_get_freq_by_idx(i, touch_boost_opp);
+		mt_cpufreq_get_freq_by_idx(i, touch_boost_opp);
 		target_freq[i].max = reset_freq[i].min = reset_freq[i].max = -1;
 	}
 	mutex_init(&notify_lock);

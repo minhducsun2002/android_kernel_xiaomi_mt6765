@@ -42,11 +42,8 @@ static void *ion_page_pool_alloc_pages(struct ion_page_pool *pool)
 		last_alloc_ts = end;
 	}
 
-	if (!page) {
-		IONMSG("%s:alloc pages fail,order=%d,0x%p\n", __func__,
-		       pool->order, page);
+	if (!page)
 		return NULL;
-	}
 	ion_pages_sync_for_device(g_ion_device->dev.this_device,
 				  page, PAGE_SIZE << pool->order,
 				  DMA_BIDIRECTIONAL);

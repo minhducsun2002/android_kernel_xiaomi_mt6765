@@ -2,6 +2,7 @@
  *  thermal.c - Generic Thermal Management Sysfs support.
  *
  *  Copyright (C) 2008 Intel Corp
+ *  Copyright (C) 2018 XiaoMi, Inc.
  *  Copyright (C) 2008 Zhang Rui <rui.zhang@intel.com>
  *  Copyright (C) 2008 Sujith Thomas <sujith.thomas@intel.com>
  *
@@ -44,6 +45,7 @@
 
 #include "thermal_core.h"
 #include "thermal_hwmon.h"
+#include "mtk_thermal_policy.h"
 
 MODULE_AUTHOR("Zhang Rui");
 MODULE_DESCRIPTION("Generic thermal management sysfs support");
@@ -61,6 +63,8 @@ static DEFINE_MUTEX(thermal_list_lock);
 static DEFINE_MUTEX(thermal_governor_lock);
 
 static atomic_t in_suspend;
+
+static struct xm_switch_config xs_config;
 
 static struct thermal_governor *def_governor;
 
@@ -708,6 +712,28 @@ mode_store(struct device *dev, struct device_attribute *attr,
 }
 
 static ssize_t
+sconfig_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "Current thermal policy index: %d\n",
+		xs_config.policy_index);
+}
+
+static ssize_t
+sconfig_store(struct device *dev, struct device_attribute *attr,
+	   const char *buf, size_t count)
+{
+	int index;
+
+	if (kstrtoint(buf, 10, &index))
+		return -EINVAL;
+
+	xs_config.policy_index = index;
+	mtk_change_thermal_policy(xs_config.policy_index);
+
+	return count;
+}
+
+static ssize_t
 trip_point_type_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
@@ -1164,6 +1190,7 @@ int power_actor_set_power(struct thermal_cooling_device *cdev,
 static DEVICE_ATTR(type, 0444, type_show, NULL);
 static DEVICE_ATTR(temp, 0444, temp_show, NULL);
 static DEVICE_ATTR(mode, 0644, mode_show, mode_store);
+static DEVICE_ATTR(sconfig, 0664, sconfig_show, sconfig_store);
 static DEVICE_ATTR(passive, S_IRUGO | S_IWUSR, passive_show, passive_store);
 static DEVICE_ATTR(policy, S_IRUGO | S_IWUSR, policy_show, policy_store);
 static DEVICE_ATTR(available_policies, S_IRUGO, available_policies_show, NULL);
@@ -2322,6 +2349,46 @@ static struct notifier_block thermal_pm_nb = {
 	.notifier_call = thermal_pm_notify,
 };
 
+/**
+ * register_xm_switch_config - create a sconfig sys node
+ * Create "/sys/class/thermal/thermal_message/sconfig"
+ * for Miui changing thermal policy
+ * Return: 0 on success, proper error code otherwise
+ *
+ */
+int __init register_xm_switch_config(void)
+{
+	int result;
+
+	xs_config.device.class = &thermal_class;
+
+	dev_set_name(&xs_config.device, "thermal_message");
+	result = device_register(&xs_config.device);
+	if (result)
+		return result;
+
+	/* sys I/F */
+	result = device_create_file(&xs_config.device, &dev_attr_sconfig);
+	if (result)
+		goto unregister_device;
+
+	return 0;
+
+unregister_device:
+	device_unregister(&xs_config.device);
+	return result;
+}
+
+/**
+ * unregister_xm_switch_config - destroy the sconfig sys node
+ *
+ */
+void unregister_xm_switch_config(void)
+{
+	device_remove_file(&xs_config.device, &dev_attr_sconfig);
+	device_unregister(&xs_config.device);
+}
+
 static int __init thermal_init(void)
 {
 	int result;
@@ -2342,13 +2409,21 @@ static int __init thermal_init(void)
 	if (result)
 		goto exit_netlink;
 
+	result = register_xm_switch_config();
+	if (result) {
+		pr_warn("XM sconfig can not register\n");
+		goto destroy_tz;
+	}
 	result = register_pm_notifier(&thermal_pm_nb);
 	if (result)
 		pr_warn("Thermal: Can not register suspend notifier, return %d\n",
 			result);
 
+
 	return 0;
 
+destroy_tz:
+	of_thermal_destroy_zones();
 exit_netlink:
 	genetlink_exit();
 unregister_class:
@@ -2367,6 +2442,7 @@ error:
 static void __exit thermal_exit(void)
 {
 	unregister_pm_notifier(&thermal_pm_nb);
+	unregister_xm_switch_config();
 	of_thermal_destroy_zones();
 	genetlink_exit();
 	class_unregister(&thermal_class);

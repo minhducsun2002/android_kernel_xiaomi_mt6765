@@ -2448,7 +2448,7 @@ SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
  */
 static int do_sysinfo(struct sysinfo *info)
 {
-	unsigned long mem_total, sav_total;
+	unsigned long long mem_total, sav_total;
 	unsigned int mem_unit, bitcount;
 	struct timespec tp;
 

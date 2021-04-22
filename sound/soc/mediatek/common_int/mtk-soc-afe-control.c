@@ -64,9 +64,7 @@
 #include <sound/jack.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#if defined(CONFIG_MTK_AUDIO_SCP_SPKPROTECT_SUPPORT)
-#include "mtk-auddrv-scp-spkprotect-common.h"
-#endif
+
 /*
  * #include <mt-plat/mt_boot.h>
  * #include <mt-plat/mt_boot_common.h>
@@ -575,14 +573,14 @@ void EnableAPLLTunerbySampleRate(unsigned int SampleRate)
 	if (GetApllbySampleRate(SampleRate) == Soc_Aud_APLL1) {
 		APLL1TunerCounter++;
 		if (APLL1TunerCounter == 1) {
-			Afe_Set_Reg(AFE_APLL1_TUNER_CFG, 0x00000432,
+			Afe_Set_Reg(AFE_APLL1_TUNER_CFG, 0x00000832,
 				    0x0000FFF7);
 			Afe_Set_Reg(AFE_APLL1_TUNER_CFG, 0x1, 0x1);
 		}
 	} else if (GetApllbySampleRate(SampleRate) == Soc_Aud_APLL2) {
 		APLL2TunerCounter++;
 		if (APLL2TunerCounter == 1) {
-			Afe_Set_Reg(AFE_APLL2_TUNER_CFG, 0x00000434,
+			Afe_Set_Reg(AFE_APLL2_TUNER_CFG, 0x00000634,
 				    0x0000FFF7);
 			Afe_Set_Reg(AFE_APLL2_TUNER_CFG, 0x1, 0x1);
 		}
@@ -1140,15 +1138,14 @@ int setConnsysI2SAsrc(bool bIsUseASRC, unsigned int dToSampleRate)
 int setConnsysI2SEnable(bool enable)
 {
 	if (enable) {
-		Afe_Set_Reg(AFE_ASRC_CONNSYS_CON0,
-			    ((1 << 6) | (1 << 4) | (1 << 0)),
-			    ((1 << 6) | (1 << 4) | (1 << 0)));
+		Afe_Set_Reg(AFE_ASRC_CONNSYS_CON0, ((1 << 6) | (1 << 0)),
+			    ((1 << 6) | (1 << 0)));
 	} else {
 		unsigned int dNeedDisableASM =
 			(Afe_Get_Reg(AFE_ASRC_CONNSYS_CON0) & 0x0030) ? 1 : 0;
 
 		Afe_Set_Reg(AFE_ASRC_CONNSYS_CON0, 0,
-			    ((1 << 6) | (1 << 4) | dNeedDisableASM));
+			    (1 << 6 | dNeedDisableASM));
 	}
 
 	return 0;
@@ -1247,18 +1244,16 @@ bool set_adc_enable(bool enable)
 		 */
 		set_ul_src_enable(false);
 		SetADDAEnable(false);
-
+		if (mtk_dais[Soc_Aud_Digital_Block_ADDA_UL].sample_rate > 48000)
+			AudDrv_ADC_Hires_Clk_Off();
+		else
+			AudDrv_ADC_Clk_Off();
 #ifdef CONFIG_FPGA_EARLY_PORTING
 		pr_debug("%s(), disable fpga clock divide by 4", __func__);
 		Afe_Set_Reg(FPGA_CFG0, 0x0 << 1, 0x1 << 1);
 #endif
 		/* should delayed 1/fs(smallest is 8k) = 125us before afe off */
 		usleep_range(125, 150);
-		if (mtk_dais[Soc_Aud_Digital_Block_ADDA_UL].sample_rate > 48000)
-			AudDrv_ADC_Hires_Clk_Off();
-		else
-			AudDrv_ADC_Clk_Off();
-
 	}
 	AudDrv_GPIO_Request(enable, Soc_Aud_Digital_Block_ADDA_UL);
 
@@ -1293,18 +1288,17 @@ bool set_adc2_enable(bool enable)
 		 */
 		set_ul2_src_enable(false);
 		SetADDAEnable(false);
+		if (mtk_dais[Soc_Aud_Digital_Block_ADDA_UL2].sample_rate >
+		    48000)
+			AudDrv_ADC2_Hires_Clk_Off();
+		else
+			AudDrv_ADC2_Clk_Off();
 #ifdef CONFIG_FPGA_EARLY_PORTING
 		pr_debug("%s(), disable fpga clock divide by 4", __func__);
 		Afe_Set_Reg(FPGA_CFG0, 0x0 << 1, 0x1 << 1);
 #endif
 		/* should delayed 1/fs(smallest is 8k) = 125us before afe off */
 		usleep_range(125, 150);
-		if (mtk_dais[Soc_Aud_Digital_Block_ADDA_UL2].sample_rate >
-			    48000)
-			AudDrv_ADC2_Hires_Clk_Off();
-		else
-			AudDrv_ADC2_Clk_Off();
-
 	}
 	AudDrv_GPIO_Request(enable, Soc_Aud_Digital_Block_ADDA_UL2);
 
@@ -3180,20 +3174,11 @@ unsigned int word_size_align(unsigned int in_size)
 {
 	unsigned int align_size;
 
-#if defined(CONFIG_MTK_AUDIO_SCP_SPKPROTECT_SUPPORT)
-	if (scp_smartpa_used_flag) {
-		/* SCP use cache. Cache use 32 bytes data alignment */
-		align_size = in_size & 0xFFFFFFE0;
-	} else
-#endif
-	{
-		/* sram is device memory, need word size align,
-		 * 8 byte for 64 bit platform.
-		 * [3:0] = 4'h0 for the convenience of the hardware
-		 * implementation.
-		 */
-		align_size = in_size & 0xFFFFFFF0;
-	}
+	/* sram is device memory, need word size align, 8 byte for 64 bit
+	 * platform
+	 */
+	/* [3:0] = 4'h0 for the convenience of the hardware implementation */
+	align_size = in_size & 0xFFFFFFF0;
 
 	return align_size;
 }
@@ -4647,7 +4632,7 @@ static int mtk_mem_dlblk_copy(struct snd_pcm_substream *substream, int channel,
 			data_w_ptr += copy_size;
 			count -= copy_size;
 #ifdef AFE_CONTROL_DEBUG_LOG
-			pr_debug("finish1, copy_size:%d, WriteIdx:%d, ReadIdx=%d, Remained:%d, count=%u \r\n",
+			pr_debug("finish1, copy_size:%x, WriteIdx:%x, ReadIdx=%x, Remained:%x, count=%x \r\n",
 				copy_size, Afe_Block->u4WriteIdx,
 				Afe_Block->u4DMAReadIdx,
 				Afe_Block->u4DataRemained, (unsigned int)count);
@@ -4721,7 +4706,7 @@ static int mtk_mem_dlblk_copy(struct snd_pcm_substream *substream, int channel,
 			count -= copy_size;
 			data_w_ptr += copy_size;
 #ifdef AFE_CONTROL_DEBUG_LOG
-			pr_debug("finish2, copy size:%d, WriteIdx:%d,ReadIdx=%d DataRemained:%d \r\n",
+			pr_debug("finish2, copy size:%x, WriteIdx:%x,ReadIdx=%x DataRemained:%x \r\n",
 				copy_size, Afe_Block->u4WriteIdx,
 				Afe_Block->u4DMAReadIdx,
 				Afe_Block->u4DataRemained);

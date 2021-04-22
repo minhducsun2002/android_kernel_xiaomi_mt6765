@@ -479,7 +479,7 @@ int AudDrv_GPIO_I2S_Select(int bEnable)
 	mutex_unlock(&gpio_request_mutex);
 	return retval;
 }
-
+int expamp_mode=0;//MTK wfq add for mtk bugreport
 int AudDrv_GPIO_EXTAMP_Select(int bEnable, int mode)
 {
 	int retval = 0;
@@ -487,6 +487,9 @@ int AudDrv_GPIO_EXTAMP_Select(int bEnable, int mode)
 #if MT6755_PIN
 	int extamp_mode;
 	int i;
+	//MTK wfq add for Bugreport +
+	expamp_mode=(1==bEnable)?mode:0;
+	//MTK wfq add for Bugreport -
 	mutex_lock(&gpio_request_mutex);
 	if (bEnable == 1) {
 		if (mode == 1)

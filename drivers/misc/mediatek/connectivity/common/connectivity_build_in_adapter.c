@@ -73,11 +73,6 @@ EXPORT_SYMBOL(gConEmiPhyBase);
 unsigned long long gConEmiSize;
 EXPORT_SYMBOL(gConEmiSize);
 
-phys_addr_t gWifiRsvMemPhyBase;
-EXPORT_SYMBOL(gWifiRsvMemPhyBase);
-unsigned long long gWifiRsvMemSize;
-EXPORT_SYMBOL(gWifiRsvMemSize);
-
 /*Reserved memory by device tree!*/
 
 int reserve_memory_consys_fn(struct reserved_mem *rmem)
@@ -92,18 +87,6 @@ int reserve_memory_consys_fn(struct reserved_mem *rmem)
 
 RESERVEDMEM_OF_DECLARE(reserve_memory_test, "mediatek,consys-reserve-memory",
 			reserve_memory_consys_fn);
-
-int reserve_memory_wifi_fn(struct reserved_mem *rmem)
-{
-	pr_info(DFT_TAG "[W]%s: name: %s,base: 0x%llx,size: 0x%llx\n",
-		__func__, rmem->name, (unsigned long long)rmem->base,
-		(unsigned long long)rmem->size);
-	gWifiRsvMemPhyBase = rmem->base;
-	gWifiRsvMemSize = rmem->size;
-	return 0;
-}
-RESERVEDMEM_OF_DECLARE(reserve_memory_wifi, "mediatek,wifi-reserve-memory",
-		       reserve_memory_wifi_fn);
 
 void connectivity_export_show_stack(struct task_struct *tsk, unsigned long *sp)
 {
@@ -234,16 +217,6 @@ int connectivity_export_mmc_io_rw_direct(struct mmc_card *card,
 }
 EXPORT_SYMBOL(connectivity_export_mmc_io_rw_direct);
 
-void connectivity_flush_dcache_area(void *addr, size_t len)
-{
-#ifdef CONFIG_ARM64
-	__flush_dcache_area(addr, len);
-#else
-	v7_flush_kern_dcache_area(addr, len);
-#endif
-}
-EXPORT_SYMBOL(connectivity_flush_dcache_area);
-
 void connectivity_arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 				     struct iommu_ops *iommu, bool coherent)
 {
@@ -255,12 +228,6 @@ EXPORT_SYMBOL(connectivity_arch_setup_dma_ops);
  * GPIO dump information
  ******************************************************************************/
 #ifndef CONFIG_MTK_GPIO
-void __weak gpio_dump_regs_range(int start, int end)
-{
-	pr_info(DFT_TAG "[W]%s: is not define!\n", __func__);
-}
-#endif
-#ifndef CONFIG_MTK_GPIO
 void connectivity_export_dump_gpio_info(int start, int end)
 {
 	gpio_dump_regs_range(start, end);
@@ -271,7 +238,7 @@ EXPORT_SYMBOL(connectivity_export_dump_gpio_info);
 void connectivity_export_dump_thread_state(const char *name)
 {
 	static const char stat_nam[] = TASK_STATE_TO_CHAR_STR;
-	struct task_struct *p;
+	struct task_struct *g, *p;
 	int cpu;
 	struct rq *rq;
 	struct task_struct *curr;
@@ -285,12 +252,11 @@ void connectivity_export_dump_thread_state(const char *name)
 	pr_info("start to show debug info of %s\n", name);
 
 	rcu_read_lock();
-	for_each_process(p) {
-		unsigned long state;
+	for_each_process_thread(g, p) {
+		unsigned long state = p->state;
 
 		if (strncmp(p->comm, name, strlen(name)) != 0)
 			continue;
-		state = p->state;
 		cpu = task_cpu(p);
 		rq = cpu_rq(cpu);
 		curr = rq->curr;

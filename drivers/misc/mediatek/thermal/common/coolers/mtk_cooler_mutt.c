@@ -43,18 +43,6 @@ static unsigned int tm_pid;
 static unsigned int tm_input_pid;
 static struct task_struct *pg_task;
 
-#if defined(FEATURE_MUTT_CA_CONTROL)
-/* md off CA cooler */
-static struct thermal_cooling_device *cl_dev_offCA;
-static unsigned int cl_dev_offCA_state;
-static unsigned int cl_mutt_cur_ca_limit;
-
-#define TMC_CA_CTRL_CA_OFF 0x00000002
-#define TMC_CA_CTRL_CA_ON  0x00000003
-
-
-#endif
-
 /* mdoff cooler */
 static struct thermal_cooling_device *cl_dev_mdoff;
 static unsigned int cl_dev_mdoff_state;
@@ -407,115 +395,6 @@ static struct thermal_cooling_device_ops mtk_cl_mdoff_ops = {
 	.get_cur_state = mtk_cl_mdoff_get_cur_state,
 	.set_cur_state = mtk_cl_mdoff_set_cur_state,
 };
-
-
-#if defined(FEATURE_MUTT_CA_CONTROL)
-static void mtk_cl_mutt_set_offCA(int level)
-{
-	int ret = 0;
-	unsigned int cl_mutt_param_offCA = 0;
-
-	mtk_cooler_mutt_dprintk_always(
-		"[%s] level=%d, cl_dev_offCA_state=%d\n", __func__,
-		level, cl_dev_offCA_state);
-
-	if (cl_dev_offCA_state == level)
-		return;
-
-	if (level)
-		cl_mutt_param_offCA = TMC_CA_CTRL_CA_OFF;
-	else
-		cl_mutt_param_offCA = TMC_CA_CTRL_CA_ON;
-
-
-	mtk_cooler_mutt_dprintk_always(
-		"[%s]  cl_mutt_param_offCA=0x%08x, cl_mutt_cur_ca_limit=0x%08x\n",
-		__func__, cl_mutt_param_offCA, cl_mutt_cur_ca_limit);
-
-	if (cl_mutt_param_offCA != cl_mutt_cur_ca_limit) {
-		cl_mutt_cur_ca_limit = cl_mutt_param_offCA;
-		last_md_boot_cnt = ccci_get_md_boot_count(MD_SYS1);
-		ret = exec_ccci_kern_func_by_md_id(MD_SYS1, ID_THROTTLING_CFG,
-					(char *) &cl_mutt_cur_ca_limit, 4);
-
-		mtk_cooler_mutt_dprintk_always(
-				"[%s] ret %d param %x bcnt %lul\n",
-				__func__, ret, cl_mutt_cur_ca_limit,
-				last_md_boot_cnt);
-
-	} else if (cl_mutt_param_offCA != 0) {
-		unsigned long cur_md_bcnt = ccci_get_md_boot_count(MD_SYS1);
-
-		if (last_md_boot_cnt != cur_md_bcnt) {
-			last_md_boot_cnt = cur_md_bcnt;
-			ret = exec_ccci_kern_func_by_md_id(MD_SYS1,
-					ID_THROTTLING_CFG,
-					(char *) &cl_mutt_cur_ca_limit, 4);
-
-			mtk_cooler_mutt_dprintk_always(
-				"[%s] mdrb ret %d param %x bcnt %lul\n",
-				__func__, ret, cl_mutt_cur_ca_limit,
-				last_md_boot_cnt);
-		}
-	}
-
-	if (ret != 0)
-		mtk_cooler_mutt_dprintk_always("[%s] ret=%d\n", __func__, ret);
-	else {
-		if (level == 1)
-			cl_dev_offCA_state = level;
-		else
-			cl_dev_offCA_state = 0;
-	}
-}
-
-
-static int mtk_cl_offCA_get_max_state(struct thermal_cooling_device *cdev,
-				unsigned long *state)
-{
-	*state = 1;
-	mtk_cooler_mutt_dprintk("[%s] %s %lu\n", __func__, cdev->type, *state);
-
-	return 0;
-}
-
-static int mtk_cl_offCA_get_cur_state(struct thermal_cooling_device *cdev,
-				unsigned long *state)
-{
-	*state = cl_dev_offCA_state;
-	mtk_cooler_mutt_dprintk(
-			"[%s] %s %lu (0:  CA on;  1: 1 CA off)\n", __func__,
-			cdev->type, *state);
-
-	return 0;
-}
-
-static int mtk_cl_offCA_set_cur_state(struct thermal_cooling_device *cdev,
-				unsigned long state)
-{
-	if ((state >= 0) && (state <= 1))
-		mtk_cooler_mutt_dprintk(
-			"[%s] %s %lu (0:  CA on;  1: 1 CA off)\n", __func__,
-			cdev->type, state);
-	else {
-		mtk_cooler_mutt_dprintk(
-			"[%s]: Invalid input(0: CA on;  1: 1 CA off)\n",
-			__func__);
-		return 0;
-	}
-
-	mtk_cl_mutt_set_offCA(state);
-
-	return 0;
-}
-
-static struct thermal_cooling_device_ops mtk_cl_offCA_ops = {
-	.get_max_state = mtk_cl_offCA_get_max_state,
-	.get_cur_state = mtk_cl_offCA_get_cur_state,
-	.set_cur_state = mtk_cl_offCA_set_cur_state,
-};
-#endif
-
 
 static void mtk_cl_mutt_set_onIMS(int level)
 {
@@ -961,11 +840,6 @@ static int mtk_cooler_mutt_register_ltf(void)
 							&mtk_cl_mdoff_ops);
 #endif
 
-#if defined(FEATURE_MUTT_CA_CONTROL)
-	cl_dev_offCA = mtk_thermal_cooling_device_register("mtk-cl-offCA", NULL,
-							&mtk_cl_offCA_ops);
-#endif
-
 #if FEATURE_ADAPTIVE_MUTT
 	cl_dev_adp_mutt = mtk_thermal_cooling_device_register("mtk-cl-adp-mutt",
 						NULL, &mtk_cl_adp_mutt_ops);
@@ -1021,18 +895,10 @@ static int _mtk_cl_mutt_proc_read(struct seq_file *m, void *v)
 
 		seq_printf(m, "klog %d\n", cl_mutt_klog_on);
 #if FEATURE_MUTT_V2
-#if defined(FEATURE_MUTT_CA_CONTROL)
-		seq_printf(m, "curr_limit %x, noIMS: %d, mdoff: %d, caoff: %d\n",
-							cl_mutt_cur_limit,
-							cl_dev_noIMS_state,
-							cl_dev_mdoff_state,
-							cl_dev_offCA_state);
-#else
 		seq_printf(m, "curr_limit %x, noIMS: %d, mdoff: %d\n",
 							cl_mutt_cur_limit,
 							cl_dev_noIMS_state,
 							cl_dev_mdoff_state);
-#endif
 #else
 		seq_printf(m, "curr_limit %x\n", cl_mutt_cur_limit);
 #endif

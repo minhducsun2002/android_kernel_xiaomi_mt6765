@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -438,15 +439,16 @@ void vdec_power_off(void)
 {
 
 	mutex_lock(&VdecPWRLock);
+	/* cervino VCODEC_SEL reset */
+	do {
+		VDO_HW_WRITE(KVA_VDEC_GCON_BASE + 0x20, 0);
+	} while (VDO_HW_READ(KVA_VDEC_GCON_BASE + 0x20) != 0);
+
 	if (gu4VdecPWRCounter == 0) {
 		pr_debug("[VCODEC] gu4VdecPWRCounter = 0\n");
 	} else {
-		vdec_polling_status();
-		/* VCODEC_SEL reset */
-		do {
-			VDO_HW_WRITE(KVA_VDEC_GCON_BASE + 0x20, 0);
-		} while (VDO_HW_READ(KVA_VDEC_GCON_BASE + 0x20) != 0);
 
+		vdec_polling_status();
 		gu4VdecPWRCounter--;
 
 		clk_disable_unprepare(clk_MT_CG_VDEC);
@@ -3045,8 +3047,8 @@ static int vcodec_suspend_notifier(struct notifier_block *nb,
 					CodecHWLock.pvHandle,
 					(int)CodecHWLock.eDriverType);
 				/* Current task is still not finished, don't
-				 * care, will check again in real suspend
-				 */
+				* care, will check again in real suspend
+				*/
 				return NOTIFY_DONE;
 			}
 			msleep(1);

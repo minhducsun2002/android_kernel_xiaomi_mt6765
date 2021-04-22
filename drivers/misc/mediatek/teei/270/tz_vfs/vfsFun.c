@@ -70,6 +70,8 @@ DECLARE_COMPLETION(VFS_wr_comp);
 
 struct vfs_dev *vfs_devp;
 
+extern struct TEEC_UUID uuid_fp;
+
 int tz_vfs_open(struct inode *inode, struct file *filp)
 {
 	if (vfs_devp == NULL)
@@ -134,6 +136,10 @@ static long tz_vfs_ioctl(struct file *filp,
 		fp_vendor = get_fp_vendor();
 		ret = copy_to_user((void *)arg, &fp_vendor, sizeof(int));
 		break;
+	case TEEI_VFS_GET_FP_UUID:
+		ret = copy_to_user((void *)arg, &uuid_fp,
+				sizeof(struct TEEC_UUID));
+                break;
 	default:
 		return -EINVAL;
 	}

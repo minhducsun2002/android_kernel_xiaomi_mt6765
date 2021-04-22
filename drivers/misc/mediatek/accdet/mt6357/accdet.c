@@ -542,15 +542,15 @@ static u32 accdet_get_auxadc(int deCount)
 {
 	int vol = pmic_get_auxadc_value(AUXADC_LIST_ACCDET);
 
-	if (deCount) {
-		if (vol < accdet_auxadc_offset)
-			vol = 0;
-		else
-			vol -= accdet_auxadc_offset;
-		pr_info("%s() vol_val:%d offset:%d real vol:%d mv!\n",
-			__func__, vol + accdet_auxadc_offset,
-			accdet_auxadc_offset, vol);
-	}
+	pr_info("%s() vol_val:%d offset:%d real vol:%d mv!\n", __func__, vol,
+		accdet_auxadc_offset,
+		(vol < accdet_auxadc_offset) ? 0 : (vol-accdet_auxadc_offset));
+
+	if (vol < accdet_auxadc_offset)
+		vol = 0;
+	else
+		vol -= accdet_auxadc_offset;
+
 	return vol;
 }
 
@@ -690,6 +690,7 @@ static u32 key_check(u32 v)
 static void send_key_event(u32 keycode, u32 flag)
 {
 	switch (keycode) {
+       #ifdef WT_COMPILE_FACTORY_VERSION
 	case DW_KEY:
 		input_report_key(accdet_input_dev, KEY_VOLUMEDOWN, flag);
 		input_sync(accdet_input_dev);
@@ -700,6 +701,18 @@ static void send_key_event(u32 keycode, u32 flag)
 		input_sync(accdet_input_dev);
 		pr_debug("accdet KEY_VOLUMEUP %d\n", flag);
 		break;
+       #else
+        case DW_KEY:
+		input_report_key(accdet_input_dev, KEY_VOLUMEDOWN_NEW, flag);
+		input_sync(accdet_input_dev);
+		pr_debug("accdet KEY_VOLUMEDOWN_NEW %d\n", flag);
+		break;
+	case UP_KEY:
+		input_report_key(accdet_input_dev, KEY_VOLUMEUP_NEW, flag);
+		input_sync(accdet_input_dev);
+		pr_debug("accdet KEY_VOLUMEUP_NEW %d\n", flag);
+		break;
+       #endif
 	case MD_KEY:
 		input_report_key(accdet_input_dev, KEY_PLAYPAUSE, flag);
 		input_sync(accdet_input_dev);
@@ -1951,8 +1964,13 @@ int mt_accdet_probe(struct platform_device *dev)
 
 	__set_bit(EV_KEY, accdet_input_dev->evbit);
 	__set_bit(KEY_PLAYPAUSE, accdet_input_dev->keybit);
+      #ifdef WT_COMPILE_FACTORY_VERSION
 	__set_bit(KEY_VOLUMEDOWN, accdet_input_dev->keybit);
 	__set_bit(KEY_VOLUMEUP, accdet_input_dev->keybit);
+      #else 
+        __set_bit(KEY_VOLUMEDOWN_NEW, accdet_input_dev->keybit);
+	__set_bit(KEY_VOLUMEUP_NEW, accdet_input_dev->keybit);
+      #endif
 	__set_bit(KEY_VOICECOMMAND, accdet_input_dev->keybit);
 
 	__set_bit(EV_SW, accdet_input_dev->evbit);

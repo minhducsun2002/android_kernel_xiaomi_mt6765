@@ -97,8 +97,8 @@ X(HWPerfFWBufSizeInKB,              UINT32,         VALIDATION,  PVRSRV_APPHINT_
 X(HWPerfHostBufSizeInKB,            UINT32,         VALIDATION,  PVRSRV_APPHINT_HWPERFHOSTBUFSIZEINKB,            NULL             ) \
 \
 X(JonesDisableMask,                 UINT32,         VALIDATION,  PVRSRV_APPHINT_JONESDISABLEMASK,                 NULL             ) \
-X(NewFilteringMode,                 BOOL,           ALWAYS,  PVRSRV_APPHINT_NEWFILTERINGMODE,                 NULL             ) \
-X(TruncateMode,                     UINT32,         ALWAYS,  PVRSRV_APPHINT_TRUNCATEMODE,                     NULL             ) \
+X(NewFilteringMode,                 BOOL,           VALIDATION,  PVRSRV_APPHINT_NEWFILTERINGMODE,                 NULL             ) \
+X(TruncateMode,                     UINT32,         VALIDATION,  PVRSRV_APPHINT_TRUNCATEMODE,                     NULL             ) \
 X(UseMETAT1,                        UINT32,         VALIDATION,  PVRSRV_APPHINT_USEMETAT1,                        NULL             ) \
 X(EmuMaxFreq,                       UINT32,         ALWAYS,      PVRSRV_APPHINT_EMUMAXFREQ,                       NULL             ) \
 X(GPIOValidationMode,               UINT32,         VALIDATION,  PVRSRV_APPHINT_GPIOVALIDATIONMODE,               NULL             ) \

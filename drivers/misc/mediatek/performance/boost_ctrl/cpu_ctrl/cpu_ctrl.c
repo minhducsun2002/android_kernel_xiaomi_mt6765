@@ -39,7 +39,7 @@ static unsigned long *policy_mask;
 
 /*******************************************/
 int update_userlimit_cpu_freq(int kicker, int num_cluster
-		, struct ppm_limit_data *freq_limit)
+			, struct ppm_limit_data *freq_limit)
 {
 	struct ppm_limit_data *final_freq;
 	int retval = 0;
@@ -51,15 +51,15 @@ int update_userlimit_cpu_freq(int kicker, int num_cluster
 	mutex_lock(&boost_freq);
 
 	final_freq = kcalloc(perfmgr_clusters
-			, sizeof(struct ppm_limit_data), GFP_KERNEL);
+		, sizeof(struct ppm_limit_data), GFP_KERNEL);
 	if (!final_freq) {
 		retval = -1;
 		goto ret_update;
 	}
 	if (num_cluster != perfmgr_clusters) {
 		pr_debug(
-				"num_cluster : %d perfmgr_clusters: %d, doesn't match\n",
-				num_cluster, perfmgr_clusters);
+			"num_cluster : %d perfmgr_clusters: %d, doesn't match\n",
+			num_cluster, perfmgr_clusters);
 		retval = -1;
 		goto ret_update;
 	}
@@ -75,23 +75,23 @@ int update_userlimit_cpu_freq(int kicker, int num_cluster
 		return -EIO;
 	for_each_perfmgr_clusters(i) {
 		freq_set[kicker][i].min = freq_limit[i].min >= -1 ?
-			freq_limit[i].min : -1;
+						 freq_limit[i].min : -1;
 		freq_set[kicker][i].max = freq_limit[i].max >= -1 ?
-			freq_limit[i].max : -1;
+						 freq_limit[i].max : -1;
 
 		len += snprintf(msg + len, sizeof(msg) - len, "(%d)(%d) ",
-		freq_set[kicker][i].min, freq_set[kicker][i].max);
+			 freq_set[kicker][i].min, freq_set[kicker][i].max);
 		if (len < 0)
 			return -EIO;
 
 		if (freq_set[kicker][i].min == -1 &&
-				freq_set[kicker][i].max == -1)
+			  freq_set[kicker][i].max == -1)
 			clear_bit(kicker, &policy_mask[i]);
 		else
 			set_bit(kicker, &policy_mask[i]);
 
 		len1 += snprintf(msg1 + len1, sizeof(msg1) - len1,
-				"[0x %lx] ", policy_mask[i]);
+			 "[0x %lx] ", policy_mask[i]);
 		if (len1 < 0)
 			return -EIO;
 	}
@@ -103,7 +103,7 @@ int update_userlimit_cpu_freq(int kicker, int num_cluster
 			final_freq[j].max
 				= MAX(freq_set[i][j].max, final_freq[j].max);
 			if (final_freq[j].min > final_freq[j].max &&
-					final_freq[j].max != -1)
+				 final_freq[j].max != -1)
 				final_freq[j].max = final_freq[j].min;
 		}
 	}
@@ -112,7 +112,7 @@ int update_userlimit_cpu_freq(int kicker, int num_cluster
 		current_freq[i].min = final_freq[i].min;
 		current_freq[i].max = final_freq[i].max;
 		len += snprintf(msg + len, sizeof(msg) - len, "{%d}{%d} ",
-				current_freq[i].min, current_freq[i].max);
+			 current_freq[i].min, current_freq[i].max);
 		if (len < 0)
 			return -EIO;
 	}
@@ -145,14 +145,14 @@ static ssize_t perfmgr_perfserv_freq_proc_write(struct file *filp
 	struct ppm_limit_data *freq_limit;
 	unsigned int arg_num = perfmgr_clusters * 2; /* for min and max */
 	char *tok, *tmp;
-	char *buf = perfmgr_copy_from_user_for_proc(ubuf, cnt);
+	char *buf = lbc_copy_from_user_for_proc(ubuf, cnt);
 
 	if (!buf) {
 		pr_debug("buf is null\n");
 		goto out1;
 	}
 	freq_limit = kcalloc(perfmgr_clusters, sizeof(struct ppm_limit_data),
-			GFP_KERNEL);
+				 GFP_KERNEL);
 	if (!freq_limit)
 		goto out;
 
@@ -161,14 +161,14 @@ static ssize_t perfmgr_perfserv_freq_proc_write(struct file *filp
 	while ((tok = strsep(&tmp, " ")) != NULL) {
 		if (i == arg_num) {
 			pr_debug(
-					"@%s: number of arguments > %d!\n",
-					__func__, arg_num);
+				"@%s: number of arguments > %d!\n",
+				 __func__, arg_num);
 			goto out;
 		}
 
 		if (kstrtoint(tok, 10, &data)) {
 			pr_debug("@%s: Invalid input: %s\n",
-					__func__, tok);
+				 __func__, tok);
 			goto out;
 		} else {
 			if (i % 2) /* max */
@@ -181,8 +181,8 @@ static ssize_t perfmgr_perfserv_freq_proc_write(struct file *filp
 
 	if (i < arg_num) {
 		pr_debug(
-				"@%s: number of arguments < %d!\n",
-				__func__, arg_num);
+			"@%s: number of arguments < %d!\n",
+			 __func__, arg_num);
 	} else {
 		update_userlimit_cpu_freq(CPU_KIR_PERF
 				, perfmgr_clusters, freq_limit);
@@ -202,7 +202,7 @@ static int perfmgr_perfserv_freq_proc_show(struct seq_file *m, void *v)
 	for_each_perfmgr_clusters(i)
 		seq_printf(m, "cluster %d min:%d max:%d\n",
 				i, freq_set[CPU_KIR_PERF][i].min,
-				freq_set[CPU_KIR_PERF][i].max);
+				 freq_set[CPU_KIR_PERF][i].max);
 	return 0;
 }
 /***************************************/
@@ -213,7 +213,7 @@ static ssize_t perfmgr_boot_freq_proc_write(struct file *filp,
 	struct ppm_limit_data *freq_limit;
 	unsigned int arg_num = perfmgr_clusters * 2; /* for min and max */
 	char *tok, *tmp;
-	char *buf = perfmgr_copy_from_user_for_proc(ubuf, cnt);
+	char *buf = lbc_copy_from_user_for_proc(ubuf, cnt);
 
 	freq_limit = kcalloc(perfmgr_clusters,
 			sizeof(struct ppm_limit_data), GFP_KERNEL);
@@ -284,7 +284,7 @@ static int perfmgr_current_freqy_proc_show(struct seq_file *m, void *v)
 
 /*******************************************/
 static ssize_t perfmgr_perfmgr_log_proc_write(struct file *filp,
-		const char __user *ubuf, size_t cnt, loff_t *pos)
+		 const char __user *ubuf, size_t cnt, loff_t *pos)
 {
 	int data = 0;
 
@@ -339,19 +339,19 @@ int cpu_ctrl_init(struct proc_dir_entry *parent)
 	/* create procfs */
 	for (i = 0; i < ARRAY_SIZE(entries); i++) {
 		if (!proc_create(entries[i].name, 0644,
-					boost_dir, entries[i].fops)) {
+			boost_dir, entries[i].fops)) {
 			pr_debug("%s(), create /cpu_ctrl%s failed\n",
-					__func__, entries[i].name);
+				__func__, entries[i].name);
 			ret = -EINVAL;
 			goto out;
 		}
 	}
 
 	current_freq = kcalloc(perfmgr_clusters, sizeof(struct ppm_limit_data),
-			GFP_KERNEL);
+				 GFP_KERNEL);
 
 	policy_mask = kcalloc(perfmgr_clusters, sizeof(unsigned long),
-			GFP_KERNEL);
+				GFP_KERNEL);
 
 
 	for (i = 0; i < CPU_MAX_KIR; i++)

@@ -88,6 +88,17 @@ static struct stAF_OisPosInfo OisPosInfo;
 /* ------------------------- */
 
 static struct stAF_DrvList g_stAF_DrvList[MAX_NUM_OF_LENS] = {
+	/* cereus lens */
+	{1, AFDRV_CEREUS_DW9714AF_OFILM, CEREUS_DW9714AF_OFILM_SetI2Cclient, CEREUS_DW9714AF_OFILM_Ioctl,
+	 CEREUS_DW9714AF_OFILM_Release, NULL},
+	{1, AFDRV_CEREUS_DW9714AF_SUNNY, CEREUS_DW9714AF_SUNNY_SetI2Cclient, CEREUS_DW9714AF_SUNNY_Ioctl,
+	 CEREUS_DW9714AF_SUNNY_Release, NULL},
+	/* cactus lens */
+	{1, AFDRV_CACTUS_DW9714AF_OFILM, CACTUS_DW9714AF_OFILM_SetI2Cclient, CACTUS_DW9714AF_OFILM_Ioctl,
+	 CACTUS_DW9714AF_OFILM_Release, NULL},
+	 {1, AFDRV_CACTUS_FP5510E2AF_SUNNY, CACTUS_FP5510E2AF_SUNNY_SetI2Cclient, CACTUS_FP5510E2AF_SUNNY_Ioctl,
+	 CACTUS_FP5510E2AF_SUNNY_Release, NULL},
+	/* others */
 	{1, AFDRV_AK7371AF, AK7371AF_SetI2Cclient, AK7371AF_Ioctl,
 	 AK7371AF_Release, NULL},
 	{1, AFDRV_BU6424AF, BU6424AF_SetI2Cclient, BU6424AF_Ioctl,
@@ -171,19 +182,22 @@ void AFRegulatorCtrl(int Stage)
 
 			/* check if customer camera node defined */
 			node = of_find_compatible_node(
-				NULL, NULL, "mediatek,CAMERA_MAIN_AF");
+				NULL, NULL, "mediatek,camera_hw");
 
 			if (node) {
 				kd_node = lens_device->of_node;
 				lens_device->of_node = node;
 
-				#if defined(CONFIG_MACH_MT6765)
+				if (strncmp(CONFIG_ARCH_MTK_PROJECT,
+						"k65v1_64_bsp_fhdp", 17) == 0 ||
+				    strncmp(CONFIG_ARCH_MTK_PROJECT,
+						"evb65_64_bsp_fhdp", 17) == 0) {
 				regVCAMAF =
 					regulator_get(lens_device, "vldo28");
-				#else
+				} else {
 				regVCAMAF =
 					regulator_get(lens_device, "vcamaf");
-				#endif
+				}
 
 				LOG_INF("[Init] regulator_get %p\n", regVCAMAF);
 
@@ -196,7 +210,7 @@ void AFRegulatorCtrl(int Stage)
 
 			LOG_INF("regulator_is_enabled %d\n", Status);
 
-			if (!Status) {
+			if (!(Status&&(g_regVCAMAFEn == 1))) {
 				Status = regulator_set_voltage(
 					regVCAMAF, 2800000, 2800000);
 
@@ -325,7 +339,7 @@ static long AF_SetMotorName(__user struct stAF_MotorName *pstMotorName)
 		if (g_stAF_DrvList[i].uEnable != 1)
 			break;
 
-		LOG_INF("Search Motor Name : %s\n", g_stAF_DrvList[i].uDrvName);
+		LOG_INF("Search Motor Name : %s cmp(%s)\n", g_stAF_DrvList[i].uDrvName,stMotorName.uMotorName);
 		if (strcmp(stMotorName.uMotorName,
 			   g_stAF_DrvList[i].uDrvName) == 0) {
 			LOG_INF("Motor Name : %s\n", stMotorName.uMotorName);

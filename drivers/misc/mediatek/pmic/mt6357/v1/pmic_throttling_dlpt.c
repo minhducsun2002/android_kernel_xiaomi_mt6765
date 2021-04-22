@@ -20,7 +20,6 @@
 #include <linux/pm_wakeup.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/iio/consumer.h>
 
 #include <mt-plat/upmu_common.h>
 #include <mt-plat/mtk_auxadc_intf.h>
@@ -599,20 +598,6 @@ void __attribute__ ((weak)) register_battery_percent_notify(
  * AuxADC Impedence Measurement
  *******************************************************************/
 static unsigned int count_time_out_adc_imp = 36;
-static struct wakeup_source ptim_wake_lock;
-static struct mutex ptim_mutex;
-
-static void ptim_lock(void)
-{
-	__pm_stay_awake(&ptim_wake_lock);
-	mutex_lock(&ptim_mutex);
-}
-
-static void ptim_unlock(void)
-{
-	mutex_unlock(&ptim_mutex);
-	__pm_relax(&ptim_wake_lock);
-}
 
 int do_ptim_internal(bool isSuspend, unsigned int *bat,
 		     signed int *cur, bool *is_charging)
@@ -677,12 +662,12 @@ int do_ptim_gauge(bool isSuspend, unsigned int *bat,
 	int ret;
 
 	if (isSuspend == false)
-		ptim_lock();
+		pmic_auxadc_lock();
 
 	ret = do_ptim_internal(isSuspend, bat, cur, is_charging);
 
 	if (isSuspend == false)
-		ptim_unlock();
+		pmic_auxadc_unlock();
 	return ret;
 }
 
@@ -708,11 +693,11 @@ int g_lbatInt1 = DLPT_VOLT_MIN * 10;
 void get_ptim_value(bool isSuspend, unsigned int *bat, signed int *cur)
 {
 	if (isSuspend == false)
-		ptim_lock();
+		pmic_auxadc_lock();
 	*bat = ptim_bat_vol;
 	*cur = ptim_R_curr;
 	if (isSuspend == false)
-		ptim_unlock();
+		pmic_auxadc_unlock();
 }
 
 int get_rac(void)
@@ -731,13 +716,13 @@ int do_ptim(bool isSuspend)
 	bool is_charging;
 
 	if (isSuspend == false)
-		ptim_lock();
+		pmic_auxadc_lock();
 
 	ret = do_ptim_internal(isSuspend,
 		&ptim_bat_vol, &ptim_R_curr, &is_charging);
 
 	if (isSuspend == false)
-		ptim_unlock();
+		pmic_auxadc_unlock();
 	return ret;
 }
 
@@ -856,9 +841,9 @@ static int get_rac_val(void)
 		enable_dummy_load(0);
 
 		/*Calculate Rac---------------------------------------- */
-		/* 70mA <= c_diff <= 120mA, 4mV <= v_diff <= 200mV */
 		if ((curr_2 - curr_1) >= 700 && (curr_2 - curr_1) <= 1200
-		    && (volt_1 - volt_2) >= 40 && (volt_1 - volt_2) <= 2000) {
+		    && (volt_1 - volt_2) >= 80 && (volt_1 - volt_2) <= 2000) {
+			/*40.0mA */
 			/*m-ohm */
 			rac_cal = ((volt_1 - volt_2) * 1000) /
 				(curr_2 - curr_1);
@@ -867,10 +852,7 @@ static int get_rac_val(void)
 				ret = (rac_cal - (rac_cal * 2)) * 1;
 			else
 				ret = rac_cal * 1;
-			if (ret < 50) {
-				ret = -1;
-				pmic_spm_crit2("bypass due to Rac < 50mOhm\n");
-			}
+
 		} else {
 			ret = -1;
 			pmic_spm_crit2("[4, Cal.Rac] bypass c_diff < 70mA\n");
@@ -990,10 +972,10 @@ int get_dlpt_imix(void)
 				pr_notice("do_ptim more than twice times\n");
 			else if (count_do_ptim > 3) {
 				pr_notice("do_ptim more than five times\n");
-				ptim_lock();
+				pmic_auxadc_lock();
 				pmic_set_hk_reg_value(PMIC_RG_AUXADC_RST, 1);
 				pmic_set_hk_reg_value(PMIC_RG_AUXADC_RST, 0);
-				ptim_unlock();
+				pmic_auxadc_unlock();
 				aee_kernel_warning("PTIM timeout", "PTIM");
 				break;
 			}
@@ -1034,27 +1016,20 @@ int get_dlpt_imix(void)
 
 static int get_dlpt_imix_charging(void)
 {
+
 	int zcv_val = 0;
 	int vsys_min_1_val = DLPT_VOLT_MIN;
 	int imix = 0;
-	static struct iio_channel *chan;
 
-	if (chan == NULL) {
-		if (is_isense_supported() && is_power_path_supported())
-			chan = iio_channel_get(NULL, "AUXADC_ISENSE");
-		else
-			chan = iio_channel_get(NULL, "AUXADC_BATADC");
-	}
-	if (IS_ERR(chan)) {
-		pr_notice("[%s] iio channel consumer error, (%d, %d)\n",
-			__func__, is_isense_supported(),
-			is_power_path_supported());
-		return 0;
-	}
-	iio_read_channel_processed(chan, &zcv_val);
-	imix = (zcv_val - vsys_min_1_val) * 1000 / ptim_rac_val_avg * 9 / 10;
-	PMICLOG("[dlpt] get_dlpt_imix_charging %d %d %d %d\n",
-		imix, zcv_val, vsys_min_1_val, ptim_rac_val_avg);
+	if (is_isense_supported() && is_power_path_supported())
+		zcv_val = pmic_get_auxadc_value(AUXADC_LIST_ISENSE);
+	else
+		zcv_val = pmic_get_auxadc_value(AUXADC_LIST_BATADC);
+
+	imix = (zcv_val - vsys_min_1_val) * 1000 /
+				ptim_rac_val_avg * 9 / 10;
+	PMICLOG("[dlpt] get_dlpt_imix_charging %d %d %d %d\n"
+		, imix, zcv_val, vsys_min_1_val, ptim_rac_val_avg);
 
 	return imix;
 }
@@ -1062,11 +1037,6 @@ static int get_dlpt_imix_charging(void)
 /* for dlpt_notify_handler */
 static int g_low_per_timer;
 static int g_low_per_timeout_val = 60;
-
-bool __attribute__ ((weak)) mtk_dpidle_is_active(void)
-{
-	return false;
-}
 
 int dlpt_notify_handler(void *unused)
 {
@@ -1852,8 +1822,6 @@ int pmic_throttling_dlpt_init(void)
 #endif /* end of #if CONFIG_MTK_GAUGE_VERSION == 30 */
 #endif /* end of #ifdef CONFIG_MTK_GAUGE_VERSION */
 
-	wakeup_source_init(&ptim_wake_lock, "PTIM_wakelock");
-	mutex_init(&ptim_mutex);
 	/* IMPEDANCE initial setting */
 	pmic_set_hk_reg_value(PMIC_AUXADC_IMPEDANCE_CNT, 1);
 	pmic_set_hk_reg_value(PMIC_AUXADC_IMPEDANCE_MODE, 1);

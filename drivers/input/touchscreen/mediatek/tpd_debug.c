@@ -146,23 +146,17 @@ struct tpd_debug_log_buf tpd_buf;
 
 static int tpd_debug_log_open(struct inode *inode, struct file *file)
 {
-	unsigned char *tmp_buffer;
-
-	tmp_buffer = vmalloc(tpd_log_line_cnt * tpd_log_line_buffer);
-	spin_lock(&tpd_buf.buffer_lock);
+	memset(&tpd_buf, 0, sizeof(struct tpd_debug_log_buf));
+	tpd_buf.buffer = vmalloc(tpd_log_line_cnt * tpd_log_line_buffer);
 	if (tpd_buf.buffer == NULL) {
-		if (tmp_buffer == NULL) {
-			spin_unlock(&tpd_buf.buffer_lock);
-			pr_info("tpd_log: nomem for tpd_buf->buffer\n");
-			return -ENOMEM;
-		}
-		tpd_buf.buffer = tmp_buffer;
-		tpd_buf.head = tpd_buf.tail = 0;
-		spin_unlock(&tpd_buf.buffer_lock);
-	} else {
-		spin_unlock(&tpd_buf.buffer_lock);
-		vfree(tmp_buffer);
+		pr_info("tpd_log: nomem for tpd_buf->buffer\n");
+		return -ENOMEM;
 	}
+	spin_lock_init(&tpd_buf.buffer_lock);
+	spin_lock(&tpd_buf.buffer_lock);
+	tpd_buf.head = tpd_buf.tail = 0;
+	spin_unlock(&tpd_buf.buffer_lock);
+
 
 	file->private_data = &tpd_buf;
 	pr_debug("[tpd_em_log]: open log file\n");
@@ -172,15 +166,8 @@ static int tpd_debug_log_open(struct inode *inode, struct file *file)
 static int tpd_debug_log_release(struct inode *inode, struct file *file)
 {
 
-	unsigned char *tmp_buffer = NULL;
-
 	pr_debug("[tpd_em_log]: close log file\n");
-	spin_lock(&tpd_buf.buffer_lock);
-	tmp_buffer = tpd_buf.buffer;
-	tpd_buf.buffer = NULL;
-	spin_unlock(&tpd_buf.buffer_lock);
-	if (tmp_buffer)
-		vfree(tmp_buffer);
+	vfree(tpd_buf.buffer);
 	/* free(tpd_buf); */
 	return 0;
 }
@@ -434,8 +421,6 @@ void tpd_em_log_release(void)
 
 static int __init tpd_log_init(void)
 {
-	memset(&tpd_buf, 0, sizeof(struct tpd_debug_log_buf));
-	spin_lock_init(&tpd_buf.buffer_lock);
 	if (misc_register(&tpd_debug_log_dev) < 0) {
 		pr_info("[tpd_em_log] :register device failed\n");
 		return -1;

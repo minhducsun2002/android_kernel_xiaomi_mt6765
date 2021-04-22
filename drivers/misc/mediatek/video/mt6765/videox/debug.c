@@ -1361,6 +1361,7 @@ static void process_dbg_opt(const char *opt)
 			"Display debug command: disp_get_fps done, disp_fps=%d\n",
 			disp_fps);
 	} else if (strncmp(opt, "set_emi_bound_tb:", 17) == 0) {
+
 		do_set_emi_bound_tb_opt(opt);
 	} else if (strncmp(opt, "primary_basic_test:", 19) == 0) {
 		unsigned int layer_num, w, h, fmt, frame_num;

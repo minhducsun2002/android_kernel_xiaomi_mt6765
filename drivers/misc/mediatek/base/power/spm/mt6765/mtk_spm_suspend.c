@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -133,10 +134,54 @@ static void spm_suspend_pcm_setup_after_wfi(u32 cpu, struct pwr_ctrl *pwrctrl)
 {
 	spm_suspend_post_process(pwrctrl);
 }
-
 int sleep_ddr_status;
 int sleep_vcore_status;
+//MTK wfq add for bugreport +
+extern void mt_print_scp_ipi_id(void);
+extern void mt_get_scp_ipi_id(int *sb);
+int sleep_vcore_status;
+bool ccif_wakeup=false;//MTK wfq add for bugreport
+unsigned int wakereasons[32]={0};
+unsigned int wakecnt=0;
+u32 r13flg=0,spm_dbgflg=0;
+/*spm_info[6][2]
+ *array 0~4 used to recoard r13&debugflg history
+ *array5 is  special :
+ spm_info[5][0],total eint wakeups,
+ spm_info[5][1],spm fail cnts;
+ */
+u32 spm_info[6][2]={0};
+int scp_log[10][5]={0};
+int scp_cnt=0;
+static void summary_wakereason(struct wake_status *wakesta)
+{
+	int i=0;
+	for(i=0;i<31;i++)
+	{
+		if(0!=(wakesta->r12&(1U << i)))
+		{
+			wakereasons[i]++;
+			wakecnt++;
+		}
+	}
+	if(WAKE_SRC_R12_EINT_EVENT_B==wakesta->r12)
+	{
+		spm_info[5][0]+=1;
+		if((spm_dbgflg&0xf)!=0xf)
+		{
+			spm_info[5][1]+=1;
+			spm_info[4][0]=spm_info[3][0];spm_info[4][1]=spm_info[3][1];
+			spm_info[3][0]=spm_info[2][0];spm_info[3][1]=spm_info[2][1];
+			spm_info[2][0]=spm_info[1][0];spm_info[2][1]=spm_info[1][1];
+			spm_info[1][0]=spm_info[0][0];spm_info[1][1]=spm_info[0][1];
+			spm_info[0][0]=r13flg;
+			spm_info[0][1]=spm_dbgflg;
+		}
+	}
 
+}
+
+//MTK wfq add for bugreport -
 static unsigned int spm_output_wake_reason(struct wake_status *wakesta)
 {
 	unsigned int wr;
@@ -147,7 +192,10 @@ static unsigned int spm_output_wake_reason(struct wake_status *wakesta)
 		spm_sleep_count = 0;
 	else
 		spm_sleep_count++;
-
+//MTK wfq add for bugreport +
+	r13flg=wakesta->r13;
+	spm_dbgflg=wakesta->debug_flag;
+//MTK wfq add for bugreport -
 	wr = __spm_output_wake_reason(wakesta, true, "suspend");
 
 	memcpy(&suspend_info[log_wakesta_cnt], wakesta,
@@ -187,7 +235,7 @@ static unsigned int spm_output_wake_reason(struct wake_status *wakesta)
 			spm_read(SPM_POWER_ON_VAL1) & (1 << 17));
 	}
 
-#if defined(CONFIG_MTK_EIC) || defined(CONFIG_PINCTRL_MTK)
+#if defined(CONFIG_MTK_EIC) || defined(CONFIG_PINCTRL_MTK_COMMON)
 	if (wakesta->r12 & WAKE_SRC_R12_EINT_EVENT_B)
 		mt_eint_print_status();
 #endif
@@ -196,12 +244,20 @@ static unsigned int spm_output_wake_reason(struct wake_status *wakesta)
 		exec_ccci_kern_func_by_md_id(0, ID_DUMP_MD_SLEEP_MODE,
 			NULL, 0);
 #endif
-
 #ifdef CONFIG_MTK_TINYSYS_SCP_SUPPORT
 	if (wakesta->r12 & R12_SCP_SPM_IRQ_B)
+	{
 		mt_print_scp_ipi_id();
-#endif
+//MTK bugreport +
+		if((scp_cnt<=9)&&(scp_cnt>=0))
+		mt_get_scp_ipi_id(scp_log[scp_cnt]);
+		scp_cnt++;
+		if(scp_cnt>=10)
+			scp_cnt=0;
+//MTK bugreport -
 
+	}
+#endif
 #if !defined(CONFIG_FPGA_EARLY_PORTING)
 #ifdef CONFIG_MTK_ECCCI_DRIVER
 	if (wakesta->r12 & WAKE_SRC_R12_CLDMA_EVENT_B)
@@ -210,15 +266,18 @@ static unsigned int spm_output_wake_reason(struct wake_status *wakesta)
 		exec_ccci_kern_func_by_md_id(0, ID_GET_MD_WAKEUP_SRC,
 		NULL, 0);
 	if (wakesta->r12 & WAKE_SRC_R12_CCIF0_EVENT_B)
+	{
+		ccif_wakeup=true;
 		exec_ccci_kern_func_by_md_id(0, ID_GET_MD_WAKEUP_SRC,
 		NULL, 0);
+	}
 	if (wakesta->r12 & WAKE_SRC_R12_CCIF1_EVENT_B)
 		exec_ccci_kern_func_by_md_id(2, ID_GET_MD_WAKEUP_SRC,
 		NULL, 0);
 #endif
 #endif
+	summary_wakereason(wakesta);//MTK wfq add for bugreport
 	log_wakeup_reason(mtk_spm_get_irq_0());
-
 	return wr;
 }
 
@@ -330,9 +389,8 @@ unsigned int spm_go_to_sleep(u32 spm_flags, u32 spm_data)
 	} else
 		pr_info("FAILED TO GET WD API\n");
 #endif
-	lockdep_off();
+
 	spin_lock_irqsave(&__spm_lock, flags);
-	lockdep_on();
 
 	mtk_spm_irq_backup();
 
@@ -350,7 +408,6 @@ unsigned int spm_go_to_sleep(u32 spm_flags, u32 spm_data)
 #if !defined(CONFIG_FPGA_EARLY_PORTING)
 	if (mtk8250_request_to_sleep()) {
 		last_wr = WR_UART_BUSY;
-		pr_info("Fail to request uart sleep\n");
 		goto RESTORE_IRQ;
 	}
 #endif
@@ -377,9 +434,8 @@ RESTORE_IRQ:
 	last_wr = spm_output_wake_reason(&spm_wakesta);
 	mtk_spm_irq_restore();
 
-	lockdep_off();
+
 	spin_unlock_irqrestore(&__spm_lock, flags);
-	lockdep_on();
 
 #if defined(CONFIG_MTK_WATCHDOG) && defined(CONFIG_MTK_WD_KICKER)
 	if (!wd_ret) {

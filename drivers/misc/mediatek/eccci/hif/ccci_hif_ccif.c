@@ -170,6 +170,11 @@ static int tx_exp_buffer_size[QUEUE_NUM] = { 12 * 1024, 32 * 1024,
 	8 * 1024, 0 * 1024, 0 * 1024, 0 * 1024, 8 * 1024, 0 * 1024,
 };
 #endif
+//mtk wfq add for bugreport+
+unsigned int ccb_wkcnt=0;
+#define CCCIF_CH_LEN 200
+unsigned int cccif_wkcnt[CCCIF_CH_LEN]={0};
+//mtk wfq add for bugreport-
 static void md_ccif_dump(unsigned char *title, unsigned char hif_id)
 {
 	int idx;
@@ -335,12 +340,11 @@ static void md_ccif_sram_rx_work(struct work_struct *work)
 		i += 4;
 	}
 
-	if (atomic_cmpxchg(&md_ctrl->wakeup_src, 1, 0) == 1) {
-		md_ctrl->wakeup_count++;
+	if (atomic_cmpxchg(&md_ctrl->wakeup_src, 1, 0) == 1)
 		CCCI_NOTICE_LOG(md_ctrl->md_id, TAG,
-			"CCIF_MD wakeup source:(SRX_IDX/%d)(%u)\n",
-			ccci_h->channel, md_ctrl->wakeup_count);
-	}
+			"CCIF_MD wakeup source:(SRX_IDX/%d)\n",
+			ccci_h->channel);
+
 	ccci_hdr = *ccci_h;
 	ccci_md_check_rx_seq_num(md_ctrl->md_id,
 		&md_ctrl->traffic_info, &ccci_hdr, 0);
@@ -513,6 +517,7 @@ atomic_t lb_dl_q;
 /*this function may be called from both workqueue and softirq (NAPI)*/
 static unsigned long rx_data_cnt;
 static unsigned int pkg_num;
+extern bool ccif_wakeup;
 static int ccif_rx_collect(struct md_ccif_queue *queue, int budget,
 	int blocking, int *result)
 {
@@ -607,13 +612,16 @@ static int ccif_rx_collect(struct md_ccif_queue *queue, int budget,
 				c2k_mem_dump(data_ptr, pkg_size);
 			}
 		}
-		if (atomic_cmpxchg(&md_ctrl->wakeup_src, 1, 0) == 1) {
-			md_ctrl->wakeup_count++;
+		if (atomic_cmpxchg(&md_ctrl->wakeup_src, 1, 0) == 1)
+		{
 			CCCI_NOTICE_LOG(md_ctrl->md_id, TAG,
-				"CCIF_MD wakeup source:(%d/%d/%x)(%u)\n",
+				"CCIF_MD wakeup source:(%d/%d/%x)\n",
 				queue->index, ccci_h->channel,
-				ccci_h->reserved, md_ctrl->wakeup_count);
+				ccci_h->reserved);
+			if(ccci_h->channel<CCCIF_CH_LEN)
+			cccif_wkcnt[ccci_h->channel]++;
 		}
+
 		if (ccci_h->channel == CCCI_C2K_LB_DL)
 			atomic_set(&lb_dl_q, queue->index);
 
@@ -961,11 +969,11 @@ static void md_ccif_launch_work(struct md_ccif_ctrl *md_ctrl)
 	if (md_ctrl->channel_id & (1 << AP_MD_CCB_WAKEUP)) {
 		clear_bit(AP_MD_CCB_WAKEUP, &md_ctrl->channel_id);
 		CCCI_DEBUG_LOG(md_ctrl->md_id, TAG, "CCB wakeup\n");
-		if (atomic_cmpxchg(&md_ctrl->wakeup_src, 1, 0) == 1) {
-			md_ctrl->wakeup_count++;
+		if (atomic_cmpxchg(&md_ctrl->wakeup_src, 1, 0) == 1)
+		{
 			CCCI_NOTICE_LOG(md_ctrl->md_id, TAG,
-			"CCIF_MD wakeup source:(CCB)(%u)\n",
-			md_ctrl->wakeup_count);
+			"CCIF_MD wakeup source:(CCB)\n");
+			ccb_wkcnt++;
 		}
 		ccci_port_queue_status_notify(md_ctrl->md_id, CCIF_HIF_ID,
 			AP_MD_CCB_WAKEUP, -1, RX_IRQ);

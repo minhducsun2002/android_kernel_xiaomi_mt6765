@@ -47,16 +47,9 @@ static const struct file_operations perfmgr_ ## name ## _proc_fops = { \
 }
 
 #define PROC_ENTRY(name) {__stringify(name), &perfmgr_ ## name ## _proc_fops}
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#define for_each_perfmgr_clusters(i)	\
-	for (i = 0; i < clstr_num; i++)
-
-#define perfmgr_clusters clstr_num
-
-#define LOG_BUF_SIZE (128)
 
 extern int clstr_num;
-extern char *perfmgr_copy_from_user_for_proc(const char __user *buffer,
+extern char *lbc_copy_from_user_for_proc(const char __user *buffer,
 					size_t count);
 
 extern int check_proc_write(int *data, const char *ubuf, size_t cnt);
@@ -68,5 +61,12 @@ extern void perfmgr_trace_end(void);
 extern void perfmgr_trace_begin(char *name, int id, int a, int b);
 extern void perfmgr_trace_printk(char *module, char *string);
 
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define for_each_perfmgr_clusters(i)	\
+	for (i = 0; i < clstr_num; i++)
+
+#define perfmgr_clusters clstr_num
+
+#define LOG_BUF_SIZE (128)
 
 #endif /* _MTK_PERFMGR_INTERNAL_H */

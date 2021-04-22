@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2018 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,7 +22,6 @@
 static int get_vb_volt(int vcore_opp)
 {
 	int ret = 0;
-	int ptpod0 = get_devinfo_with_index(50);
 	int ptpod10 = get_devinfo_with_index(60);
 
 	pr_info("%s: PTPOD10: 0x%x\n", __func__, ptpod10);
@@ -52,15 +52,6 @@ static int get_vb_volt(int vcore_opp)
 		if (ret == 3)
 			ret = 2;
 		break;
-	case VCORE_OPP_3:
-		ret = (ptpod10 >> 4) & 0x3F;
-		if (ptpod0 == 0x0000FF00 || ptpod0 == 0x0)
-			ret = 0;
-		else if (ret == 0)
-			ret = 1;
-		else
-			ret = 0;
-		break;
 	default:
 		break;
 	}
@@ -75,8 +66,6 @@ void dvfsrc_opp_level_mapping(void)
 
 	if (!strncmp(CONFIG_ARCH_MTK_PROJECT,
 				"k65v1_64_bsp_ctig", 17) ||
-			!strncmp(CONFIG_ARCH_MTK_PROJECT,
-				"k62v1_bsptc1_ctig", 17) ||
 			!strncmp(CONFIG_ARCH_MTK_PROJECT,
 				"k65v1_64_bsp_ctqc", 17) ||
 			!strncmp(CONFIG_ARCH_MTK_PROJECT,
@@ -96,7 +85,7 @@ void dvfsrc_opp_level_mapping(void)
 		vcore_opp_0_uv = 800000 - get_vb_volt(VCORE_OPP_0);
 		vcore_opp_1_uv = 700000 - get_vb_volt(VCORE_OPP_1);
 		vcore_opp_2_uv = 700000 - get_vb_volt(VCORE_OPP_2);
-		vcore_opp_3_uv = 650000 + get_vb_volt(VCORE_OPP_3);
+		vcore_opp_3_uv = 650000;
 		pr_info("%s: EFUSE vcore_opp_uv: %d, %d, %d, %d\n", __func__,
 				vcore_opp_0_uv,
 				vcore_opp_1_uv,
@@ -127,7 +116,7 @@ void dvfsrc_opp_level_mapping(void)
 	} else {
 		vcore_opp_0_uv = 800000;
 		vcore_opp_1_uv = 700000;
-		vcore_opp_3_uv = 650000 + get_vb_volt(VCORE_OPP_3);
+		vcore_opp_3_uv = 650000;
 		/* apply MD VB */
 		vcore_opp_2_uv = 700000 - get_vb_volt(VCORE_OPP_2);
 		vcore_opp_2_uv = max(vcore_opp_2_uv, vcore_opp_3_uv);
@@ -158,9 +147,6 @@ void dvfsrc_opp_level_mapping(void)
 	}
 
 	switch (spm_get_spmfw_idx()) {
-	case SPMFW_LP4_2CH_3200:
-	case SPMFW_LP4_2CH_2400:
-		/* fall through*/
 	case SPMFW_LP4X_2CH_3200:
 		set_vcore_opp(VCORE_DVFS_OPP_0, VCORE_OPP_UNREQ);
 		set_vcore_opp(VCORE_DVFS_OPP_1, VCORE_OPP_0);

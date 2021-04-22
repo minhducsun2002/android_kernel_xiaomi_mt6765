@@ -14,7 +14,7 @@
 #ifndef _MTK_PBM_REL_H_
 #define _MTK_PBM_REL_H_
 
-#if defined(CONFIG_MACH_MT6765) || defined(CONFIG_MACH_MT6761)
+#if defined(CONFIG_MACH_MT6765)
 #include "pbm_v4/mtk_pbm_rel.h"
 #endif
 

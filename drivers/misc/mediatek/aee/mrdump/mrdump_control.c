@@ -17,7 +17,6 @@
 #include <linux/memblock.h>
 #include <linux/module.h>
 #include <linux/io.h>
-#include <asm/memory.h>
 #include <asm/sections.h>
 #include <mt-plat/mrdump.h>
 #include "mrdump_private.h"
@@ -123,7 +122,6 @@ static int __init mrdump_get_cb(char *p)
 }
 early_param("mrdump_cb", mrdump_get_cb);
 
-#if defined(CONFIG_KALLSYMS) && !defined(CONFIG_KALLSYMS_BASE_RELATIVE)
 static void mrdump_cblock_kallsyms_init(struct mrdump_ksyms_param *kparam)
 {
 	unsigned long start_addr = (unsigned long) &kallsyms_addresses;
@@ -143,7 +141,11 @@ static void mrdump_cblock_kallsyms_init(struct mrdump_ksyms_param *kparam)
 	default:
 		BUILD_BUG();
 	}
+#if defined(KIMAGE_VADDR)
+	kparam->start_addr = start_addr - KIMAGE_VADDR + PHYS_OFFSET;
+#else
 	kparam->start_addr = __pa(start_addr);
+#endif
 	kparam->size = (unsigned long)&kallsyms_token_index - start_addr + 512;
 	kparam->crc = crc32(0, (unsigned char *)start_addr, kparam->size);
 	kparam->addresses_off = (unsigned long)&kallsyms_addresses - start_addr;
@@ -155,12 +157,6 @@ static void mrdump_cblock_kallsyms_init(struct mrdump_ksyms_param *kparam)
 	kparam->token_index_off =
 		(unsigned long)&kallsyms_token_index - start_addr;
 }
-#else
-static void mrdump_cblock_kallsyms_init(struct mrdump_ksyms_param *unused)
-{
-}
-
-#endif
 
 __init void mrdump_cblock_init(void)
 {
@@ -198,14 +194,12 @@ __init void mrdump_cblock_init(void)
 #if defined(TEXT_OFFSET)
 	machdesc_p->kimage_vaddr += TEXT_OFFSET;
 #endif
-	machdesc_p->dram_start = (uintptr_t)memblock_start_of_DRAM();
-	machdesc_p->dram_end = (uintptr_t)memblock_end_of_DRAM();
+	machdesc_p->kimage_init_begin = (uintptr_t)__init_begin;
+	machdesc_p->kimage_init_end = (uintptr_t)__init_end;
 	machdesc_p->kimage_stext = (uintptr_t)_text;
 	machdesc_p->kimage_etext = (uintptr_t)_etext;
-	machdesc_p->kimage_stext_real = (uintptr_t)_stext;
-#if defined(CONFIG_ARM64)
-	machdesc_p->kimage_voffset = kimage_voffset;
-#endif
+	machdesc_p->kimage_srodata = (uintptr_t)__start_rodata;
+	machdesc_p->kimage_erodata = (uintptr_t)__init_begin;
 	machdesc_p->kimage_sdata = (uintptr_t)_sdata;
 	machdesc_p->kimage_edata = (uintptr_t)_edata;
 

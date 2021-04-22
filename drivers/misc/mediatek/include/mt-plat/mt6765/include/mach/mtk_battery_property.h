@@ -17,12 +17,12 @@
 /* customize */
 #define DIFFERENCE_FULLOCV_ITH	200	/* mA */
 #define MTK_CHR_EXIST 1
-#define KEEP_100_PERCENT 1
+#define KEEP_100_PERCENT 2
 #define R_FG_VALUE	10				/* mOhm */
 #define EMBEDDED_SEL 1
 #define PMIC_SHUTDOWN_CURRENT 20	/* 0.01 mA */
 #define FG_METER_RESISTANCE	75
-#define CAR_TUNE_VALUE	100 /*1.00 */
+#define CAR_TUNE_VALUE	101 /*1.00 */
 #define NO_BAT_TEMP_COMPENSATE 0
 /* NO_BAT_TEMP_COMPENSATE 1 = don't need bat_temper compensate, */
 /* but fg_meter_resistance still use for SWOCV */
@@ -33,28 +33,14 @@
 /* enable that uisoc = 1 and wait xmins then shutdown */
 #define SHUTDOWN_GAUGE1_XMINS 1
 /* define Xmins to shutdown*/
-#define SHUTDOWN_1_TIME	30
+#define SHUTDOWN_1_TIME	2
 
-#define SHUTDOWN_GAUGE1_VBAT_EN 1
+#define SHUTDOWN_GAUGE1_VBAT_EN 0
 #define SHUTDOWN_GAUGE1_VBAT 34000
 
 #define SHUTDOWN_GAUGE0_VOLTAGE 34000
 
 #define POWERON_SYSTEM_IBOOT 500	/* mA */
-
-/*
- * LOW_TEMP_MODE = 0
- *	disable LOW_TEMP_MODE
- * LOW_TEMP_MODE = 1
- *	if battery temperautre < LOW_TEMP_MODE_TEMP
- *	when bootup , force C mode
- * LOW_TEMP_MODE = 2
- *	if battery temperautre < LOW_TEMP_MODE_TEMP
- *	force C mode
- */
-#define LOW_TEMP_MODE 0
-#define LOW_TEMP_MODE_TEMP 0
-
 
 #define D0_SEL 0	/* not implement */
 #define AGING_SEL 0	/* not implement */
@@ -69,7 +55,7 @@
 #define QMAX_SEL 1
 #define IBOOT_SEL 0
 #define SHUTDOWN_SYSTEM_IBOOT 15000	/* 0.1mA */
-#define PMIC_MIN_VOL 34000
+#define PMIC_MIN_VOL 33500
 
 /*ui_soc related */
 #define DIFFERENCE_FULL_CV 1000 /*0.01%*/
@@ -84,7 +70,6 @@
 #define CHARGE_TRACKING_TIME 60
 #define DIFFERENCE_FULLOCV_VTH	1000	/* 0.1mV */
 #define CHARGE_PSEUDO_FULL_LEVEL 9000
-#define FULL_TRACKING_BAT_INT2_MULTIPLY 1
 
 /* pre tracking */
 #define FG_PRE_TRACKING_EN 1
@@ -123,11 +108,7 @@
 #define SWOCV_OLDOCV_DIFF	300
 #define SWOCV_OLDOCV_DIFF_CHR	800
 #define VBAT_OLDOCV_DIFF	1000
-#define SWOCV_OLDOCV_DIFF_EMB	1000	/* 100mV */
-
-#define VIR_OLDOCV_DIFF_EMB	10000	/* 1000mV */
-#define VIR_OLDOCV_DIFF_EMB_LT	10000	/* 1000mV */
-#define VIR_OLDOCV_DIFF_EMB_TMP	5
+#define SWOCV_OLDOCV_DIFF_EMB	1000
 
 #define TNEW_TOLD_PON_DIFF	5
 #define TNEW_TOLD_PON_DIFF2	15
@@ -196,18 +177,12 @@
 
 #define SHUTDOWN_CONDITION_LOW_BAT_VOLT
 #define LOW_TEMP_DISABLE_LOW_BAT_SHUTDOWN 1
-#define LOW_TEMP_THRESHOLD 5
 
 #define BATTERY_TMP_TO_DISABLE_GM30 -50
 #define BATTERY_TMP_TO_DISABLE_NAFG -35
 #define DEFAULT_BATTERY_TMP_WHEN_DISABLE_NAFG 25
 #define BATTERY_TMP_TO_ENABLE_NAFG -20
 /* #define GM30_DISABLE_NAFG */
-
-#define POWER_ON_CAR_CHR	5
-#define POWER_ON_CAR_NOCHR	-35
-
-#define SHUTDOWN_CAR_RATIO	1
 
 
 #define MULTI_TEMP_GAUGE0 1	/* different temp using different gauge 0% */
@@ -245,10 +220,10 @@
 
 /* using voltage to limit uisoc in 1% case */
 /* UI_LOW_LIMIT_VTH0=36000 means 3.6v */
-#define UI_LOW_LIMIT_EN 0
+#define UI_LOW_LIMIT_EN 1
 
-#define UI_LOW_LIMIT_SOC0 500
-#define UI_LOW_LIMIT_VTH0 36000
+#define UI_LOW_LIMIT_SOC0 400
+#define UI_LOW_LIMIT_VTH0 35500
 
 #define UI_LOW_LIMIT_SOC1 400
 #define UI_LOW_LIMIT_VTH1 35500
@@ -256,11 +231,11 @@
 #define UI_LOW_LIMIT_SOC2 300
 #define UI_LOW_LIMIT_VTH2 35000
 
-#define UI_LOW_LIMIT_SOC3 200
-#define UI_LOW_LIMIT_VTH3 34500
+#define UI_LOW_LIMIT_SOC3 300
+#define UI_LOW_LIMIT_VTH3 35000
 
-#define UI_LOW_LIMIT_SOC4 100
-#define UI_LOW_LIMIT_VTH4 34000
+#define UI_LOW_LIMIT_SOC4 200
+#define UI_LOW_LIMIT_VTH4 34500
 
 #define UI_LOW_LIMIT_TIME 99999
 

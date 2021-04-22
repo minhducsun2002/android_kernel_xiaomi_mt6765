@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 MediaTek Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -1814,46 +1815,13 @@ static void read_volt_from_VOP(struct eem_det *det)
 			(temp >> 16) & 0xff;
 		det->volt_tbl[7 * ((det->num_freq_tbl + 7) / 8)] =
 			(temp >> 24) & 0xff;
-
-		if ((det->num_freq_tbl > 8) && (ref_idx > 0)) {
-			for (i = 0; i <= ref_idx; i++) { /* i < 8 */
-				for (j = 1; j < step; j++) {
-					if (i < ref_idx) {
-						det->volt_tbl
-							[((i + 0) * step) + j] =
-							interpolate(
-						det->freq_tbl[((i + 0) * step)],
-						det->freq_tbl[((i + 1) * step)],
-						det->volt_tbl[((i + 0) * step)],
-						det->volt_tbl[((i + 1) * step)],
-						det->freq_tbl
-						[((i + 0) * step) + j]);
-					} else {
-						det->volt_tbl
-							[((i + 0) * step) + j] =
-						clamp(
-							interpolate(
-						det->freq_tbl[((i - 1) * step)],
-						det->freq_tbl[((i + 0) * step)],
-						det->volt_tbl[((i - 1) * step)],
-						det->volt_tbl[((i + 0) * step)],
-						det->freq_tbl
-						[((i + 0) * step) + j]),
-							det->VMIN,
-							det->VMAX
-						);
-					}
-				}
-			}
-		} /* if (NR_FREQ > 8)*/
-
 	}
 #else
 	temp = eem_read(EEM_VOP30);
 	/* eem_debug("read(EEM_VOP30) = 0x%08X\n", temp); */
 	/* EEM_VOP30=>pmic value */
 	det->volt_tbl[0] = (temp & 0xff);
-	det->volt_tbl[1 * ((det->num_freq_tbl + 7) / 8)] = (temp >> 8)	& 0xff;
+	det->volt_tbl[1 * ((det->num_freq_tbl + 7) / 8)] = (temp >> 8)  & 0xff;
 	det->volt_tbl[2 * ((det->num_freq_tbl + 7) / 8)] = (temp >> 16) & 0xff;
 	det->volt_tbl[3 * ((det->num_freq_tbl + 7) / 8)] = (temp >> 24) & 0xff;
 
@@ -1861,16 +1829,16 @@ static void read_volt_from_VOP(struct eem_det *det)
 	/* eem_debug("read(EEM_VOP74) = 0x%08X\n", temp); */
 	/* EEM_VOP74=>pmic value */
 	det->volt_tbl[4 * ((det->num_freq_tbl + 7) / 8)] = (temp & 0xff);
-	det->volt_tbl[5 * ((det->num_freq_tbl + 7) / 8)] = (temp >> 8)	& 0xff;
+	det->volt_tbl[5 * ((det->num_freq_tbl + 7) / 8)] = (temp >> 8)  & 0xff;
 	det->volt_tbl[6 * ((det->num_freq_tbl + 7) / 8)] = (temp >> 16) & 0xff;
 	det->volt_tbl[7 * ((det->num_freq_tbl + 7) / 8)] = (temp >> 24) & 0xff;
+#endif
 
 	if ((det->num_freq_tbl > 8) && (ref_idx > 0)) {
 		for (i = 0; i <= ref_idx; i++) { /* i < 8 */
 			for (j = 1; j < step; j++) {
 				if (i < ref_idx) {
-					det->volt_tbl
-						[((i + 0) * step) + j] =
+					det->volt_tbl[((i + 0) * step) + j] =
 						interpolate(
 					det->freq_tbl[((i + 0) * step)],
 					det->freq_tbl[((i + 1) * step)],
@@ -1879,8 +1847,7 @@ static void read_volt_from_VOP(struct eem_det *det)
 					det->freq_tbl[((i + 0) * step) + j]
 						);
 				} else {
-					det->volt_tbl
-						[((i + 0) * step) + j] =
+					det->volt_tbl[((i + 0) * step) + j] =
 					clamp(
 						interpolate(
 					det->freq_tbl[((i - 1) * step)],
@@ -1896,7 +1863,6 @@ static void read_volt_from_VOP(struct eem_det *det)
 			}
 		}
 	} /* if (NR_FREQ > 8)*/
-#endif
 }
 
 static inline void handle_init02_isr(struct eem_det *det)
@@ -2798,31 +2764,13 @@ static int eem_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int eem_suspend(void)
+static int eem_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct eem_det *det;
-
-	eem_error("Start EEM suspend\n");
-
-	for_each_det(det) {
-		if (HAS_FEATURE(det, FEA_INIT02) &&
-			det->ctrl_id <= EEM_CTRL_CCI) {
-			unsigned long flag;
-
-			mt_ptp_lock(&flag);
-			memcpy(det->volt_tbl, det->volt_tbl_init2,
-			sizeof(det->volt_tbl_init2));
-			eem_set_eem_volt(det);
-			mt_ptp_unlock(&flag);
-		}
-	}
-
 	return 0;
 }
 
-static int eem_resume(void)
+static int eem_resume(struct platform_device *pdev)
 {
-	eem_error("Start EEM resume\n");
 	eem_init02(__func__);
 
 	return 0;
@@ -2840,12 +2788,12 @@ static struct platform_driver eem_driver = {
 	.remove	 = NULL,
 	.shutdown   = NULL,
 	.probe	  = eem_probe,
-	.suspend	= NULL,
-	.resume	 = NULL,
+	.suspend	= eem_suspend,
+	.resume	 = eem_resume,
 	.driver	 = {
-	.name   = "mt-eem",
+		.name   = "mt-eem",
 #ifdef CONFIG_OF
-	.of_match_table = mt_eem_of_match,
+		.of_match_table = mt_eem_of_match,
 #endif
 	},
 };
@@ -3497,28 +3445,6 @@ unsigned int get_efuse_status(void)
 {
 	return eem_checkEfuse;
 }
-
-#ifdef CONFIG_PM
-static int eem_pm_event(struct notifier_block *notifier, unsigned long pm_event,
-			void *unused)
-{
-	switch (pm_event) {
-	case PM_SUSPEND_PREPARE:
-		eem_suspend();
-		return NOTIFY_DONE;
-	case PM_POST_SUSPEND:
-		eem_resume();
-		return NOTIFY_DONE;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block eem_pm_notifier_func = {
-	.notifier_call = eem_pm_event,
-	.priority = 0,
-};
-#endif /* CONFIG_PM */
-
 /*
  * Module driver
  */
@@ -3563,13 +3489,6 @@ static int __init eem_init(void)
 		FUNC_EXIT(FUNC_LV_MODULE);
 		return err;
 	}
-#ifdef CONFIG_PM
-	err = register_pm_notifier(&eem_pm_notifier_func);
-	if (err) {
-		eem_debug("Failed to register PM notifier.\n");
-		return err;
-	}
-#endif /* CONFIG_PM */
 
 	return 0;
 }
