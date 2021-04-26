@@ -78,6 +78,13 @@ static struct charger_manager *pinfo;
 static struct list_head consumer_head = LIST_HEAD_INIT(consumer_head);
 static DEFINE_MUTEX(consumer_mutex);
 
+extern int r_resistance_id;
+static int node_flag = 0;
+
+static struct charger_manager *g_info;
+bool charging_enable = true;
+bool charger_rst_enable = true;
+extern int charger_dev_enable_rst(struct charger_device *chg_dev, bool en);
 
 bool is_power_path_supported(void)
 {
@@ -114,8 +121,13 @@ void BATTERY_SetUSBState(int usb_state_value)
 		} else {
 			chr_err("%s Success! Set %d\n", __func__,
 				usb_state_value);
-			if (pinfo)
+			if (pinfo) {
 				pinfo->usb_state = usb_state_value;
+#ifndef WT_COMPILE_FACTORY_VERSION
+				chr_err("Wake up charger\n");
+				_wake_up_charger(pinfo);
+#endif
+			}
 		}
 	}
 }
@@ -1042,6 +1054,36 @@ static ssize_t store_charger_log_level(struct device *dev,
 static DEVICE_ATTR(charger_log_level, 0664, show_charger_log_level,
 		store_charger_log_level);
 
+static ssize_t store_charger_enable_rst(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	int ret, val = 0;
+	struct charger_manager *pinfo = dev->driver_data;
+
+	if (buf != NULL && size != 0) {
+		val = (int)(*buf - '0');
+		if ((0 == val) || (1 == val)) {
+			charger_rst_enable = val;
+			ret = charger_dev_enable_rst(pinfo->chg1_dev, val);
+			if (ret < 0)
+				return ret;
+		} else {
+			chr_err("%s:val %c is invaild!\n", __func__, *buf);
+			return -ENOTSUPP;
+		}
+	}
+	return size;
+}
+
+static ssize_t show_charger_enable_rst(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", charger_rst_enable);
+}
+
+static DEVICE_ATTR(charger_enable_rst, 0664, show_charger_enable_rst,
+		store_charger_enable_rst);
+
 static ssize_t show_pdc_max_watt_level(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -1130,6 +1172,74 @@ int charger_manager_notifier(struct charger_manager *info, int event)
 	return srcu_notifier_call_chain(&info->evt_nh, event, NULL);
 }
 
+static ssize_t show_StopCharging_Test(struct device *dev,struct device_attribute *attr, char *buf)
+{
+	bool charging_enable = false;
+	_charger_manager_enable_charging(g_info->chg1_consumer,
+						0, charging_enable);
+	 charger_dev_enable_hz(g_info->chg1_dev, true);
+	return sprintf(buf, "chr=%d\n", charging_enable );
+}
+
+static ssize_t store_StopCharging_Test(struct device *dev,struct device_attribute *attr, const char *buf, size_t size)
+{
+	return -1;
+}
+static DEVICE_ATTR(StopCharging_Test, 0664, show_StopCharging_Test, store_StopCharging_Test);
+
+static ssize_t show_StartCharging_Test(struct device *dev,struct device_attribute *attr, char *buf)
+{
+	bool charging_enable = true;
+	_charger_manager_enable_charging(g_info->chg1_consumer,
+						0, charging_enable);
+	charger_dev_enable_hz(g_info->chg1_dev, false);
+	return sprintf(buf, "chr=%d\n", charging_enable);
+}
+static ssize_t store_StartCharging_Test(struct device *dev,struct device_attribute *attr, const char *buf, size_t size)
+{
+	return -1;
+}
+static DEVICE_ATTR(StartCharging_Test, 0664, show_StartCharging_Test, store_StartCharging_Test);
+
+static ssize_t show_charging_enable(struct device *dev,struct device_attribute *attr, char *buf)
+{
+	printk("show charging enable  %d\n",charging_enable);
+	return sprintf(buf, "chr=%d\n", charging_enable);
+}
+static ssize_t store_charging_enable(struct device *dev,struct device_attribute *attr, const char *buf, size_t size)
+{
+	signed int temp;
+
+	if (kstrtoint(buf, 10, &temp) == 0) {
+		if(temp == 0){ //stop charging
+			 charging_enable = false;
+			_charger_manager_enable_charging(g_info->chg1_consumer,
+								0, false);
+			charger_dev_enable_hz(g_info->chg1_dev, true);
+		}else{//start charging
+			 charging_enable = true;
+			_charger_manager_enable_charging(g_info->chg1_consumer,
+								0, true);
+			charger_dev_enable_hz(g_info->chg1_dev, false);
+		}
+	}
+    	return size;
+}
+static DEVICE_ATTR(charging_enable, 0664, show_charging_enable, store_charging_enable);
+
+
+static ssize_t show_resistance_id(struct device *dev,struct device_attribute *attr, char *buf)
+{
+	printk("r_resistance_id = %d\n",r_resistance_id);
+	return sprintf(buf, "%d\n", r_resistance_id);
+}
+static ssize_t store_resistance_id(struct device *dev,struct device_attribute *attr, const char *buf, size_t size)
+{
+	return -1;
+}
+
+static DEVICE_ATTR(resistance_id, 0664, show_resistance_id, store_resistance_id);
+
 int charger_psy_event(struct notifier_block *nb, unsigned long event, void *v)
 {
 	struct charger_manager *info =
@@ -1152,6 +1262,14 @@ int charger_psy_event(struct notifier_block *nb, unsigned long event, void *v)
 					info->battery_temp,
 					mt_get_charger_type());
 			}
+		}
+
+		if (node_flag == 0) {
+			ret = device_create_file(&psy->dev, &dev_attr_StopCharging_Test);//stop charging
+			ret = device_create_file(&psy->dev, &dev_attr_StartCharging_Test);
+			ret = device_create_file(&psy->dev, &dev_attr_charging_enable);
+			ret = device_create_file(&psy->dev, &dev_attr_resistance_id);
+			node_flag = 1;
 		}
 	}
 
@@ -1188,6 +1306,14 @@ void mtk_charger_int_handler(void)
 static int mtk_charger_plug_in(struct charger_manager *info,
 				enum charger_type chr_type)
 {
+#ifndef WT_COMPILE_FACTORY_VERSION
+	if (((mt_get_charger_type() == STANDARD_HOST) || (mt_get_charger_type() == CHARGING_HOST)) &&
+			info->usb_state == USB_SUSPEND) {
+		chr_err("%s; USB is in suspend state, skip\n", __func__);
+		 return 0;
+	}
+#endif
+
 	info->chr_type = chr_type;
 	info->charger_thread_polling = true;
 
@@ -1212,12 +1338,26 @@ static int mtk_charger_plug_out(struct charger_manager *info)
 	struct charger_data *pdata2 = &info->chg2_data;
 
 	chr_err("%s\n", __func__);
+
+#ifndef WT_COMPILE_FACTORY_VERSION
+	if ((info->chr_type == STANDARD_HOST) ||(info->chr_type == CHARGING_HOST ))
+		charger_dev_enable_hz(info->chg1_dev, false);
+#endif
+
 	info->chr_type = CHARGER_UNKNOWN;
 	info->charger_thread_polling = false;
 
 	pdata1->disable_charging_count = 0;
 	pdata1->input_current_limit_by_aicl = -1;
 	pdata2->disable_charging_count = 0;
+
+#ifndef WT_COMPILE_FACTORY_VERSION
+	if (((mt_get_charger_type() == STANDARD_HOST)||(mt_get_charger_type() == CHARGING_HOST)) &&
+			info->usb_state == USB_SUSPEND) {
+		chr_err("%s; USB is in suspend state, skip\n", __func__);
+		return 0;
+	}
+#endif
 
 	if (info->plug_out != NULL)
 		info->plug_out(info);
@@ -1490,6 +1630,21 @@ static void charger_check_status(struct charger_manager *info)
 
 	temperature = info->battery_temp;
 	thermal = &info->thermal;
+
+	if(temperature > 0 && temperature <= 5) {
+		info->data.ac_charger_current = 500000;
+		info->data.ac_charger_input_current = 400000;
+	}
+	else if(temperature > 5 && temperature <= 15 ) {
+		info->data.ac_charger_current = 800000;
+		info->data.ac_charger_input_current = 800000;
+	}
+	else if(temperature > 15 && temperature <= info->thermal.max_charge_temp) {
+		info->data.ac_charger_current = 1100000;
+		info->data.ac_charger_input_current = 1100000;
+	}
+	printk("battery temperature is %d,charging current set %d\n",
+			temperature,info->data.ac_charger_current);
 
 	if (info->enable_sw_jeita == true) {
 		do_sw_jeita_state_machine(info);
@@ -2838,6 +2993,10 @@ static int mtk_charger_setup_files(struct platform_device *pdev)
 	if (ret)
 		goto _out;
 
+	ret = device_create_file(&(pdev->dev), &dev_attr_charger_enable_rst);
+	if (ret)
+		goto _out;
+
 	ret = device_create_file(&(pdev->dev), &dev_attr_pdc_max_watt);
 	if (ret)
 		goto _out;
@@ -3142,6 +3301,7 @@ static int mtk_charger_probe(struct platform_device *pdev)
 	info->chg2_data.thermal_input_current_limit = -1;
 
 	info->sw_jeita.error_recovery_flag = true;
+	g_info = info;
 
 	mtk_charger_init_timer(info);
 

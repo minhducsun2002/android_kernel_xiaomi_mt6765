@@ -67,6 +67,7 @@ struct mt6357_gauge {
 
 #define VOLTAGE_FULL_RANGE    1800
 #define ADC_PRECISE           32768	/* 12 bits */
+#define SWCHR_POWER_PATH
 
 enum {
 	FROM_SW_OCV = 1,

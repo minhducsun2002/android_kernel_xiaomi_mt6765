@@ -23,6 +23,11 @@ int last_als_report_data = -1;
 #define AAL_DELAY 200000000
 
 static struct alsps_init_info *alsps_init_list[MAX_CHOOSE_ALSPS_NUM] = {0};
+atomic_t prox_state;
+enum ProxState {
+	PROX_STATE_NEAR,
+	PROX_STATE_FAR,
+};
 
 int als_data_report(int value, int status)
 {
@@ -123,6 +128,7 @@ int ps_data_report(int value, int status)
 	pr_notice("[ALS/PS]%s! %d, %d\n", __func__, value, status);
 	event.flush_action = DATA_ACTION;
 	event.word[0] = value + 1;
+	atomic_set(&prox_state, value);
 	event.status = status;
 	err = sensor_input_event(alsps_context_obj->ps_mdev.minor, &event);
 	return err;
@@ -283,6 +289,7 @@ static struct alsps_context *alsps_context_alloc_object(void)
 		pr_err("Alloc alsps object error!\n");
 		return NULL;
 	}
+	atomic_set(&prox_state, PROX_STATE_FAR);
 	atomic_set(&obj->delay_als,
 		   200); /*5Hz, set work queue delay time 200ms */
 	atomic_set(&obj->delay_ps,
@@ -735,6 +742,8 @@ static ssize_t ps_store_active(struct device *dev,
 #else
 	err = ps_enable_and_batch();
 #endif
+	atomic_set(&prox_state, PROX_STATE_FAR);
+	ps_data_report(1,3);
 err_out:
 	mutex_unlock(&alsps_context_obj->alsps_op_mutex);
 	pr_debug("%s done\n", __func__);
@@ -780,6 +789,8 @@ static ssize_t ps_store_batch(struct device *dev, struct device_attribute *attr,
 #else
 	err = ps_enable_and_batch();
 #endif
+	pr_debug("prox_state:%d\n", atomic_read(&prox_state));
+	ps_data_report(atomic_read(&prox_state), SENSOR_STATUS_ACCURACY_HIGH);
 	mutex_unlock(&alsps_context_obj->alsps_op_mutex);
 	pr_debug("%s done: %d\n", __func__, cxt->is_ps_batch_enable);
 	if (err)

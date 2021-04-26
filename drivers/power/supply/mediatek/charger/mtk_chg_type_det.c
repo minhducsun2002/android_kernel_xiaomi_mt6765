@@ -248,6 +248,7 @@ static int mt_ac_get_property(struct power_supply *psy,
 	return 0;
 }
 
+extern int usb_host_id;
 static int mt_usb_get_property(struct power_supply *psy,
 	enum power_supply_property psp, union power_supply_propval *val)
 {
@@ -267,6 +268,9 @@ static int mt_usb_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
 		val->intval = 5000000;
 		break;
+	case POWER_SUPPLY_PROP_MICO_USB_ID:
+		val->intval = usb_host_id;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -276,6 +280,7 @@ static int mt_usb_get_property(struct power_supply *psy,
 
 static enum power_supply_property mt_charger_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_CHARGE_TYPE,
 };
 
 static enum power_supply_property mt_ac_properties[] = {
@@ -286,6 +291,7 @@ static enum power_supply_property mt_usb_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX,
+	POWER_SUPPLY_PROP_MICO_USB_ID,
 };
 
 static void tcpc_power_off_work_handler(struct work_struct *work)
@@ -568,7 +574,7 @@ static int mt_charger_resume(struct device *dev)
 
 	power_supply_changed(mt_charger->chg_psy);
 	power_supply_changed(mt_charger->ac_psy);
-	power_supply_changed(mt_charger->usb_psy);
+	/* power_supply_changed(mt_charger->usb_psy); */
 
 	return 0;
 }

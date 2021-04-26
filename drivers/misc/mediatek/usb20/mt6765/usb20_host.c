@@ -231,6 +231,7 @@ u32 typec_control;
 module_param(typec_control, int, 0644);
 static bool typec_req_host;
 static bool iddig_req_host;
+int usb_host_id = 0;
 
 static void do_host_work(struct work_struct *data);
 static void issue_host_work(int ops, int delay, bool on_st)
@@ -690,10 +691,14 @@ static irqreturn_t mt_usb_ext_iddig_int(int irq, void *dev_id)
 	DBG(0, "id pin assert, %s\n", iddig_req_host ?
 			"connect" : "disconnect");
 
-	if (iddig_req_host)
+	if (iddig_req_host) {
 		mt_usb_host_connect(0);
-	else
+		usb_host_id = 1;
+	} else {
 		mt_usb_host_disconnect(0);
+		usb_host_id = 0;
+	}
+
 	disable_irq_nosync(iddig_eint_num);
 	return IRQ_HANDLED;
 }

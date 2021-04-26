@@ -274,6 +274,30 @@ static void swchg_select_charging_current_limit(struct charger_manager *info)
 		}
 	}
 
+#ifndef WT_COMPILE_FACTORY_VERSION
+	if(info->chr_type == STANDARD_HOST ||info->chr_type == CHARGING_HOST){
+		chr_err("chr_type =%d,usb_state =%d\n",info->chr_type,info->usb_state);
+		if (info->usb_state == USB_SUSPEND){
+			pr_debug("USB_SUSPEND,PC into suspend\n");
+			charger_dev_enable_hz(info->chg1_dev, true);
+			pdata->input_current_limit = 0;
+			pdata->charging_current_limit = 0;
+			charger_manager_notifier(info, CHARGER_NOTIFY_STOP_CHARGING);
+		}else {
+			pr_debug("PC nosuspend and charging\n");
+			charger_dev_enable_hz(info->chg1_dev, false);
+			if(info->chr_type == STANDARD_HOST) {
+				pdata->input_current_limit = info->data.usb_charger_current;;
+				pdata->charging_current_limit = info->data.usb_charger_current;
+			} else {
+				pdata->input_current_limit = info->data.charging_host_charger_current;
+				pdata->charging_current_limit = info->data.charging_host_charger_current;
+			}
+			charger_manager_notifier(info, CHARGER_NOTIFY_START_CHARGING);
+		}
+	}
+#endif
+
 	if (pdata->thermal_charging_current_limit != -1) {
 		if (pdata->thermal_charging_current_limit <
 		    pdata->charging_current_limit)
@@ -583,6 +607,7 @@ int mtk_switch_chr_err(struct charger_manager *info)
 int mtk_switch_chr_full(struct charger_manager *info)
 {
 	bool chg_done = false;
+	int chr_type;
 	struct switch_charging_alg_data *swchgalg = info->algorithm_data;
 
 	swchgalg->total_charging_time = 0;
@@ -596,7 +621,8 @@ int mtk_switch_chr_full(struct charger_manager *info)
 	swchg_select_cv(info);
 	info->polling_interval = CHARGING_FULL_INTERVAL;
 	charger_dev_is_charging_done(info->chg1_dev, &chg_done);
-	if (!chg_done) {
+	chr_type = mt_get_charger_type();
+	if (chr_type && !chg_done) {
 		swchgalg->state = CHR_CC;
 		charger_dev_do_event(info->chg1_dev, EVENT_RECHARGE, 0);
 		mtk_pe20_set_to_check_chr_type(info, true);

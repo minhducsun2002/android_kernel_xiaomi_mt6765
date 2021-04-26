@@ -87,6 +87,7 @@
 /* global variable */
 /* ============================================================ */
 struct mtk_battery gm;
+int r_resistance_id;
 
 /* ============================================================ */
 /* gauge hal interface */
@@ -356,6 +357,9 @@ bool __attribute__ ((weak)) mt_usb_is_device(void)
 /* ============================================================ */
 /* custom setting */
 /* ============================================================ */
+static char battery_name[][27] = {"xiaomi-atl-4v4-3000mah","xiaomi-desay-4v4-3000mah","xiaomi-tws-4v4-3000mah","xiaomi-sunwoda-4v4-3000mah"};
+static int resistance_id[4] = {68000,82000,200000,330000};
+
 #ifdef MTK_GET_BATTERY_ID_BY_AUXADC
 void fgauge_get_profile_id(void)
 {
@@ -386,8 +390,15 @@ void fgauge_get_profile_id(void)
 	}
 
 	bm_debug("[%s]Battery id (%d)\n",
-		__func__,
-		gm.battery_id);
+		__func__, gm.battery_id);
+	bm_debug("[%s]Battery name = %s\n",
+		__func__, battery_name[gm.battery_id]);
+	r_resistance_id = resistance_id[gm.battery_id];
+	bm_debug("[%s]r_resistance_id = %d\n",
+		__func__, r_resistance_id);
+
+	if (gm.battery_id == 3)
+		gm.battery_id = 0;
 }
 #elif defined(MTK_GET_BATTERY_ID_BY_GPIO)
 void fgauge_get_profile_id(void)
