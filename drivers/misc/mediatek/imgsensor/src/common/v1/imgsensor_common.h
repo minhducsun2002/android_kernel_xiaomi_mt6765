@@ -14,9 +14,10 @@
 #ifndef __IMGSENSOR_COMMON_H__
 #define __IMGSENSOR_COMMON_H__
 
+#ifndef pr_fmt
 #define PREFIX "[imgsensor]"
-
 #define pr_fmt(fmt) PREFIX "[%s] " fmt, __func__
+#endif
 
 #include "kd_camera_feature.h"
 #include "kd_imgsensor_define.h"

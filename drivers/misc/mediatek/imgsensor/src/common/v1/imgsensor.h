@@ -34,6 +34,12 @@ struct IMGSENSOR {
 			(enum IMGSENSOR_SENSOR_IDX sensor_idx, bool enable);
 };
 
+struct match_hardwareinfo{
+	char *psensor_name;
+	char *hardwareinfo_set_name;
+	char *sensor_id;
+};
+
 MINT32
 imgsensor_sensor_open(struct IMGSENSOR_SENSOR *psensor);
 
