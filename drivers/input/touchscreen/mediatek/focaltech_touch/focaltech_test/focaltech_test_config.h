@@ -60,10 +60,10 @@ IC Type Test
 #elif((IC_SERIALS == 0x03) || (IC_SERIALS == 0x04))
 #define FTS_CHIP_TEST_TYPE      FT6X36_TEST
 #else
-#define FTS_CHIP_TEST_TYPE      FT8716_TEST /* for build err */
+#define FTS_CHIP_TEST_TYPE      FT5X46_TEST /* for build err */
 #endif
 
 #else
-#define FTS_CHIP_TEST_TYPE          FT8716_TEST
+#define FTS_CHIP_TEST_TYPE      FT5X46_TEST
 
 #endif

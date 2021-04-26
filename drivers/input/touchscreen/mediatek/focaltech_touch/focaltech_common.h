@@ -132,6 +132,17 @@ struct ts_ic_info {
     struct ft_chip_t ids;
 };
 
+#if FTS_GESTURE_EN
+#define GESTURE_NODE "double_tap_enable"
+#define GESTURE_DATA  "data"
+#define DOUBLE_CLICK 143
+struct gesture_struct
+{
+    int gesture_all_switch;
+    unsigned long gesture_mask;
+};
+#endif
+
 /*****************************************************************************
 * DEBUG function define here
 *****************************************************************************/

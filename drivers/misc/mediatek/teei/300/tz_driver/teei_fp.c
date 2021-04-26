@@ -20,6 +20,14 @@
 
 unsigned long fp_buff_addr;
 
+#if defined(CONFIG_MTK_FINGERPRINT_SUPPORT)
+extern bool goodix_fp_exist;
+extern bool fpc1022_fp_exist;
+#else
+bool goodix_fp_exist = false;
+bool fpc1022_fp_exist = false;
+#endif
+
 unsigned long create_fp_fdrv(int buff_size)
 {
 	unsigned long addr = 0;
@@ -60,6 +68,22 @@ int send_fp_command(void *buffer, unsigned long size)
 		}
 		context_initialized = 1;
 	}
+
+	if (fpc1022_fp_exist) {
+		IMSG_ERROR("It's FPC chip vendor!\n");
+		uuid_fp.timeLow = 0x7778c03f;
+	} else if (goodix_fp_exist) {
+		IMSG_ERROR("It's Goodix chip vendor!\n");
+		uuid_fp.timeLow = 0x8888c03f;
+	} else {
+#if defined(CONFIG_MTK_FINGERPRINT_SUPPORT)
+		IMSG_ERROR("Can't find fp sensor\n");
+#else
+		IMSG_ERROR("Do not support fp\n");
+#endif
+		goto release_2;
+	}
+
 	ret = ut_pf_gp_transfer_data(&context, &uuid_fp, 1, buffer, size);
 	if (ret) {
 		IMSG_ERROR("Failed to transfer data,err: %x", ret);

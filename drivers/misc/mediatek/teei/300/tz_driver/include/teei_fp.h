@@ -15,6 +15,13 @@
 #ifndef TEEI_FP_H
 #define TEEI_FP_H
 
+enum {
+	TEEI_FP_NONE = 0,
+	TEEI_FP_VENDOR_FPC,
+	TEEI_FP_VEMDOR_GOODIX,
+	TEEI_FP_MAX
+};
+
 extern unsigned long fp_buff_addr;
 extern struct TEEC_UUID uuid_fp;
 
