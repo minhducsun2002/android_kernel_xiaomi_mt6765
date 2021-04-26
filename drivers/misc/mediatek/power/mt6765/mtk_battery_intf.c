@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2017 MediaTek Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -114,9 +113,6 @@ signed int battery_get_uisoc(void)
 
 signed int battery_get_bat_temperature(void)
 {
-	/* need to delete following return!!! */
-	//2020.03.16 longcheer wangbin edit for get proper temp.
-	//return 30;
 	/* TODO */
 	if (is_battery_init_done())
 		return force_get_tbat(true);
