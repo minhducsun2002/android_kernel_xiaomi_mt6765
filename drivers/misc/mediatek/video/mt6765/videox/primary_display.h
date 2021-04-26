@@ -483,6 +483,9 @@ int primary_display_set_scenario(int scenario);
 enum DISP_MODULE_ENUM _get_dst_module_by_lcm(struct disp_lcm_handle *plcm);
 extern void check_mm0_clk_sts(void);
 
+int primary_display_set_cabc(unsigned int enable);
+int primary_display_get_cabc(int *status);
+
 extern unsigned int dump_output;
 extern unsigned int dump_output_comp;
 extern void *composed_buf;

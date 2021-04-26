@@ -1135,6 +1135,9 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 #if defined(ILI9881C_HDP_DSI_VDO_ILITEK_RT5081_EBBG)
 	&ili9881c_hdp_dsi_vdo_ilitek_rt5081_lcm_drv_ebbg,
 #endif
+#if defined(ILI9881C_HDP_DSI_VDO_ILITEK_RT5081_BOE)
+	&ili9881c_hdp_dsi_vdo_ilitek_rt5081_lcm_drv_boe,
+#endif
 #if defined(HX8394F_HD720_DSI_VDO_TIANMA)
 	&hx8394f_hd720_dsi_vdo_tianma_lcm_drv,
 #endif
@@ -1176,6 +1179,9 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 
 #if defined(OPPO_TIANMA_TD4310_FHDP_DSI_VDO_RT5081)
 	&oppo_tianma_td4310_fhdp_dsi_vdo_rt5081_lcm_drv,
+#endif
+#if defined(VIRTUAL_DSI_VDO_DEFAULT)
+	&virtual_dsi_vdo_default,
 #endif
 };
 

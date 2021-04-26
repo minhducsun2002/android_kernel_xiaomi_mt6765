@@ -2195,12 +2195,12 @@ static int _DC_switch_to_DL_fast(int block)
 	/* copy ovl config from DC handle to DL handle */
 	memcpy(data_config_dl->ovl_config, data_config_dc->ovl_config,
 		sizeof(data_config_dl->ovl_config));
-	memcpy(&data_config_dl->rsz_enable, &data_config_dc->rsz_enable,
+	/* memcpy(&data_config_dl->rsz_enable, &data_config_dc->rsz_enable,
 		sizeof(data_config_dc->rsz_enable));
 	memcpy(&data_config_dl->rsz_src_roi, &data_config_dc->rsz_src_roi,
 		sizeof(data_config_dc->rsz_src_roi));
 	memcpy(&data_config_dl->rsz_dst_roi, &data_config_dc->rsz_dst_roi,
-		sizeof(data_config_dc->rsz_dst_roi));
+		sizeof(data_config_dc->rsz_dst_roi)); */
 	/* before power off, we should wait wdma0_eof first!!! */
 	_cmdq_flush_config_handle_mira(pgc->cmdq_handle_ovl1to2_config, 1);
 	cmdqRecReset(pgc->cmdq_handle_ovl1to2_config);
@@ -6148,7 +6148,7 @@ static void _ovl_yuv_throughput_freq_request
 
 static void _ovl_sbch_invalid_config(struct cmdqRecStruct *cmdq_handle)
 {
-	int i = 0;
+	int i = 0, j = 0;
 	CMDQ_VARIABLE sbch_invalid_status;
 	CMDQ_VARIABLE result;
 	CMDQ_VARIABLE shift;
@@ -6172,8 +6172,8 @@ static void _ovl_sbch_invalid_config(struct cmdqRecStruct *cmdq_handle)
 		/* If SBCH layer status is invalid, disable sbch_tran_en */
 
 		/* SBCH phy invalid status judgement */
-		for (i = 0; i < OVL_MODULE_MAX_PHY_LAYER; i++) {
-			cmdq_op_assign(cmdq_handle, &shift, (1 << (16 + i)));
+		for (j = 0; j < OVL_MODULE_MAX_PHY_LAYER; j++) {
+			cmdq_op_assign(cmdq_handle, &shift, (1 << (16 + j)));
 
 			cmdq_op_and(cmdq_handle, &result,
 						sbch_invalid_status, shift);
@@ -6183,15 +6183,15 @@ static void _ovl_sbch_invalid_config(struct cmdqRecStruct *cmdq_handle)
 			cmdq_op_write_reg(cmdq_handle,
 				disp_addr_convert(DISP_REG_OVL_SBCH
 					+ ovl_base),
-				0, (1 << (16 + (i * 4))));
+				0, (1 << (16 + (j * 4))));
 
 			cmdq_op_end_if(cmdq_handle);
 
 		}
 
 		/* SBCH ext invalid status judgement */
-		for (i = 0; i < OVL_MODULE_MAX_EXT_LAYER; i++) {
-			cmdq_op_assign(cmdq_handle, &shift, (1 << (20 + i)));
+		for (j = 0; j < OVL_MODULE_MAX_EXT_LAYER; j++) {
+			cmdq_op_assign(cmdq_handle, &shift, (1 << (20 + j)));
 
 			cmdq_op_and(cmdq_handle, &result,
 						sbch_invalid_status, shift);
@@ -6201,7 +6201,7 @@ static void _ovl_sbch_invalid_config(struct cmdqRecStruct *cmdq_handle)
 			cmdq_op_write_reg(cmdq_handle,
 				disp_addr_convert(DISP_REG_OVL_SBCH_EXT
 					+ ovl_base),
-				0, (1 << (16 + (i * 4))));
+				0, (1 << (16 + (j * 4))));
 
 			cmdq_op_end_if(cmdq_handle);
 		}
@@ -8617,57 +8617,41 @@ unsigned int primary_display_get_option(const char *option)
 
 int primary_display_lcm_ATA(void)
 {
-	struct dsi_cmd_desc cmd_tab[3];
-	unsigned int i;
-	unsigned int ret = 0;
+	enum DISP_STATUS ret = DISP_STATUS_OK;
 
 	DISPFUNC();
-	if (!primary_display_is_video_mode()) {
-		_primary_path_switch_dst_lock();
-		primary_display_esd_check_enable(0);
-		_primary_path_lock(__func__);
-		disp_irq_esd_cust_bycmdq(0);
-		if (pgc->state == 0) {
-			DISPCHECK(
-				"path is already sleep, skip ata lcm read\n");
-			goto done;
-		}
-		ret = disp_lcm_ATA(pgc->plcm);
-		dpmgr_path_start(pgc->dpmgr_handle, CMDQ_DISABLE);
-	} else {
-		memset(&cmd_tab, 0, 3 * sizeof(struct dsi_cmd_desc));
-
-		/*read display power mode*/
-		cmd_tab[0].dtype = 0x0A;
-		cmd_tab[0].payload = vmalloc(4 * sizeof(unsigned char));
-		memset(cmd_tab[0].payload, 0, 4);
-		cmd_tab[0].dlen = 4;
-
-		do_lcm_vdo_lp_read(cmd_tab, 1);
-
-		DISPINFO("read lcm addr:0x%x--dlen:%d\n",
-			cmd_tab[0].dtype, cmd_tab[0].dlen);
-		for (i = 0; i < cmd_tab[0].dlen; i++) {
-			DISPINFO("read lcm addr:0x%x--byte:%d,val:0x%x\n",
-			cmd_tab[0].dtype, i, *(cmd_tab[0].payload + i));
-		}
-
-		if (*(cmd_tab[0].payload) == 0x9C) {
-			DISPINFO("[LCM ATA Check] [0x0A]=0x%02x\n",
-				*(cmd_tab[0].payload));
-			ret = 1;
-		} else {
-			ret = disp_lcm_ATA(pgc->plcm);
-		}
-		vfree(cmd_tab[0].payload);
+	_primary_path_switch_dst_lock();
+	primary_display_esd_check_enable(0);
+	_primary_path_lock(__func__);
+	disp_irq_esd_cust_bycmdq(0);
+	if (pgc->state == 0) {
+		DISPCHECK(
+			"ATA_LCM, primary display path is already sleep, skip\n");
+		goto done;
 	}
+
+	DISPCHECK("dxs [ATA_LCM]primary display path stop[begin]\n");
+	if (primary_display_is_video_mode())
+		dpmgr_path_ioctl(pgc->dpmgr_handle, NULL,
+			DDP_STOP_VIDEO_MODE, NULL);
+
+	DISPCHECK("[ATA_LCM]primary display path stop[end]\n");
+	ret = disp_lcm_ATA(pgc->plcm);
+	dpmgr_path_start(pgc->dpmgr_handle, CMDQ_DISABLE);
+	if (primary_display_is_video_mode()) {
+		/*
+		 * for video mode, we need to force trigger here
+		 * for cmd mode, just set DPREC_EVENT_CMDQ_SET_EVENT_ALLOW when
+		 * trigger loop start
+		 */
+		dpmgr_path_trigger(pgc->dpmgr_handle, NULL, CMDQ_DISABLE);
+	}
+
 done:
-	if (!primary_display_is_video_mode()) {
-		disp_irq_esd_cust_bycmdq(1);
-		_primary_path_unlock(__func__);
-		primary_display_esd_check_enable(1);
-		_primary_path_switch_dst_unlock();
-	}
+	disp_irq_esd_cust_bycmdq(1);
+	_primary_path_unlock(__func__);
+	primary_display_esd_check_enable(1);
+	_primary_path_switch_dst_unlock();
 	return ret;
 }
 
@@ -9539,5 +9523,82 @@ int primary_display_set_scenario(int scenario)
 			ret = primary_display_exit_self_refresh();
 	}
 
+	return ret;
+}
+
+int _set_cabc_by_cmdq(unsigned int enable)
+{
+	int ret = 0;
+	struct cmdqRecStruct *cmdq_handle_cabc = NULL;
+
+	ret = cmdqRecCreate(CMDQ_SCENARIO_PRIMARY_DISP, &cmdq_handle_cabc);
+	DISPDBG("primary cabc, handle=%p\n", cmdq_handle_cabc);
+	if (ret) {
+		DISPWARN("fail to create primary cmdq handle for cabc\n");
+		return -1;
+	}
+
+	if (primary_display_is_video_mode()) {
+		cmdqRecReset(cmdq_handle_cabc);
+		_cmdq_insert_wait_frame_done_token_mira(cmdq_handle_cabc);
+		disp_lcm_set_cabc(pgc->plcm, cmdq_handle_cabc, enable);
+		_cmdq_flush_config_handle_mira(cmdq_handle_cabc, 1);
+		DISPMSG("[BL]_set_backlight_by_cmdq ret=%d\n", ret);
+	} else {
+		cmdqRecReset(cmdq_handle_cabc);
+		cmdqRecWait(cmdq_handle_cabc, CMDQ_SYNC_TOKEN_CABC_EOF);
+		_cmdq_handle_clear_dirty(cmdq_handle_cabc);
+		_cmdq_insert_wait_frame_done_token_mira(cmdq_handle_cabc);
+		disp_lcm_set_backlight(pgc->plcm, cmdq_handle_cabc, enable);
+		cmdqRecSetEventToken(cmdq_handle_cabc,
+			CMDQ_SYNC_TOKEN_CONFIG_DIRTY);
+		cmdqRecSetEventToken(cmdq_handle_cabc,
+			CMDQ_SYNC_TOKEN_CABC_EOF);
+		_cmdq_flush_config_handle_mira(cmdq_handle_cabc, 1);
+		DISPMSG("[BL]_set_backlight_by_cmdq ret=%d\n", ret);
+	}
+	cmdqRecDestroy(cmdq_handle_cabc);
+	cmdq_handle_cabc = NULL;
+	mmprofile_log_ex(ddp_mmp_get_events()->primary_set_bl,
+		MMPROFILE_FLAG_PULSE, 1, 5);
+
+	return ret;
+}
+
+int primary_display_set_cabc(unsigned int enable)
+{
+	int ret = 0;
+	static unsigned int last_status;
+
+	DISPFUNC();
+	_primary_path_switch_dst_lock();
+	_primary_path_lock(__func__);
+	if (pgc->state == DISP_SLEPT) {
+		DISPWARN("Sleep State set CABC invald\n");
+	} else {
+		primary_display_idlemgr_kick(__func__, 0);
+		if (primary_display_cmdq_enabled()) {
+			_set_cabc_by_cmdq(enable);
+			atomic_set(&delayed_trigger_kick, 1);
+		} else {
+			DISPWARN("CAMQ disbaled, not support set CABC\n");
+		}
+		last_status = enable;
+	}
+	_primary_path_unlock(__func__);
+	_primary_path_switch_dst_unlock();
+	return ret;
+}
+
+int primary_display_get_cabc(int *status)
+{
+	int ret = 0;
+
+	if (pgc->state == DISP_SLEPT) {
+		DISPWARN("Sleep State get CABC invald\n");
+	} else {
+		ret = disp_lcm_get_cabc(pgc->plcm, status);
+
+	}
 	return ret;
 }

@@ -81,6 +81,9 @@
 /* 0:MTKFB_AOD_DOZE, 1:MTKFB_AOD_DOZE_SUSPEND */
 #define MTKFB_SET_AOD_POWER_MODE MTK_IOW(28, unsigned int)
 
+#define SYSFS_SET_LCM_CABC_MODE MTK_IOW(29, unsigned int)
+#define SYSFS_GET_LCM_CABC_MODE MTK_IOW(30, unsigned int)
+
 /*error handling*/
 #define MTKFB_META_RESTORE_SCREEN MTK_IOW(101, unsigned long)
 #define MTKFB_ERROR_INDEX_UPDATE_TIMEOUT MTK_IO(103)
@@ -390,6 +393,9 @@ struct mtkfb_device {
 	struct fb_info *fb_info;
 	struct device *dev;
 
+	atomic_t resume_pending;
+	wait_queue_head_t resume_wait_q;
+
 	/* Android native fence support */
 	struct workqueue_struct *update_ovls_wq;
 	struct mutex timeline_lock;
@@ -402,6 +408,8 @@ struct mtkfb_device {
 #endif				/* __KERNEL__ */
 
 extern long hdmi_handle_cmd(unsigned int cmd, unsigned long arg);
+
+int mdss_prim_panel_fb_unblank(int timeout);
 
 #if defined(CONFIG_MACH_MT6797)
 extern unsigned int vramsize;

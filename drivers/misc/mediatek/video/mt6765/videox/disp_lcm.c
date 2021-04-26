@@ -25,6 +25,8 @@
 #include <linux/of.h>
 #endif
 
+unsigned int g_Lcm_Vbias_Level = 0;
+
 /* This macro and arrya is designed for multiple LCM support */
 /* for multiple LCM, we should assign I/F Port id in lcm driver, */
 /* such as DPI0, DSI0/1 */
@@ -1325,9 +1327,10 @@ struct LCM_PARAMS *disp_lcm_get_params(struct disp_lcm_handle *plcm)
 {
 	/* DISPFUNC(); */
 
-	if (_is_lcm_inited(plcm))
+	if (_is_lcm_inited(plcm)) {
+		g_Lcm_Vbias_Level = plcm->params->vbias_level;;
 		return plcm->params;
-	else
+	} else
 		return NULL;
 }
 
@@ -1520,6 +1523,49 @@ int disp_lcm_set_backlight(struct disp_lcm_handle *plcm,
 		lcm_drv->set_backlight_cmdq(handle, level);
 	} else {
 		DISPERR("FATAL ERROR, lcm_drv->set_backlight is null\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int disp_lcm_set_cabc(struct disp_lcm_handle *plcm,
+	void *handle, int enable)
+{
+	struct LCM_DRIVER *lcm_drv = NULL;
+
+	DISPFUNC();
+	if (!_is_lcm_inited(plcm)) {
+		DISPERR("lcm_drv is null\n");
+		return -1;
+	}
+
+	lcm_drv = plcm->drv;
+	if (lcm_drv->set_cabc_cmdq) {
+		lcm_drv->set_cabc_cmdq(handle, enable);
+	} else {
+		DISPERR("FATAL ERROR, lcm_drv->set_cabc_cmdq is null\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int disp_lcm_get_cabc(struct disp_lcm_handle *plcm, int *status)
+{
+	struct LCM_DRIVER *lcm_drv = NULL;
+
+	DISPFUNC();
+	if (!_is_lcm_inited(plcm)) {
+		DISPERR("lcm_drv is null\n");
+		return -1;
+	}
+
+	lcm_drv = plcm->drv;
+	if (lcm_drv->get_cabc_status) {
+		lcm_drv->get_cabc_status(status);
+	} else {
+		DISPERR("FATAL ERROR, lcm_drv->get_cabc_status is null\n");
 		return -1;
 	}
 

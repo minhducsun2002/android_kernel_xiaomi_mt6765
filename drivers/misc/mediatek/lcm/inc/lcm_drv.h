@@ -711,6 +711,11 @@ struct LCM_PARAMS {
 
 	unsigned int hbm_en_time;
 	unsigned int hbm_dis_time;
+
+	unsigned use_gpioID;
+	unsigned gpioID_value;
+
+	unsigned int vbias_level;
 };
 
 
@@ -947,6 +952,9 @@ struct LCM_DRIVER {
 	void (*aod)(int enter);
 	void (*set_aod_area_cmdq)(void *handle, unsigned char *area);
 	int (*get_doze_delay)(void);
+
+	void (*set_cabc_cmdq)(void *handle, unsigned int enable);
+	void (*get_cabc_status)(int *status);
 };
 
 /* LCM Driver Functions */
