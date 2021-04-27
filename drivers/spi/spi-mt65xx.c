@@ -219,18 +219,13 @@ u8 spi_log_status = LOG_CLOSE;
 static ssize_t spi_log_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
-	char buf_temp[50] = { 0 };
-
 	if (buf == NULL) {
 		pr_notice("%s() *buf is NULL\n", __func__);
 		return -EINVAL;
 	}
 
-	snprintf(buf_temp, sizeof(buf_temp), "Now spi log %s.\n",
+	return sprintf(buf, "Now spi log is %s.\n",
 		(spi_log_status == LOG_CLOSE)?"disabled":"enabled");
-	strncat(buf, buf_temp, strlen(buf_temp));
-
-	return strlen(buf);
 }
 
 static ssize_t spi_log_store(struct device *dev, struct device_attribute *attr,

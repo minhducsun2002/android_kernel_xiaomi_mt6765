@@ -191,19 +191,19 @@ unsigned int __spm_output_wake_reason(
 		if (wakesta->wake_misc & WAKE_MISC_PCM_TIMER) {
 			local_ptr = " PCM_TIMER";
 			if ((strlen(buf) + strlen(local_ptr)) < LOG_BUF_SIZE)
-				strncat(buf, local_ptr, strlen(local_ptr));
+				strcat(buf, local_ptr);
 			wr = WR_PCM_TIMER;
 		}
 		if (wakesta->wake_misc & WAKE_MISC_TWAM) {
 			local_ptr = " TWAM";
 			if ((strlen(buf) + strlen(local_ptr)) < LOG_BUF_SIZE)
-				strncat(buf, local_ptr, strlen(local_ptr));
+				strcat(buf, local_ptr);
 			wr = WR_WAKE_SRC;
 		}
 		if (wakesta->wake_misc & WAKE_MISC_CPU_WAKE) {
 			local_ptr = " CPU";
 			if ((strlen(buf) + strlen(local_ptr)) < LOG_BUF_SIZE)
-				strncat(buf, local_ptr, strlen(local_ptr));
+				strcat(buf, local_ptr);
 			wr = WR_WAKE_SRC;
 		}
 	}
@@ -211,8 +211,7 @@ unsigned int __spm_output_wake_reason(
 		if (wakesta->r12 & (1U << i)) {
 			if ((strlen(buf) + strlen(wakesrc_str[i])) <
 				LOG_BUF_SIZE)
-				strncat(buf, wakesrc_str[i],
-					strlen(wakesrc_str[i]));
+				strcat(buf, wakesrc_str[i]);
 
 			wr = WR_WAKE_SRC;
 		}

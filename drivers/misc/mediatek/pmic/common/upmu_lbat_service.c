@@ -295,7 +295,7 @@ int lbat_user_register(struct lbat_user *user, const char *name,
 		ret = PTR_ERR(user);
 		goto out;
 	}
-	strncpy(user->name, name, strlen(name));
+	strncpy(user->name, name, sizeof(user->name) - 1);
 	if (hv_thd_volt >= 5400 || lv1_thd_volt <= 2650) {
 		ret = -11;
 		goto out;

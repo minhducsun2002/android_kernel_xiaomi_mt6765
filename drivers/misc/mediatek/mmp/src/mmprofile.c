@@ -638,7 +638,7 @@ static int mmprofile_get_event_name(mmp_event event, char *name, size_t *size)
 
 		for (i = info_cnt_used - 1; i >= 0; i--) {
 			strncpy(&name[actual_len], event_info[i]->name,
-				strlen(event_info[i]->name) + 1);
+				*size);
 			actual_len += strlen(event_info[i]->name);
 			if (i > 0) {
 				/* not the last name */
@@ -1081,12 +1081,8 @@ mmp_event mmprofile_register_event(mmp_event parent, const char *name)
 		return 0;
 	}
 	index = ++(mmprofile_globals.reg_event_index);
-	if (strlen(name) > MMPROFILE_EVENT_NAME_MAX_LEN) {
-		memcpy(p_regtable->event_info.name, name,
-			MMPROFILE_EVENT_NAME_MAX_LEN);
-		p_regtable->event_info.name[MMPROFILE_EVENT_NAME_MAX_LEN] = 0;
-	} else
-		strncpy(p_regtable->event_info.name, name, strlen(name) + 1);
+	strncpy(p_regtable->event_info.name, name, MMPROFILE_EVENT_NAME_MAX_LEN);
+
 	p_regtable->event_info.parent_id = parent;
 	list_add_tail(&(p_regtable->list), &(mmprofile_regtable.list));
 	mmprofile_globals.event_state[index] = 0;
@@ -1261,7 +1257,7 @@ long mmprofile_log_meta_string_ex(mmp_event event, enum mmp_log_type type,
 	meta_data.p_data = vmalloc(meta_data.size);
 	if (!meta_data.p_data)
 		return -1;
-	strncpy((char *)meta_data.p_data, str, strlen(str) + 1);
+	strncpy((char *)meta_data.p_data, str, meta_data.size);
 	ret = mmprofile_log_meta(event, type, &meta_data);
 	vfree(meta_data.p_data);
 

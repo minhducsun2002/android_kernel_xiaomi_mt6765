@@ -60,7 +60,7 @@ static void conn_md_log_add_msg(struct conn_md_time_struct *cur_time)
 	msg_buf_size = strlen(buf);
 	remain_size = CONN_MD_BUF_SIZE - strlen(g_log_msg_info.msg_buf) - 1;
 	if (remain_size >= msg_buf_size) {
-		strncat(g_log_msg_info.msg_buf, buf, msg_buf_size);
+		strcat(g_log_msg_info.msg_buf, buf);
 		g_log_msg_info.msg_total++;
 	} else {
 		CONN_MD_ERR_FUNC("buff full, %s (remain %d), cant add %s (%d)",

@@ -271,7 +271,7 @@ void imgSensorSetDataEfuseID(u8*buf,u32 deviceID, u32 length)
    PK_INF("deviceID = %d,efuseIDStr = %s\n",deviceID,efuseIDStr);
    index = deviceID/2;
    memset((char*)&imgSensorStaticEfuseID[index][0],0,MAX_EFUSE_ID_LENGTH);
-   strncpy((char*)&imgSensorStaticEfuseID[index][0],(char*)efuseIDStr,strlen((char*)efuseIDStr));
+   strncpy((char*)&imgSensorStaticEfuseID[index][0],(char*)efuseIDStr,MAX_EFUSE_ID_LENGTH);
 }
 u8 *getImgSensorEfuseID(u32 sensorID){ /*deviceID is match the SensorId,0,1,2,3*/
    if(sensorID > (IMGSENSOR_SENSOR_IDX_MAX_NUM - 1)){

@@ -1393,10 +1393,9 @@ static ssize_t show_AUXADC_channel(struct device *dev,
 {
 	int ret = 0;
 	int i = 0;
-	int tmp_len = 0;
 	int rawdata = 0;
 	int tmp_vol[4] = { 0, 0, 0, 0 };
-	char tmp_buf[256];
+	char tmp_buf[512];
 
 	for (i = 0; i < ADC_CHANNEL_MAX; i++) {
 		ret = IMM_auxadc_GetOneChannelValue(i, tmp_vol,
@@ -1405,17 +1404,17 @@ static ssize_t show_AUXADC_channel(struct device *dev,
 			pr_err(TAG "get chn[%d] data error\n", i);
 			rawdata = 0;
 			tmp_vol[0] = -1;
-			tmp_len = snprintf(tmp_buf, 255,
+			snprintf(tmp_buf, sizeof(tmp_buf) - 1,
 					"[%2d,%4d,%4d]-%15.15s-\n",
 					i, rawdata, tmp_vol[0],
 					g_adc_info[i].channel_name);
-			strncat(buf, tmp_buf, strlen(tmp_buf));
+			strncat(buf, tmp_buf, PAGE_SIZE);
 		} else {
-			tmp_len = snprintf(tmp_buf, 255,
+			snprintf(tmp_buf, sizeof(tmp_buf) - 1,
 					"[%2d,%4d,%4d]-%15.15s-\n", i, rawdata,
 					(tmp_vol[0]*1000+tmp_vol[2]),
 					g_adc_info[i].channel_name);
-			strncat(buf, tmp_buf, strlen(tmp_buf));
+			strncat(buf, tmp_buf, PAGE_SIZE);
 			pr_info(TAG "len:%d,chn[%d]=%d mv, [%s]\n",
 					(int)strlen(buf), i,
 					(tmp_vol[0]*1000+tmp_vol[2]),
@@ -1423,10 +1422,10 @@ static ssize_t show_AUXADC_channel(struct device *dev,
 		}
 	}
 
-	sprintf(tmp_buf,
+	snprintf(tmp_buf, sizeof(tmp_buf) - 1,
 		"-->REG:0x%4x,GAIN:%4u,GE_A:%4u,OE_A:%4u,GE:%4d,OE:%4d\n",
 		cali_reg, gain, cali_ge_a, cali_oe_a, cali_ge, cali_oe);
-	strncat(buf, tmp_buf, strlen(tmp_buf));
+	strncat(buf, tmp_buf, PAGE_SIZE);
 	/* mt_auxadc_dump_register(tmp_buf); */
 	/* strncat(buf, tmp_buf, strlen(tmp_buf)); */
 	return strlen(buf);

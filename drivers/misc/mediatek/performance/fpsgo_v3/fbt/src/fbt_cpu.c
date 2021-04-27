@@ -836,7 +836,7 @@ static void fbt_set_min_cap_locked(struct render_info *thr, int min_cap,
 			snprintf(temp, sizeof(temp), ",%d", fl->pid);
 
 		if (strlen(dep_str) + strlen(temp) < MAIN_LOG_SIZE)
-			strncat(dep_str, temp, strlen(temp));
+			strcat(dep_str, temp);
 	}
 
 	fpsgo_main_trace("[%d] dep-list %s", thr->pid, dep_str);

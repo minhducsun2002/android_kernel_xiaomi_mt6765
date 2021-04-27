@@ -3633,7 +3633,7 @@ void cmdq_mdp_check_TF_address(unsigned int mva, char *module)
 		CMDQ_ERR("[MDP] TF caller: %s\n",
 			mdp_tasks[tfTaskIndex].callerName);
 		CMDQ_ERR("%s\n", mdp_tasks[tfTaskIndex].userDebugStr);
-		strncat(module, "_", 1);
+		strncat(module, "_", callerNameLen);
 
 		/* catch caller name only before - or _ */
 		callerNameStart = mdp_tasks[tfTaskIndex].callerName;

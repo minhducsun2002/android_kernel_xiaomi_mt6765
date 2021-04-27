@@ -291,7 +291,7 @@ int update_eas_boost_value(int kicker, int cgroup_idx, int value)
 				current_boost_value[cgroup_idx]);
 
 	if (strlen(msg) + strlen(msg1) < LOG_BUF_SIZE)
-		strncat(msg, msg1, strlen(msg1));
+		strcat(msg, msg1);
 
 	if (log_enable)
 		pr_debug("%s\n", msg);
@@ -375,7 +375,7 @@ int update_eas_uclamp_min(int kicker, int cgroup_idx, int value)
 				cur_uclamp_min[cgroup_idx]);
 
 	if (strlen(msg) + strlen(msg1) < LOG_BUF_SIZE)
-		strncat(msg, msg1, strlen(msg1));
+		strcat(msg, msg1);
 	if (log_enable)
 		pr_debug("%s\n", msg);
 
