@@ -112,7 +112,7 @@ typedef enum {
 *                  F U N C T I O N   D E C L A R A T I O N S
 ********************************************************************************
 */
-#ifdef MTK_WCN_WMT_STP_EXP_SYMBOL_ABSTRACT
+/* #ifdef MTK_WCN_WMT_STP_EXP_SYMBOL_ABSTRACT */
 
 /*****************************************************************************
 * FUNCTION
@@ -311,6 +311,6 @@ extern INT32 _mtk_wcn_stp_register_tx_has_pending_data(ENUM_STP_TX_IF_TYPE stp_i
 						       MTK_WCN_STP_TX_HAS_PENDING_DATA func);
 extern INT32 _mtk_wcn_stp_register_rx_thread_get(ENUM_STP_TX_IF_TYPE stp_if, MTK_WCN_STP_RX_THREAD_GET func);
 
-#endif /* MTK_WCN_WMT_STP_EXP_SYMBOL_ABSTRACT */
+/* #endif // MTK_WCN_WMT_STP_EXP_SYMBOL_ABSTRACT */
 
 #endif /* _STP_EXP_H_ */
